@@ -215,6 +215,8 @@ function uStatus(m,u){
   if(ms.some(function(x){return state.seen[x.id];})) return 'progress';
   return 'ready';
 }
+var MAXU=30;
+function ensureUnits(m,n){n=clamp(n,1,MAXU);if(n<=m.units)return false;for(var u=m.units+1;u<=n;u++)m.titles[u-1]=m.titles[u-1]||('Week '+u);m.units=n;save();return true;}
 function litCount(m){var n=0;for(var u=1;u<=m.units;u++) if(state.lit[m.id+':'+u]) n++;return n;}
 function totals(sem){var l=0,t=0;sem.modules.forEach(function(m){l+=litCount(m);t+=m.units;});return {l:l,t:t};}
 function pending(){var s=curSem();return FILES.filter(function(f){return f.status==='pending'&&(!s||f.sem===s.id);});}
@@ -242,7 +244,8 @@ function suggest(text,sem){
   var mod=best&&best.sc>second?best.m:null, unit=0;
   var mm=/(?:^|[^a-z])(?:sw|week|woche|wk|lecture|lec|session|chapter|ch|unit|module|kapitel)[ _.\-]?0*(\d{1,2})(?![0-9])/i.exec(text);
   if(mm) unit=+mm[1];
-  if(mod&&(unit<1||unit>mod.units)) unit=0;
+  if(mod&&(unit<1||unit>MAXU)) unit=0;
+  if(mod&&unit>mod.units) ensureUnits(mod,unit);
   var why;
   if(mod&&unit) why='Matched '+best.hits.slice(0,2).join(', ')+' and unit '+unit;
   else if(mod) why='Matched '+best.hits.slice(0,2).join(', ')+', but no week number in the name';
@@ -402,7 +405,7 @@ function vModule(r){
       var st=uStatus(m,u),n=mats(m,u).length;
       h+='<li><button class="item '+st+'" data-a="go" data-to="#/m/'+m.id+'/'+u+'"><span class="floor" style="--h:'+m.h+'">'+u+'</span><div class="grow"><div class="t">'+esc(m.titles[u-1])+'</div><div class="s">'+(n?n+' file'+(n>1?'s':''):'No files yet')+'</div></div>'+chip(st)+'</button></li>';
     }
-    h+='</ul>';
+    h+='</ul><div class="row" style="margin-top:12px"><button class="btn ghost small" data-a="addfloor" data-m="'+m.id+'">＋ Add a floor</button>'+(m.units>1&&!mats(m,m.units).length&&!state.lit[m.id+':'+m.units]?'<button class="btn ghost small" data-a="rmfloor" data-m="'+m.id+'">Remove last floor (Week '+m.units+')</button>':'')+'</div>';
   } else {
     h+='<label class="f">Search files<input type="search" id="q" value="'+esc(ui.q)+'" placeholder="Name or type"></label><div id="matlist">'+fileList(m)+'</div>';
   }
@@ -485,10 +488,10 @@ function vDeadlines(){
 function vSetup(){
   if(!ui.setup) ui.setup={name:state.name||'',sname:'Semester '+(state.sems.length+1),start:'2026-09-14',mods:[{code:'',name:'',units:14,kw:''}]};
   var S=ui.setup;
-  var h='<header class="stack"><p class="eyebrow">New semester</p><h1 tabindex="-1" id="h1">Build your district</h1><p class="lede">A building for each module, a floor for each teaching unit. Most semesters have 14 weeks. You can rename units later.</p></header>';
+  var h='<header class="stack"><p class="eyebrow">New semester</p><h1 tabindex="-1" id="h1">Build your district</h1><p class="lede">A building for each module, a floor for each teaching unit. Most semesters have 14 weeks. Not sure how many units a module has? Keep 14. A new floor appears when you import a file with a higher week number, and you can add or remove floors at any time.</p></header>';
   h+='<section class="card stack"><label class="f">Your name (optional)<input type="text" data-sb="name" value="'+esc(S.name)+'" maxlength="30"></label><div class="grid2"><label class="f">Semester name<input type="text" data-sb="sname" value="'+esc(S.sname)+'" maxlength="40"></label><label class="f">First teaching week starts<input type="date" data-sb="start" value="'+esc(S.start)+'"></label></div></section>';
   h+='<section class="stack"><h2>Modules</h2>'+S.mods.map(function(m,i){
-    return '<div class="modrow"><div class="g"><label class="f">Code<input type="text" data-sb="mods.'+i+'.code" value="'+esc(m.code)+'" maxlength="8" placeholder="CNB"></label><label class="f">Name<input type="text" data-sb="mods.'+i+'.name" value="'+esc(m.name)+'" maxlength="60" placeholder="Computer Networks Basics"></label><label class="f">Units<input type="number" min="1" max="24" data-sb="mods.'+i+'.units" value="'+esc(m.units)+'"></label></div>'
+    return '<div class="modrow"><div class="g"><label class="f">Code<input type="text" data-sb="mods.'+i+'.code" value="'+esc(m.code)+'" maxlength="8" placeholder="CNB"></label><label class="f">Name<input type="text" data-sb="mods.'+i+'.name" value="'+esc(m.name)+'" maxlength="60" placeholder="Computer Networks Basics"></label><label class="f">Units (not sure? keep 14)<input type="number" min="1" max="30" data-sb="mods.'+i+'.units" value="'+esc(m.units)+'"></label></div>'
      +'<label class="f">Words that help sort files (optional, comma separated)<input type="text" data-sb="mods.'+i+'.kw" value="'+esc(m.kw)+'" placeholder="router, ipv4, subnet"></label>'
      +(S.mods.length>1?'<div><button class="btn small ghost" data-a="rmmod" data-i="'+i+'">Remove module</button></div>':'')+'</div>';}).join('')
    +'<div class="row"><button class="btn ghost" data-a="addmod">＋ Add a module</button></div></section>';
@@ -582,6 +585,8 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-a]');if(!b||b.disabled)return;
   var a=b.dataset.a,id=b.dataset.id;
   if(a==='go'){go(b.dataset.to);}
+  else if(a==='addfloor'){var am=M(b.dataset.m);if(am){if(am.units>=MAXU)toast('A module can have up to '+MAXU+' floors.');else{ensureUnits(am,am.units+1);render();}}}
+  else if(a==='rmfloor'){var rm=M(b.dataset.m);if(rm&&rm.units>1&&!mats(rm,rm.units).length&&!state.lit[rm.id+':'+rm.units]){rm.titles.length=rm.units-1;rm.units--;save();render();}}
   else if(a==='leave'){pauseTimer();study=null;go(b.dataset.to);}
   else if(a==='tab'){ui.tab=b.dataset.v;render();}
   else if(a==='newsem'){ui.setup=null;go('#/setup');}
@@ -593,7 +598,7 @@ document.addEventListener('click',function(e){
     if(!mods.length){toast('Add at least one module with a code and a name.');return;}
     var sem={id:uid(),name:String(S.sname).trim()||'Semester',start:S.start||'',demo:false,finished:false,modules:[]};
     mods.forEach(function(m,i){
-      var code=String(m.code).trim().toUpperCase().slice(0,8),n=clamp(parseInt(m.units,10)||14,1,24),t=[];
+      var code=String(m.code).trim().toUpperCase().slice(0,8),n=clamp(parseInt(m.units,10)||14,1,MAXU),t=[];
       for(var u=1;u<=n;u++)t.push('Week '+u);
       sem.modules.push({id:uid(),code:code,name:String(m.name).trim(),h:HUES[(state.sems.length*3+i)%HUES.length],units:n,kw:String(m.kw).trim()||ALIASES[code]||'',titles:t,base:{}});
     });
