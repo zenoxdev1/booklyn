@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1254 1254" role="img" aria-labelledby="title desc">
+  <title id="title">Booklyn app icon</title>
+  <desc id="desc">An open book becomes three buildings. One complete floor glows in each building.</desc>
+  <rect width="1254" height="1254" fill="#fff"/>
+  <g fill="#123257">
+    <path d="M129 886q-13 1-16-11-2-8 5-16l90-101q7-8 19-8h53V451q0-12 11-18l168-84q23-12 23 13v399c60 22 106 69 144 150v136c-66-100-178-160-316-170-59-4-116 1-181 9z"/>
+    <path d="M520 758V272q0-13 11-20l83-48q13-8 26 0l94 52q11 6 11 19v483c-56 22-96 68-119 130-22-62-62-108-106-130z"/>
+    <path d="M1125 886q13 1 16-11 2-8-5-16l-90-101q-7-8-19-8h-53V451q0-12-11-18l-168-84q-23-12-23 13v399c-60 22-106 69-146 150v136c66-100 180-160 318-170 59-4 116 1 181 9z"/>
+  </g>
+  <g fill="none" stroke="#123257" stroke-linecap="round" stroke-width="51">
+    <path d="M140 947c205-31 382-15 469 74"/>
+    <path d="M1114 947c-205-31-382-15-469 74"/>
+  </g>
+  <g fill="#ffb623">
+    <rect x="313" y="503" width="60" height="64" rx="11"/>
+    <rect x="395" y="503" width="60" height="64" rx="11"/>
+    <rect x="554" y="433" width="64" height="66" rx="11"/>
+    <rect x="643" y="433" width="64" height="66" rx="11"/>
+    <rect x="810" y="632" width="60" height="64" rx="11"/>
+    <rect x="892" y="632" width="60" height="64" rx="11"/>
+  </g>
+  <g fill="#fff">
+    <rect x="313" y="594" width="60" height="64" rx="11"/>
+    <rect x="395" y="594" width="60" height="64" rx="11"/>
+    <rect x="554" y="329" width="64" height="66" rx="11"/>
+    <rect x="643" y="329" width="64" height="66" rx="11"/>
+    <rect x="554" y="537" width="64" height="66" rx="11"/>
+    <rect x="643" y="537" width="64" height="66" rx="11"/>
+    <rect x="810" y="541" width="60" height="64" rx="11"/>
+    <rect x="892" y="541" width="60" height="64" rx="11"/>
+  </g>
+</svg>
