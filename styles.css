@@ -286,7 +286,8 @@ html.cityfull{overflow:hidden}
 .dot.f{background:var(--lit);opacity:.3}
 .cityv .w-fading{fill:#d9a441;opacity:.5;animation:flick 2.6s ease-in-out infinite}
 @keyframes flick{0%,100%{opacity:.55}45%{opacity:.25}55%{opacity:.5}70%{opacity:.3}}
-.cityv .guest{fill:rgba(40,26,8,.55)}
+.cityv .guest{fill:rgba(32,20,6,.82);pointer-events:none}.cityv .guest .ga{fill:none;stroke:rgba(32,20,6,.82);stroke-width:.9;stroke-linecap:round}.cityv .guest .gh{fill:rgba(18,10,2,.95)}
+.cityv .gname{fill:#fff;stroke:rgba(10,14,32,.85);stroke-width:.55;paint-order:stroke;font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s}.cityv.zin .gname{opacity:1}
 .cityv .lp{stroke:#8d93b3;stroke-width:1.4}
 .cityv .lamp{fill:#ffe3a0}
 .cityv .lamph{fill:rgba(255,214,120,.22)}
