@@ -141,7 +141,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{}};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 function load(){
@@ -234,7 +234,10 @@ function uStatus(m,u){
   return 'ready';
 }
 /* ---- lights, rent and coins ---- */
-var LV=[7,14,30], FADE=7, RENT_CAP=25, RENT_STORE=3, PRICE={tree:30,lamp:50,garden:80,paint:120,shield:40};
+var LV=[7,14,30], FADE=7, RENT_CAP=25, RENT_STORE=3, PRICE={tree:30,lamp:50,garden:80,paint:120,shield:40,pool:90,fountain:70,flowers:40,fence:35,roofpool:110,helipad:140,solar:90,scene:150};
+var SCENES={park:'Evening park',autumn:'Autumn',blossom:'Cherry blossom',snow:'Snow',desert:'Desert'};
+function sceneKey(){var sm=curSem();var k=sm&&state.scenery[sm.id];return SCENES[k]?k:'park';}
+function roofOf(d){return (d&&(d.roof||(d.garden?'garden':'')))||'';}
 var GUESTS=['Mira','Jonas','Ana','Lukas','Sofia','Elias','Lena','Marco','Nora','Tim','Chiara','Noah','Ida','Leo','Emma','Aron'];
 function litTs(k){var t=state.lit[k];return t?(typeof t==='number'&&t>1e12?t:Date.now()):0;}
 function litInfo(k){
@@ -328,6 +331,7 @@ async function addFiles(list,preset){
   var msg=added+' file'+(added===1?'':'s')+' added'+(dups?', '+dups+' duplicate'+(dups>1?'s':'')+' skipped':'')+(failed?', '+failed+' failed':'')+'.';
   if(!preset&&added&&route().name!=='port'){go('#/port');}
   render(); toast(msg);
+  return {added:added,dups:dups,failed:failed};
 }
 async function openFile(id){
   var rec=FILES.filter(function(f){return f.id===id;})[0]; if(!rec) return;
@@ -391,13 +395,59 @@ function boxP(x0,y0,x1,y1,z0,z1,c){
    +'<polygon class="'+c[1]+'" points="'+pts([iso(x1,y1,z0),iso(x1,y0,z0),iso(x1,y0,z1),iso(x1,y1,z1)])+'"/>'
    +'<polygon class="'+c[2]+'" points="'+pts([iso(x0,y0,z1),iso(x1,y0,z1),iso(x1,y1,z1),iso(x0,y1,z1)])+'"/>';
 }
+var SCENE='park';
+function cactusSVG(x,y,s,z){
+  var p=iso(x,y,z||0);
+  return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><ellipse class="ts" cx="3" cy="1" rx="'+(6*s).toFixed(1)+'" ry="'+(2.8*s).toFixed(1)+'"/><rect class="cac" x="'+(-2*s).toFixed(1)+'" y="'+(-15*s).toFixed(1)+'" width="'+(4*s).toFixed(1)+'" height="'+(15*s).toFixed(1)+'" rx="'+(2*s).toFixed(1)+'"/><rect class="cac" x="'+(-6.5*s).toFixed(1)+'" y="'+(-11*s).toFixed(1)+'" width="'+(3*s).toFixed(1)+'" height="'+(6*s).toFixed(1)+'" rx="'+(1.5*s).toFixed(1)+'"/><rect class="cac" x="'+(-6.5*s).toFixed(1)+'" y="'+(-6.2*s).toFixed(1)+'" width="'+(5*s).toFixed(1)+'" height="'+(2.6*s).toFixed(1)+'"/><rect class="cac" x="'+(3.5*s).toFixed(1)+'" y="'+(-13*s).toFixed(1)+'" width="'+(3*s).toFixed(1)+'" height="'+(6*s).toFixed(1)+'" rx="'+(1.5*s).toFixed(1)+'"/><rect class="cac" x="'+(0.5*s).toFixed(1)+'" y="'+(-8.2*s).toFixed(1)+'" width="'+(5*s).toFixed(1)+'" height="'+(2.6*s).toFixed(1)+'"/></g>';
+}
+function pineSVG(x,y,s,z){
+  var p=iso(x,y,z||0);
+  function tri(w,y0,y1){return '<polygon class="tc1" points="'+(-w*s).toFixed(1)+','+(y0*s).toFixed(1)+' '+(w*s).toFixed(1)+','+(y0*s).toFixed(1)+' 0,'+(y1*s).toFixed(1)+'"/>';}
+  return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><ellipse class="ts" cx="3" cy="1" rx="'+(7*s).toFixed(1)+'" ry="'+(3.2*s).toFixed(1)+'"/><rect class="tk" x="-1" y="'+(-5*s).toFixed(1)+'" width="2" height="'+(5*s).toFixed(1)+'"/>'+tri(7.5,-4,-15)+tri(5.6,-10,-21)+tri(3.6,-16,-26)+'<polygon class="snowcap" points="'+(-2.2*s).toFixed(1)+','+(-20.2*s).toFixed(1)+' '+(2.2*s).toFixed(1)+','+(-20.2*s).toFixed(1)+' 0,'+(-26*s).toFixed(1)+'"/></g>';
+}
 function treeSVG(x,y,s,z){
+  if(SCENE==='desert')return cactusSVG(x,y,s,z);
+  if(SCENE==='snow')return pineSVG(x,y,s,z);
   var p=iso(x,y,z||0);
   return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><ellipse class="ts" cx="3" cy="1" rx="'+(7*s).toFixed(1)+'" ry="'+(3.2*s).toFixed(1)+'"/><rect class="tk" x="-1" y="'+(-7*s).toFixed(1)+'" width="2" height="'+(7*s).toFixed(1)+'"/><circle class="tc1" cy="'+(-12*s).toFixed(1)+'" r="'+(7*s).toFixed(1)+'"/><circle class="tc2" cx="-1.6" cy="'+(-14.2*s).toFixed(1)+'" r="'+(4.6*s).toFixed(1)+'"/></g>';
 }
 function lampSVG(x,y){
   var p=iso(x,y,0);
   return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><line class="lp" x1="0" y1="0" x2="0" y2="-15"/><circle class="lamph" cy="-16" r="7"/><circle class="lamp" cy="-16" r="2.6" filter="url(#cglow)"/></g>';
+}
+function flatP(x0,y0,x1,y1,z,c){return '<polygon class="'+c+'" points="'+pts([iso(x0,y0,z),iso(x1,y0,z),iso(x1,y1,z),iso(x0,y1,z)])+'"/>';}
+function poolSVG(x0,y0,x1,y1,z){
+  var a=iso((x0+x1)/2-.1,(y0+y1)/2-.1,z+.4),b=iso((x0+x1)/2+.12,(y0+y1)/2+.12,z+.4);
+  return boxP(x0,y0,x1,y1,z,z+.8,['pool-rl','pool-rr','pool-r'])+flatP(x0+.08,y0+.08,x1-.08,y1-.08,z+.85,'pool-w')+'<line class="pool-h" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/>';
+}
+function fountainSVG(x,y){
+  var t=iso(x,y,9),b=iso(x,y,3);
+  return boxP(x-.4,y-.4,x+.4,y+.4,0,2.4,['pool-rl','pool-rr','pool-r'])+flatP(x-.32,y-.32,x+.32,y+.32,2.6,'pool-w')
+   +'<line class="fnj" x1="'+b[0].toFixed(1)+'" y1="'+b[1].toFixed(1)+'" x2="'+t[0].toFixed(1)+'" y2="'+t[1].toFixed(1)+'"/><circle class="fnd" cx="'+(t[0]-3).toFixed(1)+'" cy="'+(t[1]+3).toFixed(1)+'" r="1.2"/><circle class="fnd" cx="'+(t[0]+3).toFixed(1)+'" cy="'+(t[1]+3).toFixed(1)+'" r="1.2"/><circle class="fnd" cx="'+t[0].toFixed(1)+'" cy="'+(t[1]-1).toFixed(1)+'" r="1.4"/>';
+}
+function flowersSVG(x0,y0,x1,y1,seed){
+  var o=flatP(x0,y0,x1,y1,.3,'bed'),n=0;
+  for(var i=0;i<9;i++){var fx=x0+(x1-x0)*(((seed>>(i%7))*7+i*37)%10)/10+.04,fy=y0+(y1-y0)*(((seed>>(i%5))*3+i*53)%10)/10+.04,p=iso(fx,fy,.8);o+='<circle class="fw fw'+((seed+i)%4)+'" cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="1.7"/>';}
+  return o;
+}
+function fenceSVG(x0,y0,x1,y1){
+  var o='',n=Math.max(2,Math.round(Math.hypot(x1-x0,y1-y0)/.38)),a=iso(x0,y0,5.5),b=iso(x1,y1,5.5);
+  for(var i=0;i<=n;i++){var fx=x0+(x1-x0)*i/n,fy=y0+(y1-y0)*i/n,p=iso(fx,fy,0),q=iso(fx,fy,6);o+='<line class="fp" x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'"/>';}
+  return o+'<line class="fr" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/>';
+}
+function helipadSVG(cx,cy,z){
+  var ring=[],i;for(i=0;i<24;i++){var an=i/24*Math.PI*2;ring.push(iso(cx+Math.cos(an)*.78,cy+Math.sin(an)*.78,z+.3));}
+  function L(ax,ay,bx,by){var p=iso(ax,ay,z+.4),q=iso(bx,by,z+.4);return '<line class="hp-l" x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'"/>';}
+  return '<polygon class="hp-c" points="'+pts(ring)+'"/>'+L(cx-.25,cy-.3,cx-.25,cy+.3)+L(cx+.25,cy-.3,cx+.25,cy+.3)+L(cx-.25,cy,cx+.25,cy);
+}
+function solarSVG(cx,cy,z){
+  var o='';
+  [[cx-.72,cx-.06],[cx+.06,cx+.72]].forEach(function(r){
+    o+='<polygon class="sol" points="'+pts([iso(r[0],cy-.5,z+3.2),iso(r[1],cy-.5,z+3.2),iso(r[1],cy+.5,z+.6),iso(r[0],cy+.5,z+.6)])+'"/>';
+    var m1=iso((r[0]+r[1])/2,cy-.5,z+3.2),m2=iso((r[0]+r[1])/2,cy+.5,z+.6),m3=iso(r[0],cy,z+1.9),m4=iso(r[1],cy,z+1.9);
+    o+='<line class="sol-g" x1="'+m1[0].toFixed(1)+'" y1="'+m1[1].toFixed(1)+'" x2="'+m2[0].toFixed(1)+'" y2="'+m2[1].toFixed(1)+'"/><line class="sol-g" x1="'+m3[0].toFixed(1)+'" y1="'+m3[1].toFixed(1)+'" x2="'+m4[0].toFixed(1)+'" y2="'+m4[1].toFixed(1)+'"/>';
+  });
+  return o;
 }
 function bldgSVG(m,x0,y0,x1,y1,idx,I){
   var N=m.N,fh=clamp(96/N,4,9),H=N*fh,zb=CITY.ZB,lit=0;
@@ -427,7 +477,11 @@ function bldgSVG(m,x0,y0,x1,y1,idx,I){
    +'<g>'+wo+'</g><g class="lw" filter="url(#cglow)">'+wl+'</g><g>'+wg+'</g>';
   var HT=zb+H,cx=(x0+x1)/2,cy=(y0+y1)/2,v=hashStr(m.code)%3,top=HT;
   s+='<polygon class="roof" points="'+pts([iso(x0,y0,HT),iso(x1,y0,HT),iso(x1,y1,HT),iso(x0,y1,HT)])+'"/>';
-  if(m.d&&m.d.garden){s+=boxP(cx-.75,cy-.75,cx+.75,cy+.75,HT,HT+1.6,['gd-l','gd-r','gd-t'])+treeSVG(cx-.3,cy-.35,.5,HT+1.6)+treeSVG(cx+.35,cy+.1,.45,HT+1.6)+treeSVG(cx-.2,cy+.4,.4,HT+1.6);top=HT+10;}
+  var rf=roofOf(m.d);
+  if(rf==='garden'){s+=boxP(cx-.75,cy-.75,cx+.75,cy+.75,HT,HT+1.6,['gd-l','gd-r','gd-t'])+treeSVG(cx-.3,cy-.35,.5,HT+1.6)+treeSVG(cx+.35,cy+.1,.45,HT+1.6)+treeSVG(cx-.2,cy+.4,.4,HT+1.6);top=HT+10;}
+  else if(rf==='roofpool'){s+=poolSVG(cx-.7,cy-.7,cx+.7,cy+.7,HT);top=HT+3;}
+  else if(rf==='helipad'){s+=helipadSVG(cx,cy,HT);top=HT+3;}
+  else if(rf==='solar'){s+=solarSVG(cx,cy,HT);top=HT+5;}
   else if(v===0){s+=boxP(cx-.3,cy-.3,cx+.3,cy+.3,HT,HT+7,['rb-l','rb-r','rb-t']);top=HT+7;}
   else if(v===1){var a=iso(cx,cy,HT),b=iso(cx,cy,HT+18);s+='<line class="ant" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/><circle class="beacon" cx="'+b[0].toFixed(1)+'" cy="'+b[1].toFixed(1)+'" r="1.8"/>';top=HT+18;}
   else{s+=boxP(cx-.45,cy-.2,cx+.1,cy+.35,HT,HT+4,['rb-l','rb-r','rb-t']);s+=boxP(cx+.05,cy-.5,cx+.45,cy-.1,HT,HT+8,['rb-l','rb-r','rb-t']);top=HT+8;}
@@ -439,7 +493,7 @@ function bldgSVG(m,x0,y0,x1,y1,idx,I){
 }
 function citySVG(mods,o){
   o=o||{};var I=!!o.interactive,n=mods.length||1,lay=cityLayout(n),C=lay.c,R=lay.r,P=CITY.P,F=CITY.F,items=[],ex=.35,minY=iso(-ex,-ex,0)[1];
-  var occupied=mods.length;
+  var occupied=mods.length;SCENE=o.scene||sceneKey();
   for(var slot=0;slot<C*R;slot++){
     var cx=slot%C,cy=Math.floor(slot/C),ox=cx*P,oy=cy*P;
     if(slot<occupied){
@@ -448,6 +502,10 @@ function citySVG(mods,o){
       items.push({d:(x0+x1+y0+y1)/2-.01,html:bldgSVG(m,x0,y0,x1,y1,slot,I)});
       var dc=m.d||{};
       for(var q=0;q<(dc.tree||0)&&q<3;q++){var tp=[[P/2+.5,.7],[.7,P/2+.5],[P-.8,.9]][q];items.push({d:ox+tp[0]+oy+tp[1],html:treeSVG(ox+tp[0],oy+tp[1],1.05)});}
+      if(dc.pool)items.push({d:ox+3.5+oy+2.2,html:poolSVG(ox+3.1,oy+1.5,ox+3.8,oy+2.9,0)});
+      if(dc.fountain)items.push({d:ox+2.1+oy+3.5,html:fountainSVG(ox+2.1,oy+3.5)});
+      if(dc.flowers){items.push({d:ox+.7+oy+1.7,html:flowersSVG(ox+.45,oy+1.2,ox+1.0,oy+2.2,hashStr(m.code))});items.push({d:ox+3.4+oy+3.2,html:flowersSVG(ox+2.6,oy+3.3,ox+3.4,oy+3.8,hashStr(m.code)>>3)});}
+      if(dc.fence){items.push({d:ox+oy+P-.3+P-.3+.2,html:fenceSVG(ox+.3,oy+P-.3,ox+P-.3,oy+P-.3)});items.push({d:ox+oy+P-.3+P-.3+.1,html:fenceSVG(ox+P-.3,oy+.3,ox+P-.3,oy+P-.3)});}
       if(dc.lamp){[[x0-.2,y1+.4],[x1+.4,y1+.4]].forEach(function(lp){items.push({d:lp[0]+lp[1]+.05,html:lampSVG(lp[0],lp[1])});});}
       var hs=hashStr(m.code+slot);
       [[.7,.7],[P-.7,.7],[.7,P-.7],[P-.7,P-.7]].forEach(function(sp,j){
@@ -468,8 +526,9 @@ function citySVG(mods,o){
   for(var j=1;j<R;j++) g+='<polyline class="road" points="'+pts([iso(0,P*j,0),iso(C*P,P*j,0)])+'"/>';
   for(var s2=0;s2<C*R;s2++){var qx=(s2%C)*P,qy=Math.floor(s2/C)*P;g+='<polygon class="lawn" points="'+pts([iso(qx+.3,qy+.3,0),iso(qx+P-.3,qy+.3,0),iso(qx+P-.3,qy+P-.3,0),iso(qx+.3,qy+P-.3,0)])+'"/>';}
   items.forEach(function(it){g+=it.html;});
+  if(SCENE==='snow'){for(var fk=0;fk<46;fk++){var fx=(hashStr('f'+fk)%1000)/1000*C*P,fy=(hashStr('g'+fk)%1000)/1000*R*P,fp=iso(fx,fy,(hashStr('h'+fk)%60)+4);g+='<circle class="flake" style="animation-delay:-'+((fk%9)*.7).toFixed(1)+'s" cx="'+fp[0].toFixed(1)+'" cy="'+fp[1].toFixed(1)+'" r="'+(1+(fk%3)*.5)+'"/>';}}
   var lit=0,tot=0;mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});});
-  return '<svg class="cityv"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Your semester as a city: '+mods.length+' buildings, '+lit+' of '+tot+' floors have their lights on"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
+  return '<svg class="cityv sc-'+SCENE+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Your semester as a city: '+mods.length+' buildings, '+lit+' of '+tot+' floors have their lights on"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
 }
 function cityBox(mods,o){
   o=o||{};var I=!!o.interactive,lit=0,tot=0;
@@ -483,7 +542,7 @@ function cityBox(mods,o){
   if(I) h+='<p class="chint">Tap a building to open it. Drag to look around.</p>';
   return h+'</section>';
 }
-function setupCityHTML(){return cityBox(setupMods(),{interactive:false,legend:false,label:'Preview of your district'});}
+function setupCityHTML(){return cityBox(setupMods(),{interactive:false,legend:false,scene:'park',label:'Preview of your district'});}
 /* pan and zoom */
 function vpoint(cx,cy){
   var svg=$('#citysvg');if(!svg||!svg.getScreenCTM)return [0,0];
@@ -539,7 +598,52 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null};
+var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false}};
+var iliasBridge=false, iliasRequests={};
+window.addEventListener('message',function(event){
+  if(event.source!==window||event.origin!==location.origin||!event.data||event.data.source!=='booklyn-ilias-extension')return;
+  var data=event.data;
+  if(data.type==='ready'){iliasBridge=true;if(route().name==='port')render();return;}
+  var request=iliasRequests[data.requestId];if(!request)return;
+  clearTimeout(request.timer);delete iliasRequests[data.requestId];request.resolve(data.response||{ok:false,message:'No response from ILIAS.'});
+});
+function iliasRequest(type,details){
+  if(!iliasBridge)return Promise.resolve({ok:false,message:'Install the Booklyn ILIAS Connector, reload Booklyn, then try again.'});
+  return new Promise(function(resolve){
+    var id=uid(),timer=setTimeout(function(){delete iliasRequests[id];resolve({ok:false,message:'ILIAS took too long to respond. Try again.'});},60000);
+    iliasRequests[id]={resolve:resolve,timer:timer};
+    window.postMessage(Object.assign({source:'booklyn-app',type:type,requestId:id},details||{}),location.origin);
+  });
+}
+async function scanIlias(){
+  ui.ilias.busy=true;ui.ilias.status='Checking ILIAS…';render();
+  var result=await iliasRequest('scan');
+  ui.ilias.busy=false;ui.ilias.scanned=true;
+  if(!result.ok){ui.ilias.status=result.message||'Could not check ILIAS.';render();return;}
+  var discovered=0;
+  ui.ilias.items=(result.files||[]).filter(function(file){return !state.iliasImported[file.key];}).map(function(file){
+    file.isNew=!state.iliasKnown[file.key];if(file.isNew)discovered++;
+    state.iliasKnown[file.key]=Date.now();return file;
+  });
+  state.iliasLast=Date.now();save();
+  ui.ilias.status=ui.ilias.items.length?discovered+' newly found · '+ui.ilias.items.length+' available to add.':'No new file links found on the scanned ILIAS pages.';
+  if(result.limited)ui.ilias.status+=' Scan limited to 18 pages.';
+  render();
+}
+async function importIlias(key){
+  var file=ui.ilias.items.filter(function(item){return item.key===key;})[0];if(!file)return;
+  ui.ilias.busy=true;ui.ilias.status='Downloading '+file.name+'…';render();
+  var result=await iliasRequest('download',{url:file.url,name:file.name});
+  if(!result.ok){ui.ilias.busy=false;ui.ilias.status=result.message||'Could not download this file.';render();return;}
+  try{
+    var binary=atob(result.base64),bytes=new Uint8Array(binary.length);
+    for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    var added=await addFiles([new File([bytes],result.name||file.name,{type:result.mime||'application/octet-stream'})]);
+    if(added&&(added.added||added.dups)){state.iliasImported[key]=Date.now();save();ui.ilias.items=ui.ilias.items.filter(function(item){return item.key!==key;});}
+    ui.ilias.status=added&&added.added?'File added to the Port for review.':added&&added.dups?'This file is already in Booklyn.':'Could not add the file.';
+  }catch(error){ui.ilias.status='Could not read the downloaded file.';}
+  ui.ilias.busy=false;render();
+}
 function cur(){return memHash;}
 function go(to){memHash=to;ui.cityFull=false;try{if(location.hash!==to)location.hash=to;}catch(e){}render(true);}
 function route(){
@@ -564,7 +668,7 @@ function foot(){return '<p class="disclaimer">Unofficial student project, not af
 
 function vWelcome(){
   return '<section class="hero"><p class="eyebrow">Welcome</p><h1 tabindex="-1" id="h1">Booklyn</h1><p class="motto">Keep your lights on.</p>'
-   +cityBox(sampleMods(),{interactive:false,build:true,label:'A sample district'})+'<p class="foot">A sample district. Yours builds itself as you add your modules.</p>'
+   +cityBox(sampleMods(),{interactive:false,build:true,scene:'park',label:'A sample district'})+'<p class="foot">A sample district. Yours builds itself as you add your modules.</p>'
    +'<p class="lede">A study app for students that turns each week’s course material into a city you light up as you learn, so you always know what to study next.</p>'
    +'<div class="row"><button class="btn" data-a="newsem">Build my first semester</button><button class="btn ghost" data-a="demo">Try the demo</button></div></section>'
    +'<section class="card stack"><h3>How it works</h3><p class="lede">Your degree is a city. A semester is a district, a module is a building and each teaching unit is a floor. Add your files, study a unit, pass the short check, and the light goes on.</p></section>'+foot();
@@ -607,6 +711,14 @@ function vPort(){
   var list=pending();
   var h='<header class="stack"><p class="eyebrow">Learning Port</p><h1 tabindex="-1" id="h1">Add and sort files</h1><p class="lede">Any file type and any size. Booklyn suggests a module and week from the file name. You decide. Files marked “Check this” stay here until you confirm them.</p></header>';
   h+='<section class="drop" data-drop><h2>Drop files here</h2><p class="lede">or choose them from your computer or phone</p><div class="row" style="justify-content:center"><button class="btn" data-a="pickfiles">Choose files</button><button class="btn ghost" data-a="pickfolder">Choose a folder</button></div></section>';
+  var lastChk=state.iliasLast?new Date(state.iliasLast).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  h+='<section class="card stack"><div class="row" style="justify-content:space-between"><div><p class="eyebrow">HSLU ILIAS</p><h2>Find new files</h2></div><a class="btn ghost small" href="https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show" target="_blank" rel="noopener noreferrer">Open ILIAS ↗</a></div>'
+    +'<p class="lede">Booklyn looks for file links on your ILIAS dashboard and linked courses. Nothing is downloaded or imported until you press “Add to Port”. Sign in to ILIAS in this browser first.</p>'
+    +'<div class="row"><button class="btn small" data-a="scanilias" '+(ui.ilias.busy?'disabled':'')+'>Check ILIAS</button><span class="foot">'+(iliasBridge?'Connector ready':'Needs the Booklyn ILIAS Connector browser extension')+'</span></div>'
+    +'<p class="foot">'+(lastChk?'Last checked: '+lastChk+'.':'Not checked yet.')+'</p>'
+    +(!iliasBridge?'<p class="foot">Install it once: open <strong>edge://extensions</strong> (or chrome://extensions), turn on Developer mode, press “Load unpacked” and choose the <strong>ilias-extension</strong> folder. Then reload Booklyn.</p>':'')
+    +(ui.ilias.status?'<p class="foot" role="status">'+esc(ui.ilias.status)+'</p>':'')
+    +(ui.ilias.items.length?'<ul class="list">'+ui.ilias.items.map(function(file){return '<li class="item"><div class="grow"><div class="t">'+esc(file.name)+(file.isNew?' <span class="chip">New</span>':'')+'</div><div class="s">'+esc(file.context||'ILIAS')+'</div></div><div class="row"><button class="btn small" data-a="iliasimport" data-key="'+esc(file.key)+'" '+(ui.ilias.busy?'disabled':'')+'>Add to Port</button><a class="btn ghost small" href="'+esc(file.openUrl||file.url)+'" target="_blank" rel="noopener noreferrer">Open ↗</a></div></li>';}).join('')+'</ul>':'')+'</section>';
   if(state.lastImport.length&&!list.length){
     var by={};state.lastImport.forEach(function(id){var f=FILES.filter(function(x){return x.id===id;})[0];if(f&&f.status==='imported'){by[f.mod]=(by[f.mod]||0)+1;}});
     h+='<section class="card stack"><h3>Imported</h3><div class="row tight">'+Object.keys(by).map(function(k){var m=M(k);return m?'<button class="chip" data-a="go" data-to="#/m/'+m.id+'" style="border:0;cursor:pointer">'+esc(m.code)+' · '+by[k]+'</button>':'';}).join('')+'</div><div class="row"><button class="btn ghost small" data-a="undo">Undo this import</button></div></section>';
@@ -709,7 +821,7 @@ function vStudy(r){
   return h;
 }
 
-function shopItem(name,desc,price,control){return '<div class="shopitem"><div class="grow"><div class="t">'+name+'</div><div class="s">'+desc+'</div></div><div class="shopbuy"><span class="price"><i class="cdot"></i>'+price+'</span>'+control+'</div></div>';}
+function shopItem(name,desc,price,control){return '<div class="shopitem"><div class="grow"><div class="t">'+name+'</div><div class="s">'+desc+'</div></div><div class="shopbuy">'+(price?'<span class="price"><i class="cdot"></i>'+price+'</span>':'')+control+'</div></div>';}
 function vShop(){
   var sem=curSem();if(!sem)return vWelcome();
   var mods=sem.modules;if(!ui.shopMod||!mods.some(function(x){return x.id===ui.shopMod;}))ui.shopMod=mods[0].id;
@@ -717,12 +829,27 @@ function vShop(){
   function bb(item,label,off,extra){return '<button class="btn small" data-a="buy" data-item="'+item+'" '+(extra||'')+(off?' disabled':'')+'>'+label+'</button>';}
   var h='<header class="stack"><p class="eyebrow">Shop</p><h1 tabindex="-1" id="h1">Decorate your city</h1><p class="lede">Earn coins by lighting floors, and from the rent your guests pay each day. Everything here is for looks, except the shield.</p><div class="coinline"><i class="cdot"></i><b>'+co+' coins</b><span>Rent right now: +'+rentPerDay()+' a day</span></div></header>';
   h+='<label class="f">Place items at<select data-c="shopmod">'+mods.map(function(x){return '<option value="'+x.id+'"'+(x.id===sm.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>';
-  h+='<div id="shopcity">'+cityBox(cityMods(sem),{interactive:false,legend:false,label:'Your district'})+'</div>';
-  h+='<section class="stack">'
-   +shopItem('Tree','Plant a tree next to '+esc(sm.code)+' ('+(d.tree||0)+' of 3).',PRICE.tree,bb('tree','Plant',co<PRICE.tree||(d.tree||0)>=3))
-   +shopItem('Street lamps','Two glowing lamps in front of '+esc(sm.code)+'.',PRICE.lamp,d.lamp?'<span class="foot">Owned</span>':bb('lamp','Buy',co<PRICE.lamp))
-   +shopItem('Rooftop garden','Green planters and small trees on the roof of '+esc(sm.code)+'.',PRICE.garden,d.garden?'<span class="foot">Owned</span>':bb('garden','Buy',co<PRICE.garden))
-   +shopItem('Paint','Repaint '+esc(sm.code)+' in another colour.',PRICE.paint,'<div class="swatches">'+[20,45,95,165,215,270,330].map(function(hu){return '<button class="sw'+(d.hue===hu?' on':'')+'" style="background:hsl('+hu+' 45% 48%)" data-a="buy" data-item="paint" data-hue="'+hu+'" aria-label="Paint in colour '+hu+'" '+(co<PRICE.paint?'disabled':'')+'></button>';}).join('')+(d.hue!=null?'<button class="btn small ghost" data-a="buy" data-item="unpaint">Original</button>':'')+'</div>')
+  h+='<div id="shopcity">'+cityBox(cityMods(sem).filter(function(x){return x.id===sm.id;}),{interactive:false,legend:false,label:'Your building'})+'</div>';
+  function own(k,t,desc,price){return shopItem(t,desc,price,d[k]?'<span class="foot">Owned</span>':bb(k,'Buy',co<price));}
+  function roof(k,t,desc,price){var on=roofOf(d)===k;return shopItem(t,desc,price,on?'<span class="foot">On the roof</span>':bb(k,roofOf(d)?'Swap':'Buy',co<price));}
+  var c=esc(sm.code),sk=sceneKey();
+  h+='<section class="stack"><h3>Around '+c+'</h3>'
+   +shopItem('Tree','Plant a tree next to '+c+' ('+(d.tree||0)+' of 3).',PRICE.tree,bb('tree','Plant',co<PRICE.tree||(d.tree||0)>=3))
+   +own('lamp','Street lamps','Two glowing lamps in front of '+c+'.',PRICE.lamp)
+   +own('pool','Swimming pool','A pool in the garden of '+c+'.',PRICE.pool)
+   +own('fountain','Fountain','A small fountain at the front door.',PRICE.fountain)
+   +own('flowers','Flower beds','Colourful flower beds around the garden.',PRICE.flowers)
+   +own('fence','Fence','A low white fence around the plot.',PRICE.fence)
+   +'<h3>On the roof of '+c+'</h3>'
+   +roof('garden','Rooftop garden','Green planters and small trees.',PRICE.garden)
+   +roof('roofpool','Rooftop pool','A pool with a view. Swapping replaces the current roof item.',PRICE.roofpool)
+   +roof('helipad','Helipad','A landing pad for important guests.',PRICE.helipad)
+   +roof('solar','Solar panels','Two rows of panels catching the moonlight.',PRICE.solar)
+   +'<h3>Colour</h3>'
+   +shopItem('Paint','Repaint '+c+' in another colour.',PRICE.paint,'<div class="swatches">'+[20,45,95,165,215,270,330].map(function(hu){return '<button class="sw'+(d.hue===hu?' on':'')+'" style="background:hsl('+hu+' 45% 48%)" data-a="buy" data-item="paint" data-hue="'+hu+'" aria-label="Paint in colour '+hu+'" '+(co<PRICE.paint?'disabled':'')+'></button>';}).join('')+(d.hue!=null?'<button class="btn small ghost" data-a="buy" data-item="unpaint">Original</button>':'')+'</div>')
+   +'<h3>Scenery for the whole district</h3><p class="foot">Buy a look once, then switch between the ones you own for free.</p>'
+   +Object.keys(SCENES).map(function(k){var owned=k==='park'||state.sceneOwn[k];return shopItem(SCENES[k],k==='park'?'The default look.':'Changes the ground, the trees and the mood of the district.',owned?0:PRICE.scene,sk===k?'<span class="foot">In use</span>':'<button class="btn small" data-a="buy" data-item="scene" data-scene="'+k+'" '+(!owned&&co<PRICE.scene?'disabled':'')+'>'+(owned?'Use':'Buy')+'</button>');}).join('')
+   +'<h3>Useful</h3>'
    +shopItem('Shield','Saves one fading light, any floor, without a check. You can hold 2 ('+state.shields+' now).',PRICE.shield,bb('shield','Buy',co<PRICE.shield||state.shields>=2))
    +'</section>'
    +'<section class="card stack"><h3>How coins work</h3><p class="lede">First light on a floor +10. Saving a fading light +5. A week lit in every module +15. A finished building +50. Each lit floor pays 1 coin of rent a day (up to 25), stored for 3 days at most. Floors you keep on for good pay no rent.</p></section>'+foot();
@@ -875,14 +1002,20 @@ document.addEventListener('click',function(e){
   else if(a==='buy'){
     var it=b.dataset.item,sm2=M(ui.shopMod),dd;
     if(it==='unpaint'){if(sm2&&state.deco[sm2.id]){delete state.deco[sm2.id].hue;save();render();}return;}
+    if(it==='scene'){
+      var sk2=b.dataset.scene,sem2=curSem();if(!sem2||!SCENES[sk2])return;
+      if(sk2==='park'||state.sceneOwn[sk2]){state.scenery[sem2.id]=sk2;save();render();return;}
+      if(state.coins<PRICE.scene){toast('Not enough coins yet.');return;}
+      state.coins-=PRICE.scene;state.sceneOwn[sk2]=true;state.scenery[sem2.id]=sk2;save();render();toast('Your district has a new look.');return;
+    }
     var cost=PRICE[it];if(!cost)return;
     if(state.coins<cost){toast('Not enough coins yet.');return;}
     if(it==='shield'){if(state.shields>=2){toast('You can hold 2 shields.');return;}state.shields++;}
     else{
       if(!sm2)return;dd=state.deco[sm2.id]=state.deco[sm2.id]||{};
       if(it==='tree'){if((dd.tree||0)>=3){toast('This building has all its trees.');return;}dd.tree=(dd.tree||0)+1;}
-      else if(it==='lamp'){if(dd.lamp)return;dd.lamp=true;}
-      else if(it==='garden'){if(dd.garden)return;dd.garden=true;}
+      else if(['lamp','pool','fountain','flowers','fence'].indexOf(it)>=0){if(dd[it])return;dd[it]=true;}
+      else if(['garden','roofpool','helipad','solar'].indexOf(it)>=0){if(roofOf(dd)===it)return;dd.roof=it;delete dd.garden;}
       else if(it==='paint'){dd.hue=+b.dataset.hue;}
     }
     state.coins-=cost;save();render();toast('Bought. It is already in your city.');
@@ -914,6 +1047,8 @@ document.addEventListener('click',function(e){
     if(S.name)state.name=S.name;
     state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;ui.cityBuild=true;ui.cityT={x:0,y:0,k:1};save();go('#/');toast('Your district is ready. Tap a building to add its first files.');
   }
+  else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
+  else if(a==='iliasimport'){if(!ui.ilias.busy)importIlias(b.dataset.key);}
   else if(a==='pickfiles'){ui.preset=null;$('#fi').click();}
   else if(a==='pickfolder'){ui.preset=null;$('#fd').click();}
   else if(a==='pickhere'){ui.preset={mod:b.dataset.mod,unit:+b.dataset.unit};$('#fi').click();}
@@ -1011,6 +1146,7 @@ document.addEventListener('dragleave',function(e){var z=e.target.closest&&e.targ
 document.addEventListener('drop',function(e){var z=e.target.closest&&e.target.closest('[data-drop]');if(z){e.preventDefault();z.classList.remove('over');ui.preset=null;if(e.dataTransfer&&e.dataTransfer.files.length)addFiles(e.dataTransfer.files);}});
 
 /* ================= boot ================= */
+try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catch(e){}
 render(false);
 dbAll().then(function(all){FILES=all||[];render(false);}).catch(function(){filesOK=false;render(false);});
 })();

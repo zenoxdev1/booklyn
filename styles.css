@@ -314,3 +314,23 @@ html.cityfull{overflow:hidden}
 details summary{cursor:pointer}
 
 @media (min-width:900px){#shopcity{position:sticky;top:10px;z-index:6;box-shadow:0 10px 30px -14px rgba(10,14,32,.6);border-radius:20px}#shopcity .cityvp{height:280px}}
+
+/* decorations and scenery */
+.cityv .pool-r{fill:#9fb0d6}.cityv .pool-rl{fill:#7d8db5}.cityv .pool-rr{fill:#5f6f98}
+.cityv .pool-w{fill:#38b6e8}.cityv .pool-h{stroke:#bff0ff;stroke-width:1.2;stroke-linecap:round;opacity:.8}
+.cityv .fnj{stroke:#8fe3ff;stroke-width:1.6;stroke-linecap:round}.cityv .fnd{fill:#bff0ff}
+.cityv .bed{fill:#3a3023}
+.cityv .fw0{fill:#ff8fb1}.cityv .fw1{fill:#ffd166}.cityv .fw2{fill:#b8a2ff}.cityv .fw3{fill:#ffffff}
+.cityv .fp{stroke:#e8ecf8;stroke-width:1.5;stroke-linecap:round}.cityv .fr{stroke:#e8ecf8;stroke-width:1.6;stroke-linecap:round}
+.cityv .hp-c{fill:#3a4160;stroke:#e8ecf8;stroke-width:1.4}.cityv .hp-l{stroke:#ffd166;stroke-width:2;stroke-linecap:round}
+.cityv .sol{fill:#27407a;stroke:#9db4ee;stroke-width:.6}.cityv .sol-g{stroke:#9db4ee;stroke-width:.5;opacity:.7}
+.cityv .cac{fill:#4f8a4a}
+.cityv .snowcap{fill:#f1f5ff}
+.cityv .flake{fill:#fff;opacity:.85;pointer-events:none;animation:flakefall 5.5s linear infinite}
+@keyframes flakefall{from{transform:translateY(-14px)}to{transform:translateY(22px)}}
+@media (prefers-reduced-motion:reduce){.cityv .flake{animation:none!important}}
+.cityv.sc-autumn .lawn{fill:#4c3d2a}.cityv.sc-autumn .tc1{fill:#b4561f}.cityv.sc-autumn .tc2{fill:#dc8a2e}.cityv.sc-autumn .slab-t{fill:#2a2230}.cityv.sc-autumn .road{stroke:#c9a06a}
+.cityv.sc-blossom .lawn{fill:#35504b}.cityv.sc-blossom .tc1{fill:#cf6f9f}.cityv.sc-blossom .tc2{fill:#f4abcb}
+.cityv.sc-snow .lawn{fill:#9aa9cc}.cityv.sc-snow .tc1{fill:#2c5d4f}.cityv.sc-snow .slab-t{fill:#2b3558}.cityv.sc-snow .road{stroke:#e8eefc;stroke-opacity:.6}
+.cityv.sc-desert .lawn{fill:#8a6f45}.cityv.sc-desert .slab-t{fill:#3b2f2c}.cityv.sc-desert .slab-l{fill:#2a2120}.cityv.sc-desert .road{stroke:#e0bf86}
+.stack > h3{margin-top:10px}
