@@ -680,7 +680,7 @@ function route(){
 }
 
 /* ================= views ================= */
-function foot(){return '<p class="disclaimer">Unofficial student project, not affiliated with HSLU. Your files and progress stay on this device. Nothing is tracked.</p>';}
+function foot(){return '<p class="disclaimer">Unofficial student project, not affiliated with HSLU. Your files stay on this device. Your progress stays here too unless you turn on sync. No ads, no tracking.</p>';}
 
 function vWelcome(){
   return '<section class="hero"><p class="eyebrow">Welcome</p><h1 tabindex="-1" id="h1">Booklyn</h1><p class="motto">Keep your lights on.</p>'
@@ -1062,7 +1062,7 @@ function vSettings(){
   h+='<section class="card stack"><h3>Storage</h3><p class="lede" id="stor">Checking…</p><div class="row"><button class="btn small ghost" data-a="persist">Ask the browser to keep my files</button></div></section>';
   h+='<section class="card stack"><h3>Back up your progress</h3><p class="lede">'+(state.lastBackup?'Last backup: '+new Date(state.lastBackup).toLocaleDateString('en-GB')+'. ':'No backup yet. ')+'Download a file with your semesters, lights, notes and deadlines. Keep it in a safe place such as your cloud drive. The imported files themselves are not included, so keep the originals.</p><textarea id="bk" aria-label="Backup text" spellcheck="false" placeholder="Press “Create backup text”"></textarea><div class="row"><button class="btn small" data-a="dlbackup">Download backup file</button><button class="btn small ghost" data-a="loadbackup">Restore from file</button><input type="file" id="bkfile" accept=".json,application/json" hidden><button class="btn small ghost" data-a="export">Create backup text</button><button class="btn small ghost" data-a="restore">Restore from text</button></div></section>';
   h+=accountCard();
-  h+='<section class="card stack"><details id="devtools"'+(ui.devOpen?' open':'')+'><summary><h3 style="display:inline">Testing tools</h3></summary><p class="lede" style="margin:8px 0">For the project team. Hide these before the user tests.</p><div class="row"><button class="btn small" data-a="tcoins" data-n="1000">Add 1,000 coins</button><button class="btn small ghost" data-a="tcoins" data-n="-9999999">Set coins to 0</button></div><div class="row" style="margin-top:8px"><button class="btn small ghost" data-a="tage" data-n="8">Age all lights 8 days</button><button class="btn small ghost" data-a="tage" data-n="20">Age all lights 20 days</button><button class="btn small ghost" data-a="trent">Make 3 days of rent due</button></div></details></section>';
+  if(devOn())h+='<section class="card stack"><details id="devtools"'+(ui.devOpen?' open':'')+'><summary><h3 style="display:inline">Testing tools</h3></summary><p class="lede" style="margin:8px 0">For the project team. Hide these before the user tests.</p><div class="row"><button class="btn small" data-a="tcoins" data-n="1000">Add 1,000 coins</button><button class="btn small ghost" data-a="tcoins" data-n="-9999999">Set coins to 0</button></div><div class="row" style="margin-top:8px"><button class="btn small ghost" data-a="tage" data-n="8">Age all lights 8 days</button><button class="btn small ghost" data-a="tage" data-n="20">Age all lights 20 days</button><button class="btn small ghost" data-a="trent">Make 3 days of rent due</button></div></details></section>';
   h+='<section class="card stack"><h3>Reset everything</h3><p class="lede">Deletes all semesters, progress and imported files from this device.</p><div class="row">'+(ui.confirm==='all'?'<button class="btn small danger" data-a="reset2">Yes, delete everything</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="reset1">Reset…</button>')+'</div></section>';
   h+='<section class="stack"><h3>About</h3><p class="foot">Booklyn · saved-data schema '+SCHEMA+'. Older data is migrated automatically and backed up first. Data from a newer version is never overwritten.</p></section>'+foot();
   return h;
@@ -1351,6 +1351,7 @@ function api(method,path,body,keep){
 function codeStored(){try{return localStorage.getItem('booklyn:synccode')||'';}catch(e){return '';}}
 function codeStore(c){try{if(c)localStorage.setItem('booklyn:synccode',c);else localStorage.removeItem('booklyn:synccode');}catch(e){}}
 function setAccount(r){SYNC.kind=r.kind||'email';SYNC.me=r.kind==='code'?'Sync code':(r.email||'');SYNC.uid=r.uid||'';}
+function devOn(){try{return localStorage.getItem('booklyn:dev')==='1';}catch(e){return false;}}
 function syncRender(){
   if(route().name!=='settings'&&!SYNC.conflict)return;
   var ae=document.activeElement;if(ae&&ae.id==='syemail')return;
@@ -1439,9 +1440,11 @@ function accountCard(){
      +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
      +'<details><summary class="foot" style="cursor:pointer">Prefer an email link?</summary><div class="stack" style="margin-top:8px"><div class="row"><input type="email" id="syemail" placeholder="you@example.com" autocomplete="email" style="flex:1 1 220px" aria-label="Your email address"><button class="btn small ghost" data-a="syreq" '+(SYNC.busy?'disabled':'')+'>Send me a link</button></div>'+(SYNC.link?'<p class="foot">Local test link: <a href="'+esc(SYNC.link)+'">sign in</a></p>':'')+'</div></details>';
   }
-  return h+'<p class="foot">Only your progress (semesters, modules, lights, coins, notes and deadlines) is stored in the cloud. Your files never leave this device. Your email is used only to send sign-in links. You can delete everything at any time.</p></section>';
+  return h+'<p class="foot">Only your progress (semesters, modules, lights, coins, notes and deadlines) is stored in the cloud. Your files never leave this device. If you sign in by email, the address is used only to send sign-in links. You can delete everything at any time.</p></section>';
 }
 /* ================= boot ================= */
+try{var _u=new URL(location.href);if(_u.searchParams.get('dev')==='1'||_u.searchParams.get('dev')==='0'){localStorage.setItem('booklyn:dev',_u.searchParams.get('dev'));_u.searchParams.delete('dev');history.replaceState(null,'',_u.pathname+(_u.search||'')+_u.hash);}}catch(e){}
+try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}catch(e){}
 try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catch(e){}
 render(false);
 try{syncInit();}catch(e){}
