@@ -7,14 +7,21 @@
 <meta name="description" content="The rules for using Booklyn.">
 <meta name="theme-color" content="#1d5c58">
 <link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/app/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/app/apple-touch-icon.png">
 <link rel="preload" href="/app/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/app/fonts/fonts.css">
 <link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js"></script>
 </head>
-<body>
+<body id="top">
 <a class="skip" href="#main">Skip to content</a>
 <div class="wrap">
-<header class="top"><a class="brand" href="/">Booklyn</a><nav aria-label="Main"><a href="/#try">Try it</a><a href="/#how">How it works</a><a href="/#features">Features</a><a href="/connector/">ILIAS connector</a><a href="/#faq">FAQ</a><a class="btn" href="/app/">Open Booklyn</a></nav></header>
+<header class="top">
+<a class="brand" href="/"><img src="/app/icon.svg" alt="" width="36" height="36"><span>Booklyn</span></a>
+<nav id="site-nav" aria-label="Main"><a href="/#try">Try it</a><a href="/#how">How it works</a><a href="/#features">Features</a><a href="/connector/">ILIAS connector</a><a href="/#faq">FAQ</a></nav>
+<div class="topact"><a class="btn small" href="/app/">Open Booklyn</a><button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="site-nav" aria-label="Menu"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path class="m-close" d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>
+</header>
 <main id="main">
 <div class="doc">
 <h1>Terms of use</h1>
@@ -54,8 +61,17 @@
 <p><span class="todo">[contact email]</span>. See also the <a href="/imprint/">imprint</a> and the <a href="/privacy/">privacy policy</a>.</p>
 </div>
 </main>
-<footer><div class="links"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/imprint/">Imprint</a><a href="/connector/">ILIAS connector</a><a href="/app/">Open the app</a></div>
-<div>Booklyn is an unofficial student project. It is not affiliated with, or endorsed by, HSLU. No ads, no tracking.</div></footer>
 </div>
+<footer class="sitefoot">
+<div class="wrap">
+<div class="fgrid">
+<div class="fbrand"><a class="brand" href="/"><img src="/app/icon.svg" alt="" width="36" height="36"><span>Booklyn</span></a><p>Keep your lights on. A study city for students, made by students.</p></div>
+<nav aria-label="Product"><h2>Product</h2><a href="/app/">Open Booklyn</a><a href="/#try">Try the demo</a><a href="/#how">How it works</a><a href="/#features">Features</a></nav>
+<nav aria-label="Resources"><h2>Resources</h2><a href="/connector/">ILIAS connector</a><a href="/#faq">FAQ</a></nav>
+<nav aria-label="Legal"><h2>Legal</h2><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/imprint/">Imprint</a></nav>
+</div>
+<div class="fbottom"><span>Unofficial student project. Not affiliated with, or endorsed by, HSLU.</span><span>No ads. No tracking.</span><a href="#top">Back to top &uarr;</a></div>
+</div>
+</footer>
 </body>
 </html>

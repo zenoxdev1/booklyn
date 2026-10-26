@@ -1,8 +1,8 @@
 /* Booklyn service worker: lets the app open without a connection.
    App files: network first, so a new version always wins when online; cached copy when offline.
    Big libraries and icons: cache first. The API is never cached. */
-const VERSION = 'booklyn-v2';
-const SHELL = ['./', 'index.html', 'app.js', 'styles.css', 'manifest.webmanifest', 'fonts/fonts.css', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'booklyn-v3';
+const SHELL = ['./', 'index.html', 'app.js', 'styles.css', 'manifest.webmanifest', 'fonts/fonts.css', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

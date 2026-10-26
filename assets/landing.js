@@ -10,14 +10,29 @@
     { code: 'STCSB', gx: 4.25, gy: 2.75, h: 330, f: ['lit', 'ready', 'wait', 'wait', 'wait'] },
     { code: 'CNB', gx: 4.75, gy: .25, h: 215, f: ['lit', 'lit', 'lit', 'lit', 'ready', 'wait'] }
   ];
-  var QS = [
-    { q: 'A bond’s price and its yield move in ___ directions.', o: ['opposite', 'the same', 'random'] },
-    { q: 'In Java, an object is created from a class with the keyword ___.', o: ['new', 'void', 'final'] },
-    { q: 'The mean of 2, 4 and 9 is ___.', o: ['5', '6', '4'] },
-    { q: 'A /24 IPv4 mask is 255.255.255.___.', o: ['0', '24', '255'] },
-    { q: 'Assets = Liabilities + ___.', o: ['Equity', 'Revenue', 'Cash flow'] }
-  ];
-  var st, qn = 0, pending = null, msgTimer = 0;
+  var QS = {
+    BSCM: [
+      { q: 'In BPMN, a(n) ___ gateway lets only one outgoing path be taken.', o: ['exclusive', 'parallel', 'message'] },
+      { q: 'A business model describes how a company creates, delivers and captures ___.', o: ['value', 'taxes', 'luck'] },
+      { q: 'A customer ___ maps the steps a customer goes through.', o: ['journey', 'ledger', 'firewall'] }
+    ],
+    PROFU: [
+      { q: 'In Java, an object is created from a class with the keyword ___.', o: ['new', 'void', 'final'] },
+      { q: 'A method that returns nothing has the return type ___.', o: ['void', 'null', 'empty'] },
+      { q: 'To hide a field from other classes, declare it ___.', o: ['private', 'static', 'void'] }
+    ],
+    STCSB: [
+      { q: 'The mean of 2, 4 and 9 is ___.', o: ['5', '6', '4'] },
+      { q: 'The most frequent value in a data set is the ___.', o: ['mode', 'median', 'range'] },
+      { q: 'A fair coin is flipped twice. The probability of two heads is ___.', o: ['1/4', '1/2', '1/3'] }
+    ],
+    CNB: [
+      { q: 'A /24 IPv4 mask is 255.255.255.___.', o: ['0', '24', '255'] },
+      { q: 'The ___ layer of the OSI model deals with IP addresses.', o: ['network', 'physical', 'application'] },
+      { q: 'The binary number 1010 equals ___ in decimal.', o: ['10', '8', '12'] }
+    ]
+  };
+  var st, qn = {}, pending = null;
   var el = {
     stats: document.getElementById('d-stats'), bar: document.getElementById('d-bar'), coins: document.getElementById('d-coins'),
     day: document.getElementById('d-day'), rent: document.getElementById('d-rent'), msg: document.getElementById('d-msg'),
@@ -81,7 +96,7 @@
   function hms(s) { function p(n) { return n < 10 ? '0' + n : '' + n; } return p(Math.floor(s / 3600)) + ':' + p(Math.floor(s % 3600 / 60)) + ':' + p(s % 60); }
 
   function showQuiz(bi, u) {
-    var q = QS[qn++ % QS.length], opts = q.o.map(function (t, i) { return { t: t, ok: i === 0 }; });
+    var code = BLD[bi].code, list = QS[code]; qn[code] = (qn[code] || 0); var q = list[qn[code]++ % list.length], opts = q.o.map(function (t, i) { return { t: t, ok: i === 0 }; });
     opts.sort(function () { return Math.random() - .5; });
     pending = { bi: bi, u: u };
     el.quiz.hidden = false;
@@ -96,7 +111,7 @@
           var f = st.b[pending.bi][pending.u], was = disp(f);
           f.k = 'lit'; f.age = 0;
           var gain = was === 'fading' ? 5 : 10; st.coins += gain;
-          el.quiz.hidden = true; pending = null; draw();
+          el.quiz.hidden = true; pending = null; el.ff.disabled = false; draw();
           say('Correct. The light is on and a guest moves in. +' + gain + ' coins.');
         } else { b.disabled = true; say('Not quite. Try another answer.'); }
       });
@@ -121,9 +136,11 @@
     st.b.forEach(function (fl) { fl.forEach(function (f) { if (f.k === 'lit') f.age += 8; }); });
     el.quiz.hidden = true; pending = null;
     draw();
-    say('8 days later. Rent collected: +' + pay + ' coins (stored for up to 3 days). Lights older than 7 days are fading, older than 14 days are out. Study a floor to bring it back.');
+    var left = litCount();
+    el.ff.disabled = left === 0;
+    say('8 days later. Rent collected: +' + pay + ' coins (rent stores up to 3 days). Lights older than 7 days are fading, older than 14 days are out.' + (left ? ' Study a fading floor to save it.' : ' Every light is out, so there is nothing left to fast-forward. Study a floor to light it again.'));
   });
-  el.reset.addEventListener('click', function () { fresh(); el.quiz.hidden = true; draw(); say('Back to the start. Tap a floor that is not lit.'); });
+  el.reset.addEventListener('click', function () { fresh(); el.ff.disabled = false; el.quiz.hidden = true; draw(); say('Back to the start. Tap a floor that is not lit.'); });
 
   setInterval(function () {
     st.rent--;

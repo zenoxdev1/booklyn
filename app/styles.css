@@ -362,3 +362,5 @@ details summary{cursor:pointer}
 .clegend i.lg-empty{background:var(--c-wait);box-shadow:inset 0 0 0 1px #6a7087}
 .cd{font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){.cityv .w-fading{animation:none}}
+
+.rail .brand img{vertical-align:-8px;margin-right:9px;border-radius:8px}

@@ -902,7 +902,7 @@ function vUnit(r){
 }
 
 function unitGuest(m,u,k,st){
-  var li=litInfo(k),g=guestFor(k),pin=!!(state.pin&&state.pin[k]),t='';
+  var li=litInfo(k),g=guestName(m.id,u),pin=!!(state.pin&&state.pin[k]),t='';
   if(li&&li.pinned) t=g+' lives here rent-free. This light stays on.';
   else if(st==='lit') t=g+' lives here and pays rent. The light stays on for \u0001.';
   else if(st==='fading') t='The light is fading and '+g+' is packing. Pass the check within \u0001 to keep your guest and earn 5 coins.';
@@ -1189,7 +1189,7 @@ function render(focus){
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
   else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
-  $('#app').innerHTML='<nav class="rail" aria-label="Main"><div class="brand">Booklyn<small>Keep your lights on</small></div>'+nav(r.name)+'</nav><main class="main">'+body+'</main><nav class="tabbar" aria-label="Main">'+nav(r.name)+'</nav>';
+  $('#app').innerHTML='<nav class="rail" aria-label="Main"><div class="brand"><img src="icon.svg" alt="" width="30" height="30">Booklyn<small>Keep your lights on</small></div>'+nav(r.name)+'</nav><main class="main">'+body+'</main><nav class="tabbar" aria-label="Main">'+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
   if(focus){var h1=$('#h1');if(h1)h1.focus({preventScroll:true});window.scrollTo(0,0);}
   if(r.name==='settings') storageInfo();
