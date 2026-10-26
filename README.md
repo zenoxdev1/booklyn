@@ -12,7 +12,7 @@ Unofficial student project, not affiliated with HSLU. Files and progress stay on
 
 ## Run it locally
 
-    python -m http.server 8000
+    npx serve .
 
 Then open http://localhost:8000. Opening index.html directly from disk may block file storage in some browsers.
 

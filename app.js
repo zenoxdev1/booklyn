@@ -328,11 +328,182 @@ function building(m,pop){
 }
 function chip(st){var t={lit:'Lights on',progress:'In progress',ready:'Ready',empty:'Waiting for files'}[st];return '<span class="chip s-'+st+'">'+t+'</span>';}
 
+/* ================= isometric city ================= */
+var CITY={TW:32,TH:16,P:4.2,F:1.8,ZB:2.4};
+function hashStr(s){var h=7;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
+function iso(x,y,z){return [(x-y)*CITY.TW,(x+y)*CITY.TH-(z||0)];}
+function pts(a){return a.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');}
+function cityLayout(n){
+  var best=null;
+  for(var c=1;c<=n;c++){var r=Math.ceil(n/c),sc=(c*r-n)*1.2+Math.abs(Math.log((c/r)/1.4))*2;if(!best||sc<best.sc)best={c:c,r:r,sc:sc};}
+  return best;
+}
+function cityMods(sem){
+  return sem.modules.map(function(m){
+    var st=[];for(var u=1;u<=m.units;u++)st.push(uStatus(m,u));
+    return {id:m.id,code:m.code,name:m.name,h:m.h,N:m.units,st:st,link:'#/m/'+m.id};
+  });
+}
+function sampleMods(){
+  function mk(code,N,h,l,p,r){var st=[];for(var i=0;i<N;i++)st.push(i<l?'lit':i<l+p?'progress':i<l+p+r?'ready':'empty');return {id:code,code:code,name:code,h:h,N:N,st:st,link:''};}
+  return [mk('PROG',14,215,6,1,2),mk('NET',12,165,5,1,1),mk('DATA',10,20,3,2,1),mk('TEAM',8,270,8,0,0),mk('LAW',10,45,2,1,2),mk('MATH',12,330,4,1,2)];
+}
+function setupMods(){
+  var out=[];
+  ui.setup.mods.forEach(function(m,i){
+    var code=String(m.code).trim().toUpperCase().slice(0,8);if(!code)return;
+    var N=clamp(parseInt(m.units,10)||14,1,MAXU),st=[];for(var u=0;u<N;u++)st.push('ready');
+    out.push({id:'s'+i,code:code,name:m.name,h:HUES[(state.sems.length*3+i)%HUES.length],N:N,st:st,link:'',nocount:true});
+  });
+  if(!out.length){var st=[];for(var u=0;u<6;u++)st.push('empty');out.push({id:'ghost',code:'Your first module',name:'',h:215,N:6,st:st,link:'',nocount:true});}
+  return out;
+}
+function boxP(x0,y0,x1,y1,z0,z1,c){
+  return '<polygon class="'+c[0]+'" points="'+pts([iso(x0,y1,z0),iso(x1,y1,z0),iso(x1,y1,z1),iso(x0,y1,z1)])+'"/>'
+   +'<polygon class="'+c[1]+'" points="'+pts([iso(x1,y1,z0),iso(x1,y0,z0),iso(x1,y0,z1),iso(x1,y1,z1)])+'"/>'
+   +'<polygon class="'+c[2]+'" points="'+pts([iso(x0,y0,z1),iso(x1,y0,z1),iso(x1,y1,z1),iso(x0,y1,z1)])+'"/>';
+}
+function treeSVG(x,y,s){
+  var p=iso(x,y,0);
+  return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><ellipse class="ts" cx="3" cy="1" rx="'+(7*s).toFixed(1)+'" ry="'+(3.2*s).toFixed(1)+'"/><rect class="tk" x="-1" y="'+(-7*s).toFixed(1)+'" width="2" height="'+(7*s).toFixed(1)+'"/><circle class="tc1" cy="'+(-12*s).toFixed(1)+'" r="'+(7*s).toFixed(1)+'"/><circle class="tc2" cx="-1.6" cy="'+(-14.2*s).toFixed(1)+'" r="'+(4.6*s).toFixed(1)+'"/></g>';
+}
+function bldgSVG(m,x0,y0,x1,y1,idx,I){
+  var N=m.N,fh=clamp(96/N,4,9),H=N*fh,zb=CITY.ZB,lit=0;
+  m.st.forEach(function(s){if(s==='lit')lit++;});
+  var s='<g class="bgrp" style="--h:'+m.h+';--i:'+idx+'"'+(I&&m.link?' data-a="go" data-to="'+m.link+'"':'')+'>';
+  if(I&&m.link) s+='<title>'+esc(m.code+' · '+m.name+': '+lit+' of '+N+' lights on')+'</title>';
+  s+='<polygon class="shadow" points="'+pts([iso(x0+.2,y0+.2,0),iso(x1+.55,y0+.2,0),iso(x1+.55,y1+.55,0),iso(x0+.2,y1+.55,0)])+'"/>';
+  s+=boxP(x0-.2,y0-.2,x1+.2,y1+.2,0,zb,['pl-l','pl-r','pl-t']);
+  var fl='',wl='',wo='',T=[[.14,.4],[.6,.86]];
+  for(var u=1;u<=N;u++){
+    var z0=zb+(u-1)*fh,z1=zb+u*fh,st=m.st[u-1];
+    fl+='<polygon class="fl fl-l fl-'+st+'" points="'+pts([iso(x0,y1,z0),iso(x1,y1,z0),iso(x1,y1,z1),iso(x0,y1,z1)])+'"/>'
+      +'<polygon class="fl fl-r fl-'+st+'" points="'+pts([iso(x1,y1,z0),iso(x1,y0,z0),iso(x1,y0,z1),iso(x1,y1,z1)])+'"/>';
+    if(st!=='empty'){
+      var za=z0+fh*.26,zc=z0+fh*.72,wc='w w-'+st,buf='';
+      T.forEach(function(t){
+        var xa=x0+(x1-x0)*t[0],xb=x0+(x1-x0)*t[1],ya=y0+(y1-y0)*t[0],yb=y0+(y1-y0)*t[1];
+        buf+='<polygon class="'+wc+'" points="'+pts([iso(xa,y1,za),iso(xb,y1,za),iso(xb,y1,zc),iso(xa,y1,zc)])+'"/>'
+          +'<polygon class="'+wc+'" points="'+pts([iso(x1,ya,za),iso(x1,yb,za),iso(x1,yb,zc),iso(x1,ya,zc)])+'"/>';
+      });
+      if(st==='lit') wl+=buf;else wo+=buf;
+    }
+  }
+  var allEmpty=m.st.every(function(x){return x==='empty';});
+  s+=fl+'<polygon class="door'+(allEmpty&&I?' door-new':'')+'" points="'+pts([iso(x0+(x1-x0)*.44,y1,zb),iso(x0+(x1-x0)*.56,y1,zb),iso(x0+(x1-x0)*.56,y1,zb+fh*.62),iso(x0+(x1-x0)*.44,y1,zb+fh*.62)])+'"/>'
+   +'<g>'+wo+'</g><g class="lw" filter="url(#cglow)">'+wl+'</g>';
+  var HT=zb+H,cx=(x0+x1)/2,cy=(y0+y1)/2,v=hashStr(m.code)%3,top=HT;
+  s+='<polygon class="roof" points="'+pts([iso(x0,y0,HT),iso(x1,y0,HT),iso(x1,y1,HT),iso(x0,y1,HT)])+'"/>';
+  if(v===0){s+=boxP(cx-.3,cy-.3,cx+.3,cy+.3,HT,HT+7,['rb-l','rb-r','rb-t']);top=HT+7;}
+  else if(v===1){var a=iso(cx,cy,HT),b=iso(cx,cy,HT+18);s+='<line class="ant" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/><circle class="beacon" cx="'+b[0].toFixed(1)+'" cy="'+b[1].toFixed(1)+'" r="1.8"/>';top=HT+18;}
+  else{s+=boxP(cx-.45,cy-.2,cx+.1,cy+.35,HT,HT+4,['rb-l','rb-r','rb-t']);s+=boxP(cx+.05,cy-.5,cx+.45,cy-.1,HT,HT+8,['rb-l','rb-r','rb-t']);top=HT+8;}
+  if(lit===N&&N>0){var q=iso(cx,cy,top+4);s+='<circle class="star" cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="4" filter="url(#cglow)"/>';top+=8;}
+  var lp=iso(cx,cy,top),cnt=m.nocount?'':(lit+'/'+N),w=Math.max(34,m.code.length*7.4+(cnt?cnt.length*5.8+22:16));
+  var LS=window.innerWidth<700?1.6:1;
+  s+='<g class="clab" transform="translate('+lp[0].toFixed(1)+' '+(lp[1]-17*LS).toFixed(1)+') scale('+LS+')"><rect x="'+(-w/2).toFixed(1)+'" y="-10" width="'+w.toFixed(1)+'" height="20" rx="10"/><text y="3.6" text-anchor="middle"><tspan class="lc">'+esc(m.code)+'</tspan>'+(cnt?'<tspan class="ln" dx="6">'+cnt+'</tspan>':'')+'</text></g>';
+  return s+'</g>';
+}
+function citySVG(mods,o){
+  o=o||{};var I=!!o.interactive,n=mods.length||1,lay=cityLayout(n),C=lay.c,R=lay.r,P=CITY.P,F=CITY.F,items=[],ex=.35,minY=iso(-ex,-ex,0)[1];
+  var occupied=mods.length;
+  for(var slot=0;slot<C*R;slot++){
+    var cx=slot%C,cy=Math.floor(slot/C),ox=cx*P,oy=cy*P;
+    if(slot<occupied){
+      var m=mods[slot],x0=ox+(P-F)/2,y0=oy+(P-F)/2,x1=x0+F,y1=y0+F,H=CITY.ZB+m.N*clamp(96/m.N,4,9);
+      minY=Math.min(minY,iso(x0,y0,H)[1]-50);
+      items.push({d:(x0+x1+y0+y1)/2-.01,html:bldgSVG(m,x0,y0,x1,y1,slot,I)});
+      var hs=hashStr(m.code+slot);
+      [[.7,.7],[P-.7,.7],[.7,P-.7],[P-.7,P-.7]].forEach(function(sp,j){
+        if(j===3||((hs>>j)&1)) items.push({d:ox+sp[0]+oy+sp[1],html:treeSVG(ox+sp[0],oy+sp[1],.8+((hs>>(j+4))&3)*.12)});
+      });
+    } else {
+      [[1.2,1.3],[3.0,1.0],[1.8,2.9],[3.2,3.1]].forEach(function(sp,j){items.push({d:ox+sp[0]+oy+sp[1],html:treeSVG(ox+sp[0],oy+sp[1],.9+(j%2)*.2)});});
+    }
+  }
+  items.sort(function(a,b){return a.d-b.d;});
+  var X0=-ex,Y0=-ex,X1=C*P+ex,Y1=R*P+ex,TH=10;
+  var left=iso(X0,Y1,0)[0],right=iso(X1,Y0,0)[0],bottom=iso(X1,Y1,0)[1]+TH,pad=26;
+  var vb=[left-pad,minY-pad,right-left+2*pad,bottom-minY+2*pad];
+  ui.cityVB=vb;
+  var T=I?ui.cityT:{x:0,y:0,k:1},g='';
+  g+='<polygon class="slab-l" points="'+pts([iso(X0,Y1,0),iso(X1,Y1,0),iso(X1,Y1,-TH),iso(X0,Y1,-TH)])+'"/><polygon class="slab-r" points="'+pts([iso(X1,Y1,0),iso(X1,Y0,0),iso(X1,Y0,-TH),iso(X1,Y1,-TH)])+'"/><polygon class="slab-t" points="'+pts([iso(X0,Y0,0),iso(X1,Y0,0),iso(X1,Y1,0),iso(X0,Y1,0)])+'"/>';
+  for(var i=1;i<C;i++) g+='<polyline class="road" points="'+pts([iso(P*i,0,0),iso(P*i,R*P,0)])+'"/>';
+  for(var j=1;j<R;j++) g+='<polyline class="road" points="'+pts([iso(0,P*j,0),iso(C*P,P*j,0)])+'"/>';
+  for(var s2=0;s2<C*R;s2++){var qx=(s2%C)*P,qy=Math.floor(s2/C)*P;g+='<polygon class="lawn" points="'+pts([iso(qx+.3,qy+.3,0),iso(qx+P-.3,qy+.3,0),iso(qx+P-.3,qy+P-.3,0),iso(qx+.3,qy+P-.3,0)])+'"/>';}
+  items.forEach(function(it){g+=it.html;});
+  var lit=0,tot=0;mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(s==='lit')lit++;});});
+  return '<svg class="cityv"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Your semester as a city: '+mods.length+' buildings, '+lit+' of '+tot+' floors have their lights on"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
+}
+function cityBox(mods,o){
+  o=o||{};var I=!!o.interactive,lit=0,tot=0;
+  mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(s==='lit')lit++;});});
+  var cls='city'+(o.full?' full':'')+(o.build?' build':'')+(I?'':' static');
+  var h='<section class="'+cls+'" aria-label="'+esc(o.label||'Your district')+'"><div class="cityvp"'+(I?' data-pz="1"':'')+'>'+citySVG(mods,o)+'</div>';
+  if(o.title) h+='<div class="cstat"><span>'+esc(o.title)+'</span><b>'+lit+' of '+tot+' floors lit</b><i class="cbar"><u style="width:'+(tot?Math.round(lit/tot*100):0)+'%"></u></i></div>';
+  if(I) h+='<div class="cctl"><button class="cbtn" data-a="czoom" data-d="1" aria-label="Zoom in">＋</button><button class="cbtn" data-a="czoom" data-d="-1" aria-label="Zoom out">−</button><button class="cbtn" data-a="creset" aria-label="Reset the view">⌖</button>'
+    +(o.full?'<button class="cbtn" data-a="cclose" aria-label="Close the full screen view">✕</button>':'<button class="cbtn" data-a="cfull" aria-label="Open the city full screen">⛶</button>')+'</div>';
+  if(o.legend!==false) h+='<div class="clegend"><span><i style="background:#ffd166"></i>Lights on</span><span><i style="background:#c08a3c"></i>In progress</span><span><i style="background:#4e5b8c"></i>Ready</span><span><i style="background:#3a3f4d"></i>Waiting for files</span></div>';
+  if(I) h+='<p class="chint">Tap a building to open it. Drag to look around.</p>';
+  return h+'</section>';
+}
+function setupCityHTML(){return cityBox(setupMods(),{interactive:false,legend:false,label:'Preview of your district'});}
+/* pan and zoom */
+function vpoint(cx,cy){
+  var svg=$('#citysvg');if(!svg||!svg.getScreenCTM)return [0,0];
+  var pt=svg.createSVGPoint();pt.x=cx;pt.y=cy;var q=pt.matrixTransform(svg.getScreenCTM().inverse());return [q.x,q.y];
+}
+function clampT(T){
+  var v=ui.cityVB;T.k=clamp(T.k,.8,5);if(!v)return T;
+  var cx=v[0]+v[2]/2,cy=v[1]+v[3]/2,px=clamp((cx-T.x)/T.k,v[0],v[0]+v[2]),py=clamp((cy-T.y)/T.k,v[1],v[1]+v[3]);
+  T.x=cx-px*T.k;T.y=cy-py*T.k;return T;
+}
+function applyCity(){var g=$('#cityg');if(g){var T=ui.cityT;g.setAttribute('transform','translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')');}}
+function zoomAt(T,p,k2){k2=clamp(k2,.8,5);T.x=p[0]-(p[0]-T.x)*(k2/T.k);T.y=p[1]-(p[1]-T.y)*(k2/T.k);T.k=k2;return clampT(T);}
+var cityPtrs={},cityGest=null,citySupp=0;
+document.addEventListener('click',function(e){if(Date.now()-citySupp<400){e.stopPropagation();e.preventDefault();}},true);
+document.addEventListener('pointerdown',function(e){
+  var vp=e.target.closest&&e.target.closest('.cityvp[data-pz]');if(!vp)return;
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  cityPtrs[e.pointerId]={x:e.clientX,y:e.clientY};
+  var ids=Object.keys(cityPtrs),T=ui.cityT;
+  if(ids.length===1) cityGest={mode:'pan',sx:e.clientX,sy:e.clientY,p0:vpoint(e.clientX,e.clientY),T0:{x:T.x,y:T.y,k:T.k},moved:false};
+  else if(ids.length===2){var a=cityPtrs[ids[0]],b=cityPtrs[ids[1]];cityGest={mode:'pinch',d0:Math.hypot(a.x-b.x,a.y-b.y)||1,T0:{x:T.x,y:T.y,k:T.k},mid:vpoint((a.x+b.x)/2,(a.y+b.y)/2),moved:true};}
+});
+document.addEventListener('pointermove',function(e){
+  if(!cityGest||!cityPtrs[e.pointerId])return;
+  cityPtrs[e.pointerId]={x:e.clientX,y:e.clientY};
+  if(cityGest.mode==='pan'){
+    if(!cityGest.moved&&Math.hypot(e.clientX-cityGest.sx,e.clientY-cityGest.sy)<6)return;
+    cityGest.moved=true;
+    var p=vpoint(e.clientX,e.clientY);
+    ui.cityT=clampT({x:cityGest.T0.x+(p[0]-cityGest.p0[0]),y:cityGest.T0.y+(p[1]-cityGest.p0[1]),k:cityGest.T0.k});applyCity();
+  } else {
+    var ids=Object.keys(cityPtrs);if(ids.length<2)return;
+    var a=cityPtrs[ids[0]],b=cityPtrs[ids[1]],d=Math.hypot(a.x-b.x,a.y-b.y)||1;
+    ui.cityT=zoomAt({x:cityGest.T0.x,y:cityGest.T0.y,k:cityGest.T0.k},cityGest.mid,cityGest.T0.k*d/cityGest.d0);applyCity();
+  }
+});
+function cityEnd(e){
+  if(!cityPtrs[e.pointerId])return;
+  var wasMoved=cityGest&&cityGest.moved;delete cityPtrs[e.pointerId];
+  if(wasMoved) citySupp=Date.now();
+  if(!Object.keys(cityPtrs).length) cityGest=null;
+  else if(cityGest&&cityGest.mode==='pinch') cityGest=null;
+}
+document.addEventListener('pointerup',cityEnd);document.addEventListener('pointercancel',cityEnd);
+document.addEventListener('wheel',function(e){
+  var vp=e.target.closest&&e.target.closest('.cityvp[data-pz]');if(!vp)return;
+  if(!ui.cityFull&&!(e.ctrlKey||e.metaKey))return;
+  e.preventDefault();
+  ui.cityT=zoomAt({x:ui.cityT.x,y:ui.cityT.y,k:ui.cityT.k},vpoint(e.clientX,e.clientY),ui.cityT.k*Math.exp(-e.deltaY*.0018));applyCity();
+},{passive:false});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull){ui.cityFull=false;render();}});
+
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null};
+var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null};
 function cur(){return memHash;}
-function go(to){memHash=to;try{if(location.hash!==to)location.hash=to;}catch(e){}render(true);}
+function go(to){memHash=to;ui.cityFull=false;try{if(location.hash!==to)location.hash=to;}catch(e){}render(true);}
 function route(){
   var p=cur().replace(/^#\/?/,'').split('/').filter(Boolean);
   if(!p.length) return {name:'campus'};
@@ -354,6 +525,7 @@ function foot(){return '<p class="disclaimer">Unofficial student project, not af
 
 function vWelcome(){
   return '<section class="hero"><p class="eyebrow">Welcome</p><h1 tabindex="-1" id="h1">Booklyn</h1><p class="motto">Keep your lights on.</p>'
+   +cityBox(sampleMods(),{interactive:false,build:true,label:'A sample district'})+'<p class="foot">A sample district. Yours builds itself as you add your modules.</p>'
    +'<p class="lede">A study app for students that turns each week’s course material into a city you light up as you learn, so you always know what to study next.</p>'
    +'<div class="row"><button class="btn" data-a="newsem">Build my first semester</button><button class="btn ghost" data-a="demo">Try the demo</button></div></section>'
    +'<section class="card stack"><h3>How it works</h3><p class="lede">Your degree is a city. A semester is a district, a module is a building and each teaching unit is a floor. Add your files, study a unit, pass the short check, and the light goes on.</p></section>'+foot();
@@ -366,11 +538,9 @@ function vCampus(){
   var h=(backupDue()?'<div class="notice stack"><p style="margin:0"><strong>Protect your work.</strong> '+(state.lastBackup?'Your last backup is more than a week old.':'You have no backup yet.')+' If you clear this browser’s data, your semesters and progress are gone.</p><div class="row"><button class="btn small" data-a="dlbackup">Download backup</button><button class="btn small ghost" data-a="snoozebk">Remind me in 3 days</button></div></div>':'')+'<header class="stack"><div class="sem"><p class="eyebrow">Week '+weekNo(sem)+' · '+fmt(new Date())+'</p></div>'
    +'<div class="sem"><label class="sr" for="semsel">Semester</label><select id="semsel" data-c="sem">'+state.sems.map(function(s){return '<option value="'+s.id+'"'+(s.id===sem.id?' selected':'')+'>'+esc(s.name)+(s.finished?' (finished)':'')+'</option>';}).join('')+'<option value="__new">＋ New semester…</option></select></div>'
    +'<h1 tabindex="-1" id="h1">'+(state.name?'Hello, '+esc(state.name):'Keep your lights on')+'</h1>'
-   +'<p class="lede">'+t.l+' of '+t.t+' floors have their lights on.</p></header>';
-  h+='<section class="card stack" aria-label="Your district"><div class="sky">'
-   +sem.modules.map(function(m){return '<button class="bld" data-a="go" data-to="#/m/'+m.id+'" aria-label="'+esc(m.name)+', '+litCount(m)+' of '+m.units+' lights on">'+building(m)+'<span class="code">'+esc(m.code)+'</span></button>';}).join('')
-   +'</div><div class="legend"><span><i class="dot l"></i>Lights on</span><span><i class="dot p"></i>In progress</span><span><i class="dot"></i>Ready</span><span><i class="dot e"></i>Waiting for files</span></div>'
-   +'<div class="bar" role="progressbar" aria-label="Lights on" aria-valuemin="0" aria-valuemax="'+t.t+'" aria-valuenow="'+t.l+'"><i style="width:'+pct+'%"></i></div></section>';
+   +'<p class="lede">Tap a building to open its weeks, or pick a module below.</p></header>';
+  var bld=ui.cityBuild;if(bld)setTimeout(function(){ui.cityBuild=false;},4500);
+  h+=cityBox(cityMods(sem),{interactive:true,build:bld,full:ui.cityFull,title:sem.name});
   if(n) h+='<section class="card accent stack"><p class="eyebrow">Next up</p><h2>'+esc(n.m.code)+' · '+esc(n.m.titles[n.u-1])+'</h2><p class="lede">'+esc(n.why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+'/study">Start block</button><button class="btn ghost" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+'">Open unit</button></div></section>';
   else if(!pending().length&&!FILES.some(function(f){return f.sem===sem.id;})&&!sem.demo) h+='<section class="card stack"><h3>Add your first files</h3><p class="lede">Drop your slides and scripts into the Port. Booklyn suggests where each one belongs.</p><div class="row"><button class="btn" data-a="go" data-to="#/port">Open the Port</button></div></section>';
   if(p) h+='<section class="card row between"><div><h3>'+p+' file'+(p>1?'s':'')+' waiting in the Port</h3><p class="lede">Review where they belong, then import.</p></div><button class="btn" data-a="go" data-to="#/port">Review</button></section>';
@@ -506,6 +676,7 @@ function vSetup(){
   if(!ui.setup) ui.setup={name:state.name||'',sname:'Semester '+(state.sems.length+1),start:'2026-09-14',mods:[{code:'',name:'',units:14,kw:''}]};
   var S=ui.setup;
   var h='<header class="stack"><p class="eyebrow">New semester</p><h1 tabindex="-1" id="h1">Build your district</h1><p class="lede">A building for each module, a floor for each teaching unit. Most semesters have 14 weeks. Not sure how many units a module has? Keep 14. A new floor appears when you import a file with a higher week number, and you can add or remove floors at any time.</p></header>';
+  h+='<div id="setupcity">'+setupCityHTML()+'</div>';
   h+='<section class="card stack"><label class="f">Your name (optional)<input type="text" data-sb="name" value="'+esc(S.name)+'" maxlength="30"></label><div class="grid2"><label class="f">Semester name<input type="text" data-sb="sname" value="'+esc(S.sname)+'" maxlength="40"></label><label class="f">First teaching week starts<input type="date" data-sb="start" value="'+esc(S.start)+'"></label></div></section>';
   h+='<section class="stack"><h2>Modules</h2>'+S.mods.map(function(m,i){
     return '<div class="modrow"><div class="g"><label class="f">Code<input type="text" data-sb="mods.'+i+'.code" value="'+esc(m.code)+'" maxlength="8" placeholder="CNB"></label><label class="f">Name<input type="text" data-sb="mods.'+i+'.name" value="'+esc(m.name)+'" maxlength="60" placeholder="Computer Networks Basics"></label><label class="f">Units (not sure? keep 14)<input type="number" min="1" max="30" data-sb="mods.'+i+'.units" value="'+esc(m.units)+'"></label></div>'
@@ -541,6 +712,7 @@ function nav(cur){
 }
 function render(focus){
   var r=route(); lastRendered=cur();
+  if(r.name!=='campus') ui.cityFull=false;
   document.documentElement.removeAttribute('data-theme');
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
@@ -548,6 +720,7 @@ function render(focus){
   else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
   $('#app').innerHTML='<nav class="rail" aria-label="Main"><div class="brand">Booklyn<small>Keep your lights on</small></div>'+nav(r.name)+'</nav><main class="main">'+body+'</main><nav class="tabbar" aria-label="Main">'+nav(r.name)+'</nav>';
+  document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
   if(focus){var h1=$('#h1');if(h1)h1.focus({preventScroll:true});window.scrollTo(0,0);}
   if(r.name==='settings') storageInfo();
 }
@@ -602,12 +775,16 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-a]');if(!b||b.disabled)return;
   var a=b.dataset.a,id=b.dataset.id;
   if(a==='go'){go(b.dataset.to);}
+  else if(a==='czoom'){var cv=ui.cityVB;if(cv){ui.cityT=zoomAt({x:ui.cityT.x,y:ui.cityT.y,k:ui.cityT.k},[cv[0]+cv[2]/2,cv[1]+cv[3]/2],ui.cityT.k*(+b.dataset.d>0?1.4:1/1.4));applyCity();}}
+  else if(a==='creset'){ui.cityT={x:0,y:0,k:1};applyCity();}
+  else if(a==='cfull'){ui.cityFull=true;render();var cb=$('[data-a="cclose"]');if(cb)cb.focus();}
+  else if(a==='cclose'){ui.cityFull=false;render();}
   else if(a==='addfloor'){var am=M(b.dataset.m);if(am){if(am.units>=MAXU)toast('A module can have up to '+MAXU+' floors.');else{ensureUnits(am,am.units+1);render();}}}
   else if(a==='rmfloor'){var rm=M(b.dataset.m);if(rm&&rm.units>1&&!mats(rm,rm.units).length&&!state.lit[rm.id+':'+rm.units]){rm.titles.length=rm.units-1;rm.units--;save();render();}}
   else if(a==='leave'){pauseTimer();study=null;go(b.dataset.to);}
   else if(a==='tab'){ui.tab=b.dataset.v;render();}
   else if(a==='newsem'){ui.setup=null;go('#/setup');}
-  else if(a==='demo'){seedDemo();save();go('#/');}
+  else if(a==='demo'){seedDemo();ui.cityBuild=true;ui.cityT={x:0,y:0,k:1};save();go('#/');}
   else if(a==='addmod'){ui.setup.mods.push({code:'',name:'',units:14,kw:''});render();}
   else if(a==='rmmod'){ui.setup.mods.splice(+b.dataset.i,1);render();}
   else if(a==='buildsem'){
@@ -620,7 +797,7 @@ document.addEventListener('click',function(e){
       sem.modules.push({id:uid(),code:code,name:String(m.name).trim(),h:HUES[(state.sems.length*3+i)%HUES.length],units:n,kw:String(m.kw).trim()||ALIASES[code]||'',titles:t,base:{}});
     });
     if(S.name)state.name=S.name;
-    state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;save();go('#/');toast('Your district is ready.');
+    state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;ui.cityBuild=true;ui.cityT={x:0,y:0,k:1};save();go('#/');toast('Your district is ready. Tap a building to add its first files.');
   }
   else if(a==='pickfiles'){ui.preset=null;$('#fi').click();}
   else if(a==='pickfolder'){ui.preset=null;$('#fd').click();}
@@ -690,7 +867,7 @@ document.addEventListener('change',function(e){
   if(t.id==='fi'||t.id==='fd'){var files=t.files,p=ui.preset;ui.preset=null;addFiles(files,p).then(function(){t.value='';});return;}
   if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;return;}
   if(!c)return;
-  if(c==='sem'){if(t.value==='__new'){ui.setup=null;go('#/setup');}else{state.activeSem=t.value;save();render();}}
+  if(c==='sem'){if(t.value==='__new'){ui.setup=null;go('#/setup');}else{state.activeSem=t.value;ui.cityT={x:0,y:0,k:1};save();render();}}
   else if(c==='seen'){if(t.checked)state.seen[t.dataset.id]=true;else delete state.seen[t.dataset.id];save();render();}
   else if(c==='dead'){if(t.checked)state.tasksDone[t.dataset.id]=true;else delete state.tasksDone[t.dataset.id];save();render();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
@@ -708,7 +885,7 @@ document.addEventListener('input',function(e){
   else if(t.id==='utitle'){var p=t.dataset.k.split(':'),m=M(p[0]);if(m){m.titles[+p[1]-1]=t.value||('Week '+p[1]);save();}}
   else if(t.id==='nm'){state.name=t.value;save();}
   else if(t.id==='q'){ui.q=t.value;var r=route();$('#matlist').innerHTML=fileList(r.m);}
-  else if(t.dataset.sb){setPath(ui.setup,t.dataset.sb,t.type==='number'?t.value:t.value);}
+  else if(t.dataset.sb){setPath(ui.setup,t.dataset.sb,t.type==='number'?t.value:t.value);if(/^mods\./.test(t.dataset.sb)){var sc=$('#setupcity');if(sc)sc.innerHTML=setupCityHTML();}}
   else if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;}
 });
 /* drag and drop */
