@@ -140,7 +140,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[]};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 function load(){
@@ -154,6 +154,23 @@ function load(){
     }
     return fill(s);
   }catch(e){storageOK=false;return blank();}
+}
+function dlBackup(){
+  try{
+    state.lastBackup=Date.now();save();
+    var blob=new Blob([JSON.stringify(state)],{type:'application/json'}),a=document.createElement('a'),d=new Date().toISOString().slice(0,10);
+    a.href=URL.createObjectURL(blob);a.download='booklyn-backup-'+d+'.json';document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1000);
+    return true;
+  }catch(e){return false;}
+}
+function backupDue(){
+  if(readOnly) return false;
+  var real=state.sems.some(function(s){return !s.demo;});
+  if(!real) return false;
+  var now=Date.now(),week=7*864e5;
+  if(state.snoozeBackup&&now<state.snoozeBackup) return false;
+  return !state.lastBackup||now-state.lastBackup>week;
 }
 var saveT;
 function save(){
@@ -346,7 +363,7 @@ function vCampus(){
   var sem=curSem(); if(!sem) return vWelcome();
   var n=nextUp(sem),p=pending().length,t=totals(sem),pct=t.t?Math.round(t.l/t.t*100):0;
   var ups=semDeadlines(sem).filter(function(d){return !state.tasksDone[d.id]&&daysTo(d)>=0;}).sort(function(a,b){return pdate(a.date)-pdate(b.date);}).slice(0,3);
-  var h='<header class="stack"><div class="sem"><p class="eyebrow">Week '+weekNo(sem)+' · '+fmt(new Date())+'</p></div>'
+  var h=(backupDue()?'<div class="notice stack"><p style="margin:0"><strong>Protect your work.</strong> '+(state.lastBackup?'Your last backup is more than a week old.':'You have no backup yet.')+' If you clear this browser’s data, your semesters and progress are gone.</p><div class="row"><button class="btn small" data-a="dlbackup">Download backup</button><button class="btn small ghost" data-a="snoozebk">Remind me in 3 days</button></div></div>':'')+'<header class="stack"><div class="sem"><p class="eyebrow">Week '+weekNo(sem)+' · '+fmt(new Date())+'</p></div>'
    +'<div class="sem"><label class="sr" for="semsel">Semester</label><select id="semsel" data-c="sem">'+state.sems.map(function(s){return '<option value="'+s.id+'"'+(s.id===sem.id?' selected':'')+'>'+esc(s.name)+(s.finished?' (finished)':'')+'</option>';}).join('')+'<option value="__new">＋ New semester…</option></select></div>'
    +'<h1 tabindex="-1" id="h1">'+(state.name?'Hello, '+esc(state.name):'Keep your lights on')+'</h1>'
    +'<p class="lede">'+t.l+' of '+t.t+' floors have their lights on.</p></header>';
@@ -510,7 +527,7 @@ function vSettings(){
   if(sem) h+='<section class="card stack"><h3>'+esc(sem.name)+'</h3><div class="row"><button class="btn small ghost" data-a="finish">'+(sem.finished?'Reopen this semester':'Mark as finished')+'</button><button class="btn small ghost" data-a="newsem">＋ New semester</button></div>'
    +'<div class="row">'+(ui.confirm==='sem'?'<button class="btn small danger" data-a="rmsem2">Remove it and its files</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="rmsem1">Remove this semester…</button>')+'</div></section>';
   h+='<section class="card stack"><h3>Storage</h3><p class="lede" id="stor">Checking…</p><div class="row"><button class="btn small ghost" data-a="persist">Ask the browser to keep my files</button></div></section>';
-  h+='<section class="card stack"><h3>Back up your progress</h3><p class="lede">This saves your semesters, lights, notes and deadlines as text. The files themselves are not included, so keep the originals.</p><textarea id="bk" aria-label="Backup text" spellcheck="false" placeholder="Press “Create backup text”"></textarea><div class="row"><button class="btn small" data-a="export">Create backup text</button><button class="btn small ghost" data-a="restore">Restore from text</button></div></section>';
+  h+='<section class="card stack"><h3>Back up your progress</h3><p class="lede">'+(state.lastBackup?'Last backup: '+new Date(state.lastBackup).toLocaleDateString('en-GB')+'. ':'No backup yet. ')+'Download a file with your semesters, lights, notes and deadlines. Keep it in a safe place such as your cloud drive. The imported files themselves are not included, so keep the originals.</p><textarea id="bk" aria-label="Backup text" spellcheck="false" placeholder="Press “Create backup text”"></textarea><div class="row"><button class="btn small" data-a="dlbackup">Download backup file</button><button class="btn small ghost" data-a="loadbackup">Restore from file</button><input type="file" id="bkfile" accept=".json,application/json" hidden><button class="btn small ghost" data-a="export">Create backup text</button><button class="btn small ghost" data-a="restore">Restore from text</button></div></section>';
   h+='<section class="card stack"><h3>Reset everything</h3><p class="lede">Deletes all semesters, progress and imported files from this device.</p><div class="row">'+(ui.confirm==='all'?'<button class="btn small danger" data-a="reset2">Yes, delete everything</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="reset1">Reset…</button>')+'</div></section>';
   h+='<section class="stack"><h3>About</h3><p class="foot">Booklyn · saved-data schema '+SCHEMA+'. Older data is migrated automatically and backed up first. Data from a newer version is never overwritten.</p></section>'+foot();
   return h;
@@ -646,6 +663,9 @@ document.addEventListener('click',function(e){
     });
   }
   else if(a==='persist'){try{navigator.storage.persist().then(function(ok){toast(ok?'The browser will keep your data.':'The browser did not agree. Keep your originals.');storageInfo();});}catch(x){toast('Not available in this browser.');}}
+  else if(a==='dlbackup'){if(dlBackup()){toast('Backup downloaded. Keep the file somewhere safe.');render();}else toast('Could not create the file. Use the backup text below.');}
+  else if(a==='loadbackup'){var bf=$('#bkfile');if(bf)bf.click();}
+  else if(a==='snoozebk'){state.snoozeBackup=Date.now()+3*864e5;save();render();}
   else if(a==='export'){$('#bk').value=JSON.stringify(state);$('#bk').select();toast('Backup text created. Copy it now.');}
   else if(a==='restore'){
     try{var s2=JSON.parse($('#bk').value);if(!s2||typeof s2.schema!=='number')throw 0;
@@ -661,6 +681,12 @@ document.addEventListener('click',function(e){
 });
 document.addEventListener('change',function(e){
   var t=e.target,c=t.dataset.c;
+  if(t.id==='bkfile'){var bf=t.files&&t.files[0];if(!bf)return;var rd=new FileReader();
+    rd.onload=function(){try{var s2=JSON.parse(rd.result);if(!s2||typeof s2.schema!=='number')throw 0;
+      if(s2.schema>SCHEMA){toast('That backup is from a newer version.');return;}
+      while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg)throw 0;s2=mg(s2);}
+      state=fill(s2);save();render(true);toast('Progress restored.');}catch(err){toast('That file is not a valid backup.');}t.value='';};
+    rd.readAsText(bf);return;}
   if(t.id==='fi'||t.id==='fd'){var files=t.files,p=ui.preset;ui.preset=null;addFiles(files,p).then(function(){t.value='';});return;}
   if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;return;}
   if(!c)return;
