@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ILIAS connector · Booklyn</title>
+<meta name="description" content="Download and install the optional Booklyn ILIAS connector for Edge and Chrome.">
+<meta name="theme-color" content="#1d5c58">
+<link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<link rel="preload" href="/app/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+<header class="top"><a class="brand" href="/">Booklyn</a><nav aria-label="Main"><a href="/#try">Try it</a><a href="/#how">How it works</a><a href="/#features">Features</a><a href="/connector/">ILIAS connector</a><a href="/#faq">FAQ</a><a class="btn" href="/app/">Open Booklyn</a></nav></header>
+<main id="main">
+<div class="doc">
+<h1>ILIAS connector</h1>
+<p class="meta">An optional browser extension for Edge and Chrome on a computer. Version 0.2.0.</p>
+<p>The connector looks for file links on the HSLU ILIAS pages you can open while signed in, and hands the ones you choose to Booklyn. It never asks for your password, and nothing is uploaded to Booklyn&rsquo;s servers: files go straight from ILIAS into your own browser storage.</p>
+
+<div class="callout"><p style="margin:0 0 10px"><strong>Step 1.</strong> Download the connector.</p><a class="btn" href="/ilias-connector.zip" download>Download ilias-connector.zip</a></div>
+
+<h2>Install (about two minutes)</h2>
+<ol class="steplist">
+<li><div><strong>Unzip it.</strong> Right-click the file and choose Extract all. Keep the folder somewhere permanent, for example Documents. If you delete it, the extension stops working.</div></li>
+<li><div><strong>Open the extensions page.</strong> In Edge go to <code>edge://extensions</code>, in Chrome go to <code>chrome://extensions</code>.</div></li>
+<li><div><strong>Turn on Developer mode.</strong> The switch is in the left column in Edge and at the top right in Chrome.</div></li>
+<li><div><strong>Load the folder.</strong> Press <em>Load unpacked</em> and pick the <code>booklyn-ilias-connector</code> folder you unzipped.</div></li>
+<li><div><strong>Sign in to ILIAS</strong> in the same browser, then reload any ILIAS tab that was already open.</div></li>
+<li><div><strong>Open Booklyn</strong>, go to Port and press <em>Check ILIAS</em>. Choose the files you want and press <em>Add to Port</em>.</div></li>
+</ol>
+
+<h2>Good to know</h2>
+<ul>
+<li>It works only on a computer. Phone browsers do not run this kind of extension, so add files by hand there.</li>
+<li>Files over 12 MB must be added by hand.</li>
+<li>Updating: download the new zip, replace the folder contents and press the reload icon on the extensions page.</li>
+<li>It only reads <code>elearning.hslu.ch</code> and the Booklyn page. You can check this in <code>manifest.json</code> inside the zip.</li>
+<li>Use it only as HSLU allows. See the <a href="/terms/">terms</a>.</li>
+</ul>
+
+<h2>One-click install, later</h2>
+<p>A listing in the Microsoft Edge Add-ons store and the Chrome Web Store would make installation a single click. That is planned once the connector has been tested by more students.</p>
+</div>
+</main>
+<footer><div class="links"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/imprint/">Imprint</a><a href="/connector/">ILIAS connector</a><a href="/app/">Open the app</a></div>
+<div>Booklyn is an unofficial student project. It is not affiliated with, or endorsed by, HSLU. No ads, no tracking.</div></footer>
+</div>
+</body>
+</html>

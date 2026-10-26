@@ -1,7 +1,9 @@
 (() => {
   const ORIGIN = 'https://elearning.hslu.ch';
   const DASHBOARD = ORIGIN + '/ilias/ilias.php?baseClass=ildashboardgui&cmd=show';
-  const MAX_PAGES = 18;
+  const MAX_PAGES = 30;
+  const CONCURRENCY = 4;
+  const TIME_BUDGET_MS = 60000;
   const MAX_FILE_BYTES = 12 * 1024 * 1024;
 
   function safeUrl(href, base) {
@@ -67,36 +69,53 @@
     }
   }
 
+  async function fetchPage(href) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 12000);
+    try {
+      const response = await fetch(href, { credentials: 'include', signal: ctl.signal });
+      if (/\/login\.php/i.test(response.url)) return { login: true };
+      if (!response.ok || !(response.headers.get('content-type') || '').includes('text/html')) return {};
+      return { doc: new DOMParser().parseFromString(await response.text(), 'text/html') };
+    } catch (_) {
+      return {};
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function scan() {
     const files = new Map();
     const queue = [{ url: location.href, depth: 0 }, { url: DASHBOARD, depth: 0 }];
     const visited = new Set();
-    let pages = 0, login = false;
+    const started = Date.now();
+    let pages = 0, login = false, timeUp = false;
     while (queue.length && pages < MAX_PAGES) {
-      const next = queue.shift();
-      const url = safeUrl(next.url, DASHBOARD);
-      if (!url || visited.has(url.href)) continue;
-      visited.add(url.href);
-      let doc;
-      if (url.href === location.href) {
-        doc = document;
-      } else {
-        let response;
-        try { response = await fetch(url.href, { credentials: 'include' }); }
-        catch (_) { continue; }
-        if (/\/login\.php/i.test(response.url)) { login = true; continue; }
-        if (!response.ok || !(response.headers.get('content-type') || '').includes('text/html')) continue;
-        doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+      if (Date.now() - started > TIME_BUDGET_MS) { timeUp = true; break; }
+      const batch = [];
+      while (queue.length && batch.length < CONCURRENCY && pages + batch.length < MAX_PAGES) {
+        const next = queue.shift();
+        const url = safeUrl(next.url, DASHBOARD);
+        if (!url || visited.has(url.href)) continue;
+        visited.add(url.href);
+        batch.push({ next, url });
       }
-      if (/\/login\.php/i.test(url.pathname)) { login = true; continue; }
-      pages++;
-      const folders = [];
-      collect(doc, url.href, files, folders);
-      if (next.depth < 2) folders.sort((a, b) => Number(/cmd=showNews/i.test(b)) - Number(/cmd=showNews/i.test(a)))
-        .slice(0, 24).forEach(href => queue.push({ url: href, depth: next.depth + 1 }));
+      const results = await Promise.all(batch.map(async ({ next, url }) => {
+        if (url.href === location.href) return { next, url, doc: document };
+        return { next, url, ...(await fetchPage(url.href)) };
+      }));
+      for (const { next, url, doc, login: needsLogin } of results) {
+        if (needsLogin || /\/login\.php/i.test(url.pathname)) { login = true; continue; }
+        if (!doc) continue;
+        pages++;
+        const folders = [];
+        collect(doc, url.href, files, folders);
+        if (next.depth < 2) folders.sort((a, b) => Number(/cmd=showNews/i.test(b)) - Number(/cmd=showNews/i.test(a)))
+          .slice(0, 24).forEach(href => queue.push({ url: href, depth: next.depth + 1 }));
+      }
     }
     if (login && !pages) return { ok: false, code: 'login', message: 'Sign in to ILIAS, then scan again.' };
-    return { ok: true, files: [...files.values()].slice(0, 120), pages, limited: queue.length > 0 };
+    return { ok: true, files: [...files.values()].slice(0, 300), pages, limited: timeUp || queue.length > 0 };
   }
 
   function filename(disposition, fallback) {

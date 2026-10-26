@@ -370,7 +370,7 @@ async function addFiles(list,preset,skipDups){
     toast('Adding '+(i+1)+' of '+arr.length+'…',true);
     var h=await sha(f), dup=h?FILES.filter(function(x){return x.hash===h;})[0]:null;if(h)hashes.push(h);
     var rec={id:uid(),name:f.name,path:f.webkitRelativePath||'',size:f.size,type:f.type,mtime:f.lastModified,hash:h,addedAt:Date.now(),sem:sem.id,dup:null};
-    if(dup&&skipDups){dups++;continue;}
+    if(dup){dups++;continue;}
     if(preset){
       if(dup){dups++;continue;}
       rec.status='imported';rec.mod=preset.mod;rec.unit=preset.unit;rec.include=true;rec.confirmed=true;rec.flag=false;rec.why='';
@@ -604,7 +604,7 @@ function cityBox(mods,o){
   mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});});
   var cls='city'+(o.full?' full':'')+(o.build?' build':'')+(I?'':' static');
   var h='<section class="'+cls+'" aria-label="'+esc(o.label||'Your district')+'"><div class="cityvp"'+(I?' data-pz="1"':'')+'>'+citySVG(mods,o)+'</div>';
-  if(o.title) h+='<div class="cstat"><span>'+esc(o.title)+'</span><b>'+lit+' of '+tot+' floors lit</b><i class="cbar"><u style="width:'+(tot?Math.round(lit/tot*100):0)+'%"></u></i>'+(o.coins!==undefined?'<button class="ccoin" data-a="go" data-to="#/shop"><i class="cdot"></i>'+o.coins+' coins'+(o.rent?' · +'+o.rent+'/day':'')+' · Shop</button>':'')+'</div>';
+  if(o.title) h+='<div class="cstat"><span>'+esc(o.title)+'</span><b>'+lit+' of '+tot+' floors lit</b><i class="cbar"><u style="width:'+(tot?Math.round(lit/tot*100):0)+'%"></u></i>'+(o.coins!==undefined?'<button class="ccoin" data-a="go" data-to="#/shop"><i class="cdot"></i>'+o.coins+' coins'+(o.rent?' · +'+o.rent+'/day · next in '+cdSpan((state.rentAt||Date.now())+864e5,true):'')+' · Shop</button>':'')+'</div>';
   if(I) h+='<div class="cctl"><button class="cbtn" data-a="czoom" data-d="1" aria-label="Zoom in">＋</button><button class="cbtn" data-a="czoom" data-d="-1" aria-label="Zoom out">−</button><button class="cbtn" data-a="creset" aria-label="Reset the view">⌖</button>'
     +(o.full?'<button class="cbtn" data-a="cclose" aria-label="Close the full screen view">✕</button>':'<button class="cbtn" data-a="cfull" aria-label="Open the city full screen">⛶</button>')+'</div>';
   if(o.legend!==false) h+='<div class="clegend"><span><i class="lg-lit"></i>Lights on</span><span><i class="lg-progress"></i>In progress</span><span><i class="lg-fading"></i>Fading</span><span><i class="lg-ready"></i>Ready</span><span><i class="lg-empty"></i>Waiting for files</span></div>';
@@ -679,7 +679,7 @@ window.addEventListener('message',function(event){
 function iliasRequest(type,details){
   if(!iliasBridge)return Promise.resolve({ok:false,message:'Install the Booklyn ILIAS Connector, reload Booklyn, then try again.'});
   return new Promise(function(resolve){
-    var id=uid(),timer=setTimeout(function(){delete iliasRequests[id];resolve({ok:false,message:'ILIAS took too long to respond. Try again.'});},60000);
+    var id=uid(),timer=setTimeout(function(){delete iliasRequests[id];resolve({ok:false,message:'ILIAS took too long to respond. Open ILIAS in a tab, wait for it to load, then try again.'});},type==='scan'?150000:90000);
     iliasRequests[id]={resolve:resolve,timer:timer};
     window.postMessage(Object.assign({source:'booklyn-app',type:type,requestId:id},details||{}),location.origin);
   });
@@ -712,7 +712,7 @@ async function scanIlias(){
   var c=iliasCounts();
   ui.ilias.status=ui.ilias.items.length+' files found on ILIAS · '+c.todo+' to add · '+c.in+' already in Booklyn · '+c.dis+' dismissed'+(discovered?' · '+discovered+' never seen before':'')+'.';
   if(!ui.ilias.items.length)ui.ilias.status='No file links found on the scanned ILIAS pages.';
-  if(result.limited)ui.ilias.status+=' Scan limited to 18 pages.';
+  if(result.limited)ui.ilias.status+=' The scan stopped early (page or time limit), so some files may be missing.';
   ui.ilias.filter=c.todo?'todo':(c.in?'in':'all');
   render();
 }
@@ -824,6 +824,7 @@ function pendingRow(f){
    +(held&&!f.dup&&!f.mod?'<p class="foot">Choose a module to continue.</p>':'')+'</div></li>';
 }
 function eligible(f){return f.include&&f.mod&&f.unit&&(!f.flag||f.confirmed);}
+function isDupRow(f){return !!f.dup&&f.status==='pending'&&FILES.some(function(x){return x.id===f.dup;});}
 function vPort(){
   var sem=curSem(); if(!sem) return vWelcome();
   var list=pending();
@@ -834,7 +835,7 @@ function vPort(){
     +'<p class="lede">Booklyn looks for file links on your ILIAS dashboard and linked courses. Every check lists everything it finds. Files you already have are recognised by their content, so nothing is added twice. Nothing is downloaded until you press “Add to Port”. Sign in to ILIAS in this browser first.</p>'
     +'<div class="row"><button class="btn small" data-a="scanilias" '+(ui.ilias.busy?'disabled':'')+'>Check ILIAS again</button><span class="foot">'+(iliasBridge?'Connector ready':'Needs the Booklyn ILIAS Connector browser extension')+'</span></div>'
     +'<p class="foot">'+(lastChk?'Last checked: '+lastChk+'.':'Not checked yet.')+'</p>'
-    +(!iliasBridge?'<p class="foot">Install it once: open <strong>edge://extensions</strong> (or chrome://extensions), turn on Developer mode, press “Load unpacked” and choose the <strong>ilias-extension</strong> folder. Then reload Booklyn.</p>':'')
+    +(!iliasBridge?'<p class="foot">Install the connector once on a computer with Edge or Chrome: <a href="/connector/" target="_blank" rel="noopener">download and install steps</a>. Then reload Booklyn. It does not work on phones; add files by hand there.</p>':'')
     +(ui.ilias.status?'<p class="foot" role="status">'+esc(ui.ilias.status)+'</p>':'')
     +(ui.ilias.items.length?iliasListHTML():'')+'</section>';
   if(state.lastImport.length&&!list.length){
@@ -845,6 +846,8 @@ function vPort(){
     h+='<section class="card stack"><h3>Nothing waiting</h3><p class="lede">Add files above. Want to try it first?</p><div class="row"><button class="btn ghost small" data-a="samples">Add 6 sample files</button></div></section>';
     return h;
   }
+  var dupN=list.filter(isDupRow).length;
+  if(dupN)h+='<section class="card stack"><h3>'+dupN+' duplicate'+(dupN===1?'':'s')+' waiting</h3><p class="lede">These files have exactly the same content as a file Booklyn already has. Removing them here only clears the extra copy from the Port.</p><div class="row"><button class="btn small" data-a="rmdups">Remove '+dupN+' duplicate'+(dupN===1?'':'s')+'</button></div></section>';
   var ok=list.filter(eligible).length, held=list.filter(function(f){return f.include&&!eligible(f);}).length;
   h+='<ul class="list">'+list.map(pendingRow).join('')+'</ul>';
   h+='<div class="actionbar"><div><strong>'+ok+' ready to import</strong><div class="foot">'+(held?held+' need a check first.':'Nothing is held back.')+'</div></div><button class="btn" data-a="import" '+(ok?'':'disabled')+'>Import '+ok+' file'+(ok===1?'':'s')+'</button></div>';
@@ -1363,6 +1366,7 @@ document.addEventListener('click',function(e){
   else if(a==='open'){openFile(id);}
   else if(a==='del1'){ui.confirm=id;render();}
   else if(a==='del0'){ui.confirm=null;render();}
+  else if(a==='rmdups'){var gone=pending().filter(isDupRow);Promise.all(gone.map(function(f){return dbDel(f.id);})).then(function(){var ids={};gone.forEach(function(f){ids[f.id]=1;});FILES=FILES.filter(function(f){return !ids[f.id];});render();toast(gone.length+' duplicate'+(gone.length===1?'':'s')+' removed.');});}
   else if(a==='del2'){dbDel(id).then(function(){FILES=FILES.filter(function(f){return f.id!==id;});ui.confirm=null;render();toast('File removed.');});}
   else if(a==='timer'){if(study.running)pauseTimer();else startTimer();render();var btn=$('#tbtn');if(btn)btn.focus();}
   else if(a==='treset'){pauseTimer();study.remaining=1500;render();}
@@ -1552,7 +1556,8 @@ function accountCard(){
 }
 /* ================= boot ================= */
 try{var _u=new URL(location.href);if(_u.searchParams.get('dev')==='1'||_u.searchParams.get('dev')==='0'){localStorage.setItem('booklyn:dev',_u.searchParams.get('dev'));_u.searchParams.delete('dev');history.replaceState(null,'',_u.pathname+(_u.search||'')+_u.hash);}}catch(e){}
-setInterval(function(){var els=document.querySelectorAll('.cd[data-until]');var exp=false;for(var i=0;i<els.length;i++){var u=+els[i].dataset.until,ms=u-Date.now();if(ms<=0){exp=true;continue;}els[i].textContent=fmtLeft(ms,!!els[i].dataset.compact);}if(exp&&location.hash.indexOf('/study')<0&&!document.hidden)render();},1000);
+var lastExpRender=0;
+setInterval(function(){var els=document.querySelectorAll('.cd[data-until]');var exp=false;for(var i=0;i<els.length;i++){var u=+els[i].dataset.until,ms=u-Date.now();if(ms<=0){exp=true;continue;}els[i].textContent=fmtLeft(ms,!!els[i].dataset.compact);}if(exp&&location.hash.indexOf('/study')<0&&!document.hidden&&Date.now()-lastExpRender>5000){lastExpRender=Date.now();render();}},1000);
 try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}catch(e){}
 try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catch(e){}
 render(false);

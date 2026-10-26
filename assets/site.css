@@ -31,3 +31,36 @@ footer{padding:46px 0 40px;color:var(--muted);font-size:.92rem}footer .links{dis
 @media (prefers-color-scheme:dark){.doc .todo{background:#5a4812;color:#ffe9a8}}
 @media (min-width:880px){.hero{grid-template-columns:1fr;gap:34px}}
 @media (prefers-reduced-motion:no-preference){.btn{transition:filter .15s}}
+
+/* ---- interactive demo ---- */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);margin:0 -20px;padding:12px 20px;border-bottom:1px solid transparent}
+.demo{background:var(--night);border-radius:22px;padding:14px;color:#e9ebfa;box-shadow:0 24px 60px -26px rgba(10,14,32,.7)}
+.demo svg{display:block;width:100%;height:auto;background:radial-gradient(120% 90% at 70% 0,#2a2f63 0,#171b38 55%,#12162b 100%);border-radius:16px}
+.demo .fl{cursor:pointer;outline:none}.demo .fl:hover polygon:not(.w),.demo .fl:focus-visible polygon:not(.w){filter:brightness(1.18)}
+.demo .fl:focus-visible{outline:2px solid var(--lit)}
+.demo .w{stroke:none}.w-lit{fill:#ffd166;filter:drop-shadow(0 0 2px rgba(255,209,102,.9))}.w-fading{fill:#ff7a3d;opacity:.9;animation:fl 2.2s ease-in-out infinite}.w-ready{fill:rgba(140,155,255,.14);stroke:#8c9bff!important;stroke-width:.6}
+@keyframes fl{0%,100%{opacity:.9}45%{opacity:.35}55%{opacity:.8}}
+.blab{fill:#fff;stroke:rgba(10,14,32,.8);stroke-width:.5;paint-order:stroke;font:700 9px 'Hanken Grotesk',system-ui,sans-serif;pointer-events:none}
+.dstats{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:12px 4px 4px;font-size:.95rem}
+.dstats b{font-weight:700}.dbar{flex:1 1 140px;height:8px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden}.dbar i{display:block;height:100%;background:#ffd166;width:0;transition:width .4s}
+.dchip{background:rgba(255,255,255,.1);border-radius:999px;padding:3px 12px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dmsg{min-height:3.2em;margin:10px 4px;color:#cfd3ee;font-size:.98rem}
+.dquiz{background:rgba(255,255,255,.07);border-radius:14px;padding:12px 14px;margin:6px 0}
+.dquiz .qh{margin:0;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:#ffd166;font-weight:700}.dquiz .qq{margin:4px 0 10px;font-size:1.05rem}.dquiz .qo{display:flex;gap:8px;flex-wrap:wrap}
+.demo .btn.ghost{color:#e9ebfa!important;box-shadow:inset 0 0 0 2px rgba(255,255,255,.25)}.btn.small{min-height:38px;padding:0 16px;font-size:.95rem}
+.drow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.herogrid{display:grid;gap:28px;align-items:center}
+@media (min-width:980px){.herogrid{grid-template-columns:1fr 1.15fr}}
+.steps{counter-reset:s;display:grid;gap:14px}
+.rules{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));margin-top:18px}
+.rule{border-left:4px solid var(--lit);padding:4px 0 4px 14px}.rule b{display:block}.rule span{color:var(--muted);font-size:.98rem}
+.group{margin-top:28px}.group>h3{font-size:1.15rem;margin:0 0 10px;color:var(--muted);font-family:'Hanken Grotesk',system-ui,sans-serif;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:.8rem}
+.faq details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 18px;margin:0 0 10px}
+.faq summary{cursor:pointer;font-weight:700;padding:12px 0;list-style:none}.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";float:right;color:var(--muted);font-weight:400;font-size:1.3rem;line-height:1}
+.faq details[open] summary::after{content:"–"}.faq details p{margin:0 0 14px;color:var(--muted)}
+.steplist{counter-reset:n;list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.steplist li{counter-increment:n;display:grid;grid-template-columns:36px 1fr;gap:12px;align-items:start}
+.steplist li::before{content:counter(n);display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--lit);color:#201d17;font-weight:800}
+.callout{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin:16px 0}
+@media (max-width:760px){.top nav a:not(.btn){display:none}}

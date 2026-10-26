@@ -1,6 +1,6 @@
 # Booklyn ILIAS Connector
 
-This Chrome/Edge extension lets Booklyn find file links on HSLU ILIAS pages you can access in your signed-in browser session. It checks the dashboard, linked courses, folders, groups, and notification or news pages, up to 18 pages per scan. Booklyn remembers which links it has seen and labels newly discovered links. Scanning starts only when you click **Check ILIAS**.
+This Chrome/Edge extension lets Booklyn find file links on HSLU ILIAS pages you can access in your signed-in browser session. It checks the dashboard, linked courses, folders, groups, and notification or news pages, up to 30 pages per scan (four at a time, with a one-minute limit). Booklyn remembers which links it has seen and labels newly discovered links. Scanning starts only when you click **Check ILIAS**.
 
 ## Install for local testing
 
