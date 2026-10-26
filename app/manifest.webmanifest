@@ -2,8 +2,8 @@
   "name": "Booklyn",
   "short_name": "Booklyn",
   "description": "Keep your lights on.",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/app/",
+  "scope": "/app/",
   "display": "standalone",
   "background_color": "#f4f0e6",
   "theme_color": "#1d5c58",
@@ -33,5 +33,5 @@
       "purpose": "maskable"
     }
   ],
-  "id": "./index.html"
+  "id": "/app/"
 }

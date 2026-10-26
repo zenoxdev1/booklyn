@@ -6,7 +6,7 @@ export const MAX_STATE_BYTES = 512 * 1024;
 export function json(body, status = 200, headers = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers },
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers },
   });
 }
 
@@ -31,8 +31,13 @@ export function cookieValue(request, name) {
   return '';
 }
 
+export function readSession(request) {
+  return cookieValue(request, '__Host-bk_session') || cookieValue(request, 'bk_session');
+}
+
 export function sessionCookie(value, maxAgeSeconds) {
-  return `bk_session=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
+  // The __Host- prefix makes browsers refuse the cookie unless it is Secure, set for the whole site and has no Domain.
+  return `__Host-bk_session=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 }
 
 // State-changing requests must come from our own pages (CSRF guard on top of SameSite=Lax).
@@ -43,7 +48,7 @@ export function sameOrigin(request) {
 }
 
 export async function currentUser(env, request) {
-  const raw = cookieValue(request, 'bk_session');
+  const raw = readSession(request);
   if (!raw) return null;
   const hash = await sha256(raw);
   const row = await env.DB.prepare(
@@ -78,8 +83,10 @@ export function formatCode(c) {
 }
 // Counts attempts per IP in login_tokens (rows are marked used so they can never sign anyone in).
 export async function tooManyAttempts(env, request, kind, limit) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'local';
+  // Only a one-way hash of the address is kept, and only for an hour or so.
+  const ip = (await sha256('ip:' + (request.headers.get('CF-Connecting-IP') || 'local'))).slice(0, 32);
   const now = Date.now();
+  await env.DB.prepare('DELETE FROM login_tokens WHERE created_at < ?').bind(now - 24 * 3600 * 1000).run();
   const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM login_tokens WHERE email = ? AND ip = ? AND created_at > ?').bind(kind, ip, now - 3600 * 1000).first();
   if (row.n >= limit) return true;
   await env.DB.prepare('INSERT INTO login_tokens (hash, email, ip, created_at, expires_at, used) VALUES (?, ?, ?, ?, ?, 1)')

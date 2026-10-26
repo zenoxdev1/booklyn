@@ -67,3 +67,11 @@ is sent; files are never uploaded.
 Cost: Workers AI includes 10,000 Neurons a day for free and fails once they are used up (it resets at 00:00 UTC).
 For this model, one call (about 1,500 input and 800 output tokens) is roughly 35 Neurons, so the default cap of 250 calls
 a day stays below the free allowance. When the limit is reached, Booklyn silently uses the on-device questions.
+
+## Site layout
+
+- `/` is the landing page, `/app/` is the app, `/privacy/`, `/terms/` and `/imprint/` are the legal pages.
+- The app, its service worker, fonts and the PDF library live in `app/`. The old root `sw.js` only exists to remove the previous service worker from browsers that still have it.
+- `functions/` stays in the repository root so that Cloudflare Pages serves `/api/...`.
+- Security headers (including the Content Security Policy) are in `_headers`.
+- Before going public, replace every highlighted `[placeholder]` in the three legal pages and the contact in `.well-known/security.txt`.

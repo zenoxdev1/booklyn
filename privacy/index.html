@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy policy · Booklyn</title>
+<meta name="description" content="How Booklyn handles your data: local first, optional sync, no tracking.">
+<meta name="theme-color" content="#1d5c58">
+<link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<link rel="preload" href="/app/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+<header class="top"><a class="brand" href="/">Booklyn</a><nav aria-label="Main"><a href="/#how">How it works</a><a href="/privacy/">Privacy</a><a class="btn" href="/app/">Open Booklyn</a></nav></header>
+<main id="main">
+<div class="doc">
+<h1>Privacy policy</h1>
+<p class="meta">Last updated: 26 October 2026. A plain-language policy for a small student project, written with the Swiss Federal Act on Data Protection (FADP) in mind.</p>
+
+<h2>In short</h2>
+<p>Your files, notes and progress live in your own browser. Booklyn does not see them unless you turn on sync, and even then only your progress is stored, never your files. There are no ads, no analytics and no tracking cookies.</p>
+
+<h2>Who is responsible</h2>
+<p><span class="todo">[Full name]</span>, <span class="todo">[Street and number, postcode, city]</span>, Switzerland. Contact: <span class="todo">[contact email]</span>.</p>
+
+<h2>What stays on your device</h2>
+<p>Files you add, the notes you write, your modules, deadlines, lit floors, coins and settings are stored in your browser (local storage and IndexedDB). We cannot read them. If you clear your browser data they are gone, so use the backup button in Settings from time to time.</p>
+
+<h2>Optional sync</h2>
+<p>If you create a sync code, we store on our server: a one-way hash of your code (not the code itself), hashes of your sign-in sessions, and a copy of your progress. That copy contains the data Booklyn keeps about your semester: module names, unit titles, deadlines, which floors are lit, coins, decorations and any notes you write. It never contains your files. The data is kept until you delete your account in Settings, which removes everything at once.</p>
+<p>When you sync, one cookie is set: <code>__Host-bk_session</code>. It keeps you signed in for up to 30 days, is strictly necessary for sync and is not used for tracking. Without sync no cookie is set.</p>
+
+<h2>Practice questions and optional AI</h2>
+<p>Questions are generated on your device from your own files by default. If you turn on the optional AI setting, short excerpts of the unit you are checking (at most about 6,000 characters) are sent to Cloudflare Workers AI to write questions. We do not store these excerpts. We only keep a daily usage counter per account to stay within a free limit. You can turn this off at any time.</p>
+
+<h2>ILIAS connector</h2>
+<p>The optional browser extension runs inside your browser with your own HSLU sign-in. It only talks to elearning.hslu.ch and to the Booklyn page you have open. We never receive your HSLU credentials, your course list or any file unless you choose to add it, and then it is stored only on your device.</p>
+
+<h2>Hosting and technical data</h2>
+<p>Booklyn is hosted on Cloudflare (Pages, D1 and Workers AI). Like any web host, Cloudflare processes technical data such as your IP address and browser type when you load a page or call the sync service. To limit abuse, we keep a one-way hash of your IP address for up to 24 hours. Fonts and scripts are served from Booklyn itself, so no third party receives your visit from us. Cloudflare may process data outside Switzerland, under its own data protection terms.</p>
+
+<h2>Why we process data</h2>
+<p>To run the app you asked for (sync, optional AI questions) and to keep the service secure and available. We do not sell data, show ads or build profiles.</p>
+
+<h2>Your rights</h2>
+<p>You can ask for access to, correction of or deletion of your data, and you can export a backup in Settings. For synced data, deletion is one button in Settings. Because accounts are anonymous, we may not be able to link a request to a specific account without your sync code. You can also complain to the Swiss Federal Data Protection and Information Commissioner (FDPIC).</p>
+
+<h2>Changes</h2>
+<p>If this policy changes, the date above changes too. Material changes will be announced in the app.</p>
+</div>
+</main>
+<footer><div class="links"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/imprint/">Imprint</a><a href="/app/">Open the app</a></div>
+<div>Booklyn is an unofficial student project. It is not affiliated with, or endorsed by, HSLU. No ads, no tracking.</div></footer>
+</div>
+</body>
+</html>

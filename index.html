@@ -2,23 +2,78 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Booklyn</title>
-<meta name="description" content="Keep your lights on. Turn each week's course material into a city you light up as you learn.">
-<meta name="robots" content="noindex,nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Booklyn: keep your lights on</title>
+<meta name="description" content="Booklyn turns your semester into a night city you light up as you study. Free, private and made by students.">
 <meta name="theme-color" content="#1d5c58">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<link rel="preload" href="/app/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+<meta property="og:title" content="Booklyn: keep your lights on">
+<meta property="og:description" content="Study a unit, pass a short check, and a window in your city lights up.">
+<meta property="og:image" content="/assets/city.webp">
 </head>
 <body>
-<div class="shell" id="app"></div>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-<input type="file" id="fi" multiple hidden>
-<input type="file" id="fd" webkitdirectory multiple hidden>
-<script src="app.js"></script>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+<header class="top"><a class="brand" href="/">Booklyn</a><nav aria-label="Main"><a href="/#how">How it works</a><a href="/privacy/">Privacy</a><a class="btn" href="/app/">Open Booklyn</a></nav></header>
+<main id="main">
+<section class="hero">
+<div>
+<h1>Keep your lights on.</h1>
+<p class="lede">Booklyn turns your semester into a city at night. Study a unit, pass a short check on your own material, and a window lights up. Let a week slide and it slowly fades.</p>
+<div class="cta"><a class="btn" href="/app/">Open Booklyn</a><a class="btn ghost" href="#how">See how it works</a></div>
+<p class="note">Free. No account needed. Your files never leave your device.</p>
+</div>
+<div class="shot"><img src="/assets/city.webp" width="1792" height="1086" alt="An isometric night city. Each building is a module and each lit window is a unit you have studied." fetchpriority="high"></div>
+</section>
+
+<section class="s" id="how" aria-labelledby="how-h">
+<h2 id="how-h">One city. One window per week.</h2>
+<p class="sub">Your degree is the city, a semester is a district, a module is a building and each teaching unit is a floor.</p>
+<div class="grid">
+<div class="card"><span class="num" aria-hidden="true">1</span><h3>Add your material</h3><p>Drop PDFs, Word and PowerPoint files or whole folders. Booklyn sorts them into the right module and week. Files stay in your browser.</p></div>
+<div class="card"><span class="num" aria-hidden="true">2</span><h3>Study a floor</h3><p>Open the week, read, keep notes and use the focus timer. No pressure, no streak to lose in one bad day.</p></div>
+<div class="card"><span class="num" aria-hidden="true">3</span><h3>Pass the check</h3><p>Short questions are made from your own files, on your device. Pass and the light goes on, and a guest moves in who pays rent in coins.</p></div>
+</div>
+<div class="legend" aria-label="What the windows mean"><span><i class="l-on"></i>Lights on</span><span><i class="l-prog"></i>In progress</span><span><i class="l-fade"></i>Fading</span><span><i class="l-ready"></i>Ready</span><span><i class="l-wait"></i>Waiting for files</span></div>
+</section>
+
+<section class="s" aria-labelledby="f-h">
+<h2 id="f-h">Made for a real semester</h2>
+<p class="sub">Everything a student actually needs, nothing you have to configure for an hour.</p>
+<div class="grid">
+<div class="card"><h3>Questions from your files</h3><p>Fill-in and multiple-choice questions are generated locally from your slides and scripts. Optional AI questions are off until you turn them on.</p></div>
+<div class="card"><h3>Deadlines in one place</h3><p>Exams, tests and hand-ins sit next to your city, and the next one shows up first.</p></div>
+<div class="card"><h3>Works offline</h3><p>Install it on your phone or laptop and study on the train. Progress syncs only if you choose to.</p></div>
+<div class="card"><h3>Sync without email</h3><p>Optional sync uses a secret code, not an email or a password. Lose the code and nobody, including us, can get your progress back, so keep it safe.</p></div>
+<div class="card"><h3>ILIAS connector</h3><p>An optional browser extension finds new files on your HSLU ILIAS and lets you add them with one click. It uses your own sign-in, nothing is uploaded.</p></div>
+<div class="card"><h3>Make it yours</h3><p>Coins from your lit floors buy trees, pools, helipads and seasons. Only cosmetics, never real money.</p></div>
+</div>
+</section>
+
+<section class="s" aria-labelledby="p-h">
+<div class="priv">
+<h2 id="p-h">Private by design</h2>
+<ul>
+<li>Your files, notes and progress are stored in your own browser.</li>
+<li>No ads, no analytics, no tracking cookies, no third-party fonts or scripts.</li>
+<li>Sync is optional and stores only your progress, never your files.</li>
+<li>You can export a backup or delete everything with one button.</li>
+</ul>
+<p style="margin:16px 0 0">Read the full <a href="/privacy/">privacy policy</a> and the <a href="/terms/">terms</a>.</p>
+</div>
+</section>
+
+<section class="s" aria-labelledby="c-h" style="text-align:center">
+<h2 id="c-h">Light your first window.</h2>
+<p class="sub" style="margin:8px auto 20px">Try the demo semester in one click, or build your own.</p>
+<a class="btn" href="/app/">Open Booklyn</a>
+</section>
+</main>
+<footer><div class="links"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/imprint/">Imprint</a><a href="/app/">Open the app</a></div>
+<div>Booklyn is an unofficial student project. It is not affiliated with, or endorsed by, HSLU. No ads, no tracking.</div></footer>
+</div>
 </body>
 </html>

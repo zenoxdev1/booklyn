@@ -141,9 +141,50 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
+/* Untrusted data (backup files, the cloud copy) is cleaned before it is used: ids are checked because they end up in the page, text is trimmed, odd keys are dropped. */
+var ID_OK=/^[A-Za-z0-9_-]{1,40}$/;
+function scrub(v,d){
+  if(d>10)return null;
+  if(typeof v==='string')return v.length>20000?v.slice(0,20000):v;
+  if(typeof v==='number')return isFinite(v)?v:0;
+  if(v===null||typeof v==='boolean')return v;
+  if(Array.isArray(v))return v.slice(0,5000).map(function(x){return scrub(x,d+1);});
+  if(typeof v==='object'){var o={},n=0;Object.keys(v).forEach(function(k){if(k==='__proto__'||k==='constructor'||k==='prototype'||++n>20000)return;o[k]=scrub(v[k],d+1);});return o;}
+  return null;
+}
+function clean(s){
+  s=scrub(s,0);if(!s||typeof s!=='object'||Array.isArray(s))throw new Error('shape');
+  fill(s);
+  ['lit','seen','notes','tasksDone','lvl','pin','deco','paid','iliasKnown','iliasDismissed','iliasHash','iliasImported','scenery','sceneOwn'].forEach(function(k){if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))s[k]={};});
+  if(!Array.isArray(s.sems)||!Array.isArray(s.deadlines)||!Array.isArray(s.lastImport))throw new Error('lists');
+  s.name=String(s.name||'').slice(0,80);
+  ['coins','shields','rentAt','lastBackup','snoozeBackup','iliasLast'].forEach(function(k){s[k]=Math.max(0,+s[k]||0);});
+  s.lastImport=s.lastImport.map(String).slice(0,500);
+  var used={};
+  s.sems.forEach(function(sem){
+    if(!sem||typeof sem!=='object'||!ID_OK.test(String(sem.id))||!Array.isArray(sem.modules))throw new Error('sem');
+    sem.id=String(sem.id);sem.name=String(sem.name||'').slice(0,120);sem.start=/^\d{4}-\d{2}-\d{2}$/.test(String(sem.start))?sem.start:'';
+    sem.demo=!!sem.demo;sem.finished=!!sem.finished;
+    sem.modules.forEach(function(m){
+      if(!m||typeof m!=='object'||!ID_OK.test(String(m.id))||used[m.id])throw new Error('mod');
+      used[m.id]=1;m.id=String(m.id);m.code=String(m.code||'').slice(0,40);m.name=String(m.name||'').slice(0,200);m.kw=String(m.kw||'').slice(0,400);
+      m.h=Math.min(360,Math.max(0,+m.h||0));m.units=Math.min(MAXU,Math.max(1,Math.floor(+m.units||1)));
+      if(!Array.isArray(m.titles))m.titles=[];m.titles=m.titles.slice(0,MAXU).map(function(t){return String(t).slice(0,200);});
+      if(!m.base||typeof m.base!=='object'||Array.isArray(m.base))m.base={};
+    });
+  });
+  var dk=['Exam','Test','Assignment','Project','Other'],dids={};
+  s.deadlines=s.deadlines.filter(function(d){return d&&typeof d==='object';}).slice(0,1000).map(function(d){
+    var id=ID_OK.test(String(d.id))&&!dids[d.id]?String(d.id):uid();dids[id]=1;
+    return {id:id,date:/^\d{4}-\d{2}-\d{2}$/.test(String(d.date))?d.date:'',mod:ID_OK.test(String(d.mod))?String(d.mod):'',kind:dk.indexOf(d.kind)>-1?d.kind:'Other',title:String(d.title||'').slice(0,200)};
+  }).filter(function(d){return d.date;});
+  if(s.activeSem!==null&&!ID_OK.test(String(s.activeSem)))s.activeSem=null;
+  s.theme=['system','light','dark'].indexOf(s.theme)>-1?s.theme:'system';
+  return s;
+}
 function load(){
   try{
     var raw=localStorage.getItem(KEY); if(!raw) return blank();
@@ -244,14 +285,25 @@ function sceneKey(){var sm=curSem();var k=sm&&state.scenery[sm.id];return SCENES
 function roofOf(d){return (d&&(d.roof||(d.garden?'garden':'')))||'';}
 var GUESTS=['Mira','Jonas','Ana','Lukas','Sofia','Elias','Lena','Marco','Nora','Tim','Chiara','Noah','Ida','Leo','Emma','Aron'];
 function litTs(k){var t=state.lit[k];return t?(typeof t==='number'&&t>1e12?t:Date.now()):0;}
-function litInfo(k){
+function natInfo(k){
   var t=litTs(k);if(!t)return null;
-  if(state.pin&&state.pin[k])return {state:'lit',pinned:true};
   var iv=LV[Math.min(state.lvl[k]||0,2)],age=(Date.now()-t)/864e5;
-  if(age<iv)return {state:'lit',left:Math.max(1,Math.ceil(iv-age))};
-  if(age<iv+FADE)return {state:'fading',left:Math.max(1,Math.ceil(iv+FADE-age))};
+  if(age<iv)return {state:'lit',left:Math.max(1,Math.ceil(iv-age)),until:t+iv*864e5};
+  if(age<iv+FADE)return {state:'fading',left:Math.max(1,Math.ceil(iv+FADE-age)),until:t+(iv+FADE)*864e5};
   return null;
 }
+function litInfo(k){
+  if(state.pin&&state.pin[k])return {state:'lit',pinned:true};
+  return natInfo(k);
+}
+function realOn(m,u){return !!natInfo(m.id+':'+u);}
+function fmtLeft(ms,compact){
+  var s=Math.max(0,Math.floor(ms/1000)),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),mi=Math.floor(s%3600/60),sc=s%60;
+  function p(n){return n<10?'0'+n:''+n;}
+  if(compact){return d>0?d+'d '+h+'h':h>0?h+'h '+mi+'m':mi+'m '+p(sc)+'s';}
+  return d>0?d+'d '+p(h)+'h '+p(mi)+'m '+p(sc)+'s':h>0?h+'h '+p(mi)+'m '+p(sc)+'s':mi+'m '+p(sc)+'s';
+}
+function cdSpan(until,compact){return '<span class="cd" data-until="'+(+until||0)+'"'+(compact?' data-compact="1"':'')+'>'+fmtLeft(until-Date.now(),compact)+'</span>';}
 function isOn(st){return st==='lit'||st==='fading';}
 function guestFor(k){return GUESTS[hashStr(k)%GUESTS.length];}
 function rentPerDay(){
@@ -308,16 +360,17 @@ function suggest(text,sem){
 }
 
 /* ================= adding files ================= */
-async function addFiles(list,preset){
+async function addFiles(list,preset,skipDups){
   var sem=curSem(); if(!sem){toast('Set up a semester first.');return;}
   var arr=Array.prototype.slice.call(list); if(!arr.length) return;
   try{if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();}catch(e){}
-  var added=0,dups=0,failed=0,ids=[];
+  var added=0,dups=0,failed=0,ids=[],hashes=[];
   for(var i=0;i<arr.length;i++){
     var f=arr[i];
     toast('Adding '+(i+1)+' of '+arr.length+'…',true);
-    var h=await sha(f), dup=h?FILES.filter(function(x){return x.hash===h;})[0]:null;
+    var h=await sha(f), dup=h?FILES.filter(function(x){return x.hash===h;})[0]:null;if(h)hashes.push(h);
     var rec={id:uid(),name:f.name,path:f.webkitRelativePath||'',size:f.size,type:f.type,mtime:f.lastModified,hash:h,addedAt:Date.now(),sem:sem.id,dup:null};
+    if(dup&&skipDups){dups++;continue;}
     if(preset){
       if(dup){dups++;continue;}
       rec.status='imported';rec.mod=preset.mod;rec.unit=preset.unit;rec.include=true;rec.confirmed=true;rec.flag=false;rec.why='';
@@ -335,7 +388,7 @@ async function addFiles(list,preset){
   var msg=added+' file'+(added===1?'':'s')+' added'+(dups?', '+dups+' duplicate'+(dups>1?'s':'')+' skipped':'')+(failed?', '+failed+' failed':'')+'.';
   if(!preset&&added&&route().name!=='port'){go('#/port');}
   render(); toast(msg);
-  return {added:added,dups:dups,failed:failed};
+  return {added:added,dups:dups,failed:failed,hashes:hashes};
 }
 async function openFile(id){
   var rec=FILES.filter(function(f){return f.id===id;})[0]; if(!rec) return;
@@ -474,7 +527,7 @@ function bldgSVG(m,x0,y0,x1,y1,idx,I){
   var fl='',wl='',wo='',wg='',T=[[.14,.4],[.6,.86]];
   for(var u=1;u<=N;u++){
     var z0=zb+(u-1)*fh,z1=zb+u*fh,st=m.st[u-1];
-    fl+='<polygon class="fl fl-l fl-'+st+'" points="'+pts([iso(x0,y1,z0),iso(x1,y1,z0),iso(x1,y1,z1),iso(x0,y1,z1)])+'">'+(I&&!m.nocount&&(st==='lit'||st==='fading')?'<title>'+esc(m.code+' · floor '+u+' · '+guestName(m.k||m.code,u)+(st==='fading'?' (leaving soon)':' lives here'))+'</title>':'')+'</polygon>'
+    fl+='<polygon class="fl fl-l fl-'+st+'" points="'+pts([iso(x0,y1,z0),iso(x1,y1,z0),iso(x1,y1,z1),iso(x0,y1,z1)])+'">'+(I&&!m.nocount&&(st==='lit'||st==='fading')?'<title>'+esc(m.code+' · floor '+u+' · '+guestName(m.k||m.code,u)+(st==='fading'?' (leaving soon)':' lives here')+(function(){var q=natInfo((m.k||m.id||m.code)+':'+u);return q&&q.until&&!(state.pin&&state.pin[(m.k||m.id||m.code)+':'+u])?' · '+fmtLeft(q.until-Date.now(),true)+' left':'';})())+'</title>':'')+'</polygon>'
       +'<polygon class="fl fl-r fl-'+st+'" points="'+pts([iso(x1,y1,z0),iso(x1,y0,z0),iso(x1,y0,z1),iso(x1,y1,z1)])+'"/>';
     if(st!=='empty'){
       var za=z0+fh*.18,zc=z0+fh*.8,wc='w w-'+st,buf='';
@@ -554,7 +607,7 @@ function cityBox(mods,o){
   if(o.title) h+='<div class="cstat"><span>'+esc(o.title)+'</span><b>'+lit+' of '+tot+' floors lit</b><i class="cbar"><u style="width:'+(tot?Math.round(lit/tot*100):0)+'%"></u></i>'+(o.coins!==undefined?'<button class="ccoin" data-a="go" data-to="#/shop"><i class="cdot"></i>'+o.coins+' coins'+(o.rent?' · +'+o.rent+'/day':'')+' · Shop</button>':'')+'</div>';
   if(I) h+='<div class="cctl"><button class="cbtn" data-a="czoom" data-d="1" aria-label="Zoom in">＋</button><button class="cbtn" data-a="czoom" data-d="-1" aria-label="Zoom out">−</button><button class="cbtn" data-a="creset" aria-label="Reset the view">⌖</button>'
     +(o.full?'<button class="cbtn" data-a="cclose" aria-label="Close the full screen view">✕</button>':'<button class="cbtn" data-a="cfull" aria-label="Open the city full screen">⛶</button>')+'</div>';
-  if(o.legend!==false) h+='<div class="clegend"><span><i style="background:#ffd166"></i>Lights on</span><span><i style="background:#c08a3c"></i>In progress</span><span><i style="background:#8a6a2f"></i>Fading</span><span><i style="background:#4e5b8c"></i>Ready</span><span><i style="background:#3a3f4d"></i>Waiting for files</span></div>';
+  if(o.legend!==false) h+='<div class="clegend"><span><i class="lg-lit"></i>Lights on</span><span><i class="lg-progress"></i>In progress</span><span><i class="lg-fading"></i>Fading</span><span><i class="lg-ready"></i>Ready</span><span><i class="lg-empty"></i>Waiting for files</span></div>';
   if(I) h+='<p class="chint">Tap a building to open it. Drag to look around.</p>';
   return h+'</section>';
 }
@@ -614,7 +667,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false}};
+var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo'}};
 var iliasBridge=false, iliasRequests={};
 window.addEventListener('message',function(event){
   if(event.source!==window||event.origin!==location.origin||!event.data||event.data.source!=='booklyn-ilias-extension')return;
@@ -631,35 +684,84 @@ function iliasRequest(type,details){
     window.postMessage(Object.assign({source:'booklyn-app',type:type,requestId:id},details||{}),location.origin);
   });
 }
+function iliasIn(file){
+  var h=state.iliasHash[file.key];
+  if(h&&FILES.some(function(f){return f.hash===h;}))return true;
+  if(state.iliasImported[file.key]&&!h){var n=String(file.name||'').toLowerCase();return FILES.some(function(f){return String(f.name).toLowerCase()===n;});}
+  return false;
+}
+function iliasCls(file){return iliasIn(file)?'in':state.iliasDismissed[file.key]?'dis':'todo';}
+function iliasSuggest(file){
+  var sem=curSem();if(!sem)return '';
+  var c={modules:sem.modules.map(function(m){return {id:m.id,code:m.code,kw:m.kw,units:MAXU};})};
+  var sg=suggest(String(file.name||'')+' '+String(file.context||''),c),m=sg.mod?M(sg.mod):null;
+  return m?m.code+(sg.unit?' · week '+sg.unit:''):'';
+}
+function iliasCounts(){var c={todo:0,in:0,dis:0};ui.ilias.items.forEach(function(f){c[iliasCls(f)]++;});return c;}
 async function scanIlias(){
   ui.ilias.busy=true;ui.ilias.status='Checking ILIAS…';render();
   var result=await iliasRequest('scan');
   ui.ilias.busy=false;ui.ilias.scanned=true;
   if(!result.ok){ui.ilias.status=result.message||'Could not check ILIAS.';render();return;}
   var discovered=0;
-  ui.ilias.items=(result.files||[]).filter(function(file){return !state.iliasImported[file.key];}).map(function(file){
+  ui.ilias.items=(result.files||[]).filter(function(f){return f&&f.key&&f.name;}).map(function(file){
     file.isNew=!state.iliasKnown[file.key];if(file.isNew)discovered++;
     state.iliasKnown[file.key]=Date.now();return file;
   });
   state.iliasLast=Date.now();save();
-  ui.ilias.status=ui.ilias.items.length?discovered+' newly found · '+ui.ilias.items.length+' available to add.':'No new file links found on the scanned ILIAS pages.';
+  var c=iliasCounts();
+  ui.ilias.status=ui.ilias.items.length+' files found on ILIAS · '+c.todo+' to add · '+c.in+' already in Booklyn · '+c.dis+' dismissed'+(discovered?' · '+discovered+' never seen before':'')+'.';
+  if(!ui.ilias.items.length)ui.ilias.status='No file links found on the scanned ILIAS pages.';
   if(result.limited)ui.ilias.status+=' Scan limited to 18 pages.';
+  ui.ilias.filter=c.todo?'todo':(c.in?'in':'all');
   render();
 }
-async function importIlias(key){
-  var file=ui.ilias.items.filter(function(item){return item.key===key;})[0];if(!file)return;
-  ui.ilias.busy=true;ui.ilias.status='Downloading '+file.name+'…';render();
-  var result=await iliasRequest('download',{url:file.url,name:file.name});
-  if(!result.ok){ui.ilias.busy=false;ui.ilias.status=result.message||'Could not download this file.';render();return;}
-  try{
-    var binary=atob(result.base64),bytes=new Uint8Array(binary.length);
-    for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-    var added=await addFiles([new File([bytes],result.name||file.name,{type:result.mime||'application/octet-stream'})]);
-    if(added&&(added.added||added.dups)){state.iliasImported[key]=Date.now();save();ui.ilias.items=ui.ilias.items.filter(function(item){return item.key!==key;});}
-    ui.ilias.status=added&&added.added?'File added to the Port for review.':added&&added.dups?'This file is already in Booklyn.':'Could not add the file.';
-  }catch(error){ui.ilias.status='Could not read the downloaded file.';}
-  ui.ilias.busy=false;render();
+async function importIlias(key,batch){
+  var file=ui.ilias.items.filter(function(item){return item.key===key;})[0];if(!file)return 'fail';
+  if(!batch){ui.ilias.busy=true;ui.ilias.status='Downloading '+file.name+'…';render();}
+  var result=await iliasRequest('download',{url:file.url,name:file.name}),out='fail';
+  if(!result.ok){if(!batch)ui.ilias.status=result.message||'Could not download this file.';}
+  else{
+    try{
+      var binary=atob(result.base64),bytes=new Uint8Array(binary.length);
+      for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+      var added=await addFiles([new File([bytes],result.name||file.name,{type:result.mime||'application/octet-stream'})],null,true);
+      if(added&&(added.added||added.dups)){
+        state.iliasImported[key]=Date.now();if(added.hashes&&added.hashes[0])state.iliasHash[key]=added.hashes[0];
+        delete state.iliasDismissed[key];save();out=added.added?'added':'dup';
+      }
+      if(!batch)ui.ilias.status=out==='added'?'File added to the Port for review.':out==='dup'?'This content is already in Booklyn, so nothing was duplicated.':'Could not add the file.';
+    }catch(error){if(!batch)ui.ilias.status='Could not read the downloaded file.';}
+  }
+  if(!batch){ui.ilias.busy=false;render();}
+  return out;
 }
+async function importAllIlias(){
+  var todo=ui.ilias.items.filter(function(f){return iliasCls(f)==='todo';});if(!todo.length)return;
+  ui.ilias.busy=true;var n={added:0,dup:0,fail:0};
+  for(var i=0;i<todo.length;i++){
+    ui.ilias.status='Adding '+(i+1)+' of '+todo.length+': '+todo[i].name;render();
+    var r=await importIlias(todo[i].key,true);n[r]++;
+  }
+  ui.ilias.busy=false;
+  ui.ilias.status=n.added+' added to the Port'+(n.dup?' · '+n.dup+' were identical to files you already have':'')+(n.fail?' · '+n.fail+' could not be downloaded (too big or not readable)':'')+'.';
+  go('#/port');
+}
+function iliasListHTML(){
+  var c=iliasCounts(),f=ui.ilias.filter||'todo',LAB={todo:'To add',in:'Already in Booklyn',dis:'Dismissed',all:'All'},CNT={todo:c.todo,in:c.in,dis:c.dis,all:ui.ilias.items.length};
+  var h='<div class="row tight" role="group" aria-label="Filter ILIAS files">'+['todo','in','dis','all'].map(function(k){return '<button class="chip fchip" data-a="ilfilter" data-f="'+k+'" aria-pressed="'+(f===k)+'">'+LAB[k]+' · '+CNT[k]+'</button>';}).join('')+'</div>';
+  if(c.todo)h+='<div class="row"><button class="btn small" data-a="iliasall" '+(ui.ilias.busy?'disabled':'')+'>Add all '+c.todo+' to the Port</button><span class="foot">Dismiss what you do not need first.</span></div>';
+  var rows=ui.ilias.items.filter(function(x){return f==='all'||iliasCls(x)===f;});
+  if(!rows.length)return h+'<p class="foot">Nothing in this list.</p>';
+  h+='<ul class="list">'+rows.slice(0,150).map(function(file){
+    var k=iliasCls(file),sg=iliasSuggest(file);
+    return '<li class="item"><div class="grow"><div class="t">'+esc(file.name)+(file.isNew?' <span class="chip">New</span>':'')+(k==='in'?' <span class="chip s-lit">In Booklyn</span>':k==='dis'?' <span class="chip">Dismissed</span>':'')+'</div><div class="s">'+esc(file.context||'ILIAS')+(sg&&k!=='in'?' · looks like '+esc(sg):'')+'</div></div><div class="row tight">'
+      +(k==='todo'?'<button class="btn small" data-a="iliasimport" data-key="'+esc(file.key)+'" '+(ui.ilias.busy?'disabled':'')+'>Add to Port</button><button class="btn ghost small" data-a="ildismiss" data-key="'+esc(file.key)+'">Dismiss</button>':'')
+      +(k==='dis'?'<button class="btn ghost small" data-a="ilrestore" data-key="'+esc(file.key)+'">Restore</button>':'')
+      +'<a class="btn ghost small" href="'+esc(safeUrl(file.openUrl||file.url))+'" target="_blank" rel="noopener noreferrer">Open ↗</a></div></li>';}).join('')+'</ul>'+(rows.length>150?'<p class="foot">Showing the first 150 of '+rows.length+'. Dismiss or add some to see the rest.</p>':'');
+  return h;
+}
+function safeUrl(u){try{var x=new URL(String(u||''),location.href);return /^https:$/.test(x.protocol)&&/(^|\.)hslu\.ch$/.test(x.hostname)?x.href:'#';}catch(e){return '#';}}
 function cur(){return memHash;}
 function go(to){memHash=to;ui.cityFull=false;try{if(location.hash!==to)location.hash=to;}catch(e){}render(true);}
 function route(){
@@ -680,7 +782,7 @@ function route(){
 }
 
 /* ================= views ================= */
-function foot(){return '<p class="disclaimer">Unofficial student project, not affiliated with HSLU. Your files stay on this device. Your progress stays here too unless you turn on sync. No ads, no tracking.</p>';}
+function foot(){return '<p class="disclaimer">Unofficial student project, not affiliated with HSLU. Your files stay on this device. Your progress stays here too unless you turn on sync. No ads, no tracking. <a href="/privacy/">Privacy</a> · <a href="/terms/">Terms</a> · <a href="/imprint/">Imprint</a> · <a href="/">About Booklyn</a></p>';}
 
 function vWelcome(){
   return '<section class="hero"><p class="eyebrow">Welcome</p><h1 tabindex="-1" id="h1">Booklyn</h1><p class="motto">Keep your lights on.</p>'
@@ -729,12 +831,12 @@ function vPort(){
   h+='<section class="drop" data-drop><h2>Drop files here</h2><p class="lede">or choose them from your computer or phone</p><div class="row" style="justify-content:center"><button class="btn" data-a="pickfiles">Choose files</button><button class="btn ghost" data-a="pickfolder">Choose a folder</button></div></section>';
   var lastChk=state.iliasLast?new Date(state.iliasLast).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   h+='<section class="card stack"><div class="row" style="justify-content:space-between"><div><p class="eyebrow">HSLU ILIAS</p><h2>Find new files</h2></div><a class="btn ghost small" href="https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show" target="_blank" rel="noopener noreferrer">Open ILIAS ↗</a></div>'
-    +'<p class="lede">Booklyn looks for file links on your ILIAS dashboard and linked courses. Nothing is downloaded or imported until you press “Add to Port”. Sign in to ILIAS in this browser first.</p>'
-    +'<div class="row"><button class="btn small" data-a="scanilias" '+(ui.ilias.busy?'disabled':'')+'>Check ILIAS</button><span class="foot">'+(iliasBridge?'Connector ready':'Needs the Booklyn ILIAS Connector browser extension')+'</span></div>'
+    +'<p class="lede">Booklyn looks for file links on your ILIAS dashboard and linked courses. Every check lists everything it finds. Files you already have are recognised by their content, so nothing is added twice. Nothing is downloaded until you press “Add to Port”. Sign in to ILIAS in this browser first.</p>'
+    +'<div class="row"><button class="btn small" data-a="scanilias" '+(ui.ilias.busy?'disabled':'')+'>Check ILIAS again</button><span class="foot">'+(iliasBridge?'Connector ready':'Needs the Booklyn ILIAS Connector browser extension')+'</span></div>'
     +'<p class="foot">'+(lastChk?'Last checked: '+lastChk+'.':'Not checked yet.')+'</p>'
     +(!iliasBridge?'<p class="foot">Install it once: open <strong>edge://extensions</strong> (or chrome://extensions), turn on Developer mode, press “Load unpacked” and choose the <strong>ilias-extension</strong> folder. Then reload Booklyn.</p>':'')
     +(ui.ilias.status?'<p class="foot" role="status">'+esc(ui.ilias.status)+'</p>':'')
-    +(ui.ilias.items.length?'<ul class="list">'+ui.ilias.items.map(function(file){return '<li class="item"><div class="grow"><div class="t">'+esc(file.name)+(file.isNew?' <span class="chip">New</span>':'')+'</div><div class="s">'+esc(file.context||'ILIAS')+'</div></div><div class="row"><button class="btn small" data-a="iliasimport" data-key="'+esc(file.key)+'" '+(ui.ilias.busy?'disabled':'')+'>Add to Port</button><a class="btn ghost small" href="'+esc(file.openUrl||file.url)+'" target="_blank" rel="noopener noreferrer">Open ↗</a></div></li>';}).join('')+'</ul>':'')+'</section>';
+    +(ui.ilias.items.length?iliasListHTML():'')+'</section>';
   if(state.lastImport.length&&!list.length){
     var by={};state.lastImport.forEach(function(id){var f=FILES.filter(function(x){return x.id===id;})[0];if(f&&f.status==='imported'){by[f.mod]=(by[f.mod]||0)+1;}});
     h+='<section class="card stack"><h3>Imported</h3><div class="row tight">'+Object.keys(by).map(function(k){var m=M(k);return m?'<button class="chip" data-a="go" data-to="#/m/'+m.id+'" style="border:0;cursor:pointer">'+esc(m.code)+' · '+by[k]+'</button>':'';}).join('')+'</div><div class="row"><button class="btn ghost small" data-a="undo">Undo this import</button></div></section>';
@@ -757,7 +859,7 @@ function vModule(r){
     h+='<ul class="list">';
     for(var u=1;u<=m.units;u++){
       var st=uStatus(m,u),n=mats(m,u).length;
-      h+='<li><button class="item '+st+'" data-a="go" data-to="#/m/'+m.id+'/'+u+'"><span class="floor" style="--h:'+m.h+'">'+u+'</span><div class="grow"><div class="t">'+esc(m.titles[u-1])+'</div><div class="s">'+(n?n+' file'+(n>1?'s':''):'No files yet')+(st==='lit'||st==='fading'?' · '+esc(guestName(m.id,u))+(st==='fading'?' is packing':' lives here'):'')+'</div></div>'+chip(st)+'</button></li>';
+      h+='<li><button class="item '+st+'" data-a="go" data-to="#/m/'+m.id+'/'+u+'"><span class="floor" style="--h:'+m.h+'">'+u+'</span><div class="grow"><div class="t">'+esc(m.titles[u-1])+'</div><div class="s">'+(n?n+' file'+(n>1?'s':''):'No files yet')+(st==='lit'||st==='fading'?' · '+esc(guestName(m.id,u))+(st==='fading'?' is packing':' lives here'):'')+(function(){var q=litInfo(m.id+':'+u);return q&&q.pinned?' · pinned':q&&q.until?' · '+cdSpan(q.until,true)+' left':'';})()+'</div></div>'+chip(st)+'</button></li>';
     }
     h+='</ul><div class="row" style="margin-top:12px"><button class="btn ghost small" data-a="addfloor" data-m="'+m.id+'">＋ Add a floor</button>'+(m.units>1&&!mats(m,m.units).length&&!state.lit[m.id+':'+m.units]?'<button class="btn ghost small" data-a="rmfloor" data-m="'+m.id+'">Remove last floor (Week '+m.units+')</button>':'')+'</div>';
   } else {
@@ -799,12 +901,12 @@ function vUnit(r){
 function unitGuest(m,u,k,st){
   var li=litInfo(k),g=guestFor(k),pin=!!(state.pin&&state.pin[k]),t='';
   if(li&&li.pinned) t=g+' lives here rent-free. This light stays on.';
-  else if(st==='lit') t=g+' lives here and pays rent. The light stays on for about '+li.left+' more day'+(li.left>1?'s':'')+'.';
-  else if(st==='fading') t='The light is fading and '+g+' is packing. Pass the check within '+li.left+' day'+(li.left>1?'s':'')+' to keep your guest and earn 5 coins.';
+  else if(st==='lit') t=g+' lives here and pays rent. The light stays on for \u0001.';
+  else if(st==='fading') t='The light is fading and '+g+' is packing. Pass the check within \u0001 to keep your guest and earn 5 coins.';
   else if(state.lvl[k]!==undefined) t=g+' is away. Pass the check to bring them back and earn 5 coins.';
   var h='';
-  if(t) h+='<div class="notice guestnote"><strong>Guest</strong> · '+esc(t)+(st==='fading'&&state.shields>0?' <button class="btn small" data-a="shield" data-k="'+k+'">Use a shield ('+state.shields+' left)</button>':'')+'</div>';
-  h+='<label class="check"><input type="checkbox" data-c="pin" data-k="'+k+'" '+(pin?'checked':'')+'><div class="t">Keep this light on for good<div class="s">Use it when the unit is easy or will not be in the exam. The light never fades, but it pays no rent.</div></div></label>';
+  if(t) h+='<div class="notice guestnote"><strong>Guest</strong> · '+esc(t).replace('\u0001',li&&li.until?cdSpan(li.until):'')+(st==='fading'&&state.shields>0?' <button class="btn small" data-a="shield" data-k="'+k+'">Use a shield ('+state.shields+' left)</button>':'')+'</div>';
+  h+='<label class="check"><input type="checkbox" data-c="pin" data-k="'+k+'" '+(pin?'checked':'')+'><div class="t">Keep this light on for good<div class="s">Use it when the unit is easy or will not be in the exam. The light never fades, but it pays no rent. Unpinning later gives no free days: the light follows your real studying.</div></div></label>';
   return h;
 }
 function mmss(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
@@ -818,7 +920,7 @@ function loadScript(src){return new Promise(function(res,rej){var el=document.cr
 async function pdfText(blob){
   if(!window.pdfjsLib){await loadScript('vendor/pdf.min.js');}
   window.pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worker.min.js';
-  var doc=await window.pdfjsLib.getDocument({data:await blob.arrayBuffer()}).promise,out=[],n=Math.min(doc.numPages,80);
+  var doc=await window.pdfjsLib.getDocument({data:await blob.arrayBuffer(),isEvalSupported:false,enableXfa:false}).promise,out=[],n=Math.min(doc.numPages,80);
   for(var p=1;p<=n;p++){
     var pg=await doc.getPage(p),tc=await pg.getTextContent(),line='',last=null;
     tc.items.forEach(function(it){if(last!==null&&Math.abs(it.transform[5]-last)>3)line+='\n';line+=it.str+' ';last=it.transform[5];});
@@ -1119,15 +1221,16 @@ function setLit(k){
     else if(!li){state.lvl[k]=Math.max(0,state.lvl[k]-1);res.coins+=5;res.notes.push('back on after fading');}
     else if(li.state==='fading'){state.lvl[k]=Math.min(2,(state.lvl[k]||0)+1);res.coins+=5;res.notes.push('saved in time, so the light now lasts longer');}
   }
+  if(pinned&&state.lvl[k]===undefined)state.lvl[k]=0;
   state.lit[k]=Date.now();
   if(m)mats(m,u).forEach(function(x){state.seen[x.id]=true;});
   if(m&&!pinned){
     var sem=semOf(m.id);
     if(sem){
       var wk='w:'+sem.id+':'+u;
-      if(!state.paid[wk]&&sem.modules.every(function(x){return u>x.units||isOn(uStatus(x,u));})){state.paid[wk]=1;res.coins+=15;res.notes.push('week '+u+' lit in every module (+15)');}
+      if(!state.paid[wk]&&sem.modules.every(function(x){return u>x.units||realOn(x,u);})){state.paid[wk]=1;res.coins+=15;res.notes.push('week '+u+' lit in every module (+15)');}
     }
-    var bk='b:'+m.id,all=true;for(var i=1;i<=m.units;i++)if(!isOn(uStatus(m,i)))all=false;
+    var bk='b:'+m.id,all=true;for(var i=1;i<=m.units;i++)if(!realOn(m,i))all=false;
     if(!state.paid[bk]&&all){state.paid[bk]=1;res.coins+=50;res.notes.push(m.code+' complete (+50)');}
   }
   state.coins+=res.coins;save();return res;
@@ -1243,6 +1346,10 @@ document.addEventListener('click',function(e){
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast('Using this device. The cloud copy was replaced.');render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
   else if(a==='iliasimport'){if(!ui.ilias.busy)importIlias(b.dataset.key);}
+  else if(a==='iliasall'){if(!ui.ilias.busy)importAllIlias();}
+  else if(a==='ilfilter'){ui.ilias.filter=b.dataset.f;render();}
+  else if(a==='ildismiss'){state.iliasDismissed[b.dataset.key]=Date.now();save();render();}
+  else if(a==='ilrestore'){delete state.iliasDismissed[b.dataset.key];save();render();}
   else if(a==='pickfiles'){ui.preset=null;$('#fi').click();}
   else if(a==='pickfolder'){ui.preset=null;$('#fd').click();}
   else if(a==='pickhere'){ui.preset={mod:b.dataset.mod,unit:+b.dataset.unit};$('#fi').click();}
@@ -1293,7 +1400,7 @@ document.addEventListener('click',function(e){
     try{var s2=JSON.parse($('#bk').value);if(!s2||typeof s2.schema!=='number')throw 0;
       if(s2.schema>SCHEMA){toast('That backup is from a newer version.');return;}
       while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg)throw 0;s2=mg(s2);}
-      state=fill(s2);save();render(true);toast('Progress restored.');
+      state=clean(s2);save();render(true);toast('Progress restored.');
     }catch(err){toast('That text is not a valid backup.');}
   }
   else if(a==='reset1'){ui.confirm='all';render();}
@@ -1307,7 +1414,7 @@ document.addEventListener('change',function(e){
     rd.onload=function(){try{var s2=JSON.parse(rd.result);if(!s2||typeof s2.schema!=='number')throw 0;
       if(s2.schema>SCHEMA){toast('That backup is from a newer version.');return;}
       while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg)throw 0;s2=mg(s2);}
-      state=fill(s2);save();render(true);toast('Progress restored.');}catch(err){toast('That file is not a valid backup.');}t.value='';};
+      state=clean(s2);save();render(true);toast('Progress restored.');}catch(err){toast('That file is not a valid backup.');}t.value='';};
     rd.readAsText(bf);return;}
   if(t.id==='fi'||t.id==='fd'){var files=t.files,p=ui.preset;ui.preset=null;addFiles(files,p).then(function(){t.value='';});return;}
   if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;return;}
@@ -1316,7 +1423,7 @@ document.addEventListener('change',function(e){
   else if(c==='seen'){if(t.checked)state.seen[t.dataset.id]=true;else delete state.seen[t.dataset.id];save();render();}
   else if(c==='dead'){if(t.checked)state.tasksDone[t.dataset.id]=true;else delete state.tasksDone[t.dataset.id];save();render();}
   else if(c==='shopmod'){ui.shopMod=t.value;render();}
-  else if(c==='pin'){var pk=t.dataset.k;if(t.checked){state.pin[pk]=true;if(!litTs(pk)){state.lit[pk]=Date.now();if(state.lvl[pk]===undefined)state.lvl[pk]=0;var pm=M(pk.split(':')[0]);if(pm)mats(pm,+pk.split(':')[1]).forEach(function(x){state.seen[x.id]=true;});}}else delete state.pin[pk];save();render();}
+  else if(c==='pin'){var pk=t.dataset.k;if(t.checked)state.pin[pk]=true;else delete state.pin[pk];save();render();toast(t.checked?'Pinned. This light stays on and pays no rent.':'Unpinned. The light follows the normal rules again.');}
   else if(c==='aiopt'){state.aiOpt=t.checked;save();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
@@ -1364,7 +1471,8 @@ function syncAdopt(remote,updatedAt){
   if(s2.schema>SCHEMA){SYNC.msg='The cloud copy comes from a newer version of Booklyn. Reload this page to update.';return false;}
   try{if(state.sems.some(function(x){return !x.demo;}))localStorage.setItem(KEY+'.beforesync',JSON.stringify(state));}catch(e){}
   while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg){SYNC.msg='The cloud copy could not be read.';return false;}s2=mg(s2);}
-  SYNC.adopting=true;state=fill(s2);save();SYNC.adopting=false;
+  try{s2=clean(s2);}catch(e){SYNC.msg='The cloud copy looks damaged, so it was not used.';return false;}
+  SYNC.adopting=true;state=s2;save();SYNC.adopting=false;
   SYNC.base=updatedAt;SYNC.dirty=false;SYNC.last=Date.now();SYNC.conflict=null;SYNC.msg='';syncMeta();
   render(true);return true;
 }
@@ -1444,6 +1552,7 @@ function accountCard(){
 }
 /* ================= boot ================= */
 try{var _u=new URL(location.href);if(_u.searchParams.get('dev')==='1'||_u.searchParams.get('dev')==='0'){localStorage.setItem('booklyn:dev',_u.searchParams.get('dev'));_u.searchParams.delete('dev');history.replaceState(null,'',_u.pathname+(_u.search||'')+_u.hash);}}catch(e){}
+setInterval(function(){var els=document.querySelectorAll('.cd[data-until]');var exp=false;for(var i=0;i<els.length;i++){var u=+els[i].dataset.until,ms=u-Date.now();if(ms<=0){exp=true;continue;}els[i].textContent=fmtLeft(ms,!!els[i].dataset.compact);}if(exp&&location.hash.indexOf('/study')<0&&!document.hidden)render();},1000);
 try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}catch(e){}
 try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catch(e){}
 render(false);

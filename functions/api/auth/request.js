@@ -9,7 +9,7 @@ export async function onRequestPost({ request, env }) {
   const email = String(body && body.email || '').trim().toLowerCase();
   if (!validEmail(email)) return json({ ok: false, error: 'email' }, 400);
 
-  const ip = request.headers.get('CF-Connecting-IP') || 'local';
+  const ip = (await sha256('ip:' + (request.headers.get('CF-Connecting-IP') || 'local'))).slice(0, 32);
   const since = Date.now() - 3600 * 1000;
   const perEmail = await env.DB.prepare('SELECT COUNT(*) AS n FROM login_tokens WHERE email = ? AND created_at > ?').bind(email, since).first();
   const perIp = await env.DB.prepare('SELECT COUNT(*) AS n FROM login_tokens WHERE ip = ? AND created_at > ?').bind(ip, since).first();
@@ -22,7 +22,7 @@ export async function onRequestPost({ request, env }) {
   await env.DB.prepare('DELETE FROM login_tokens WHERE expires_at < ?').bind(now - 24 * 3600 * 1000).run();
 
   const origin = env.SITE_URL || new URL(request.url).origin;
-  const link = `${origin}/?token=${raw}`;
+  const link = `${origin}/app/?token=${raw}`;
 
   if (env.RESEND_API_KEY && env.MAIL_FROM) {
     const res = await fetch('https://api.resend.com/emails', {
