@@ -113,7 +113,8 @@ var ICON = {
  campus:'<path d="M4 21V8l6-4v17M10 21V11h10v10M3 21h18M7 11h.01M7 15h.01M14 15h2"/>',
  port:'<path d="M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5"/>',
  dead:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>',
- set:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/>'
+ set:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/>',
+ shop:'<path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0"/>'
 };
 
 /* ================= helpers ================= */
@@ -140,7 +141,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 function load(){
@@ -227,14 +228,41 @@ function mats(m,u){
 }
 function isSeen(x,m,u){return !!(state.seen[x.id]||state.lit[m.id+':'+u]);}
 function uStatus(m,u){
-  if(state.lit[m.id+':'+u]) return 'lit';
+  var li=litInfo(m.id+':'+u); if(li) return li.state;
   var ms=mats(m,u); if(!ms.length) return 'empty';
   if(ms.some(function(x){return state.seen[x.id];})) return 'progress';
   return 'ready';
 }
+/* ---- lights, rent and coins ---- */
+var LV=[7,14,30], FADE=7, RENT_CAP=25, RENT_STORE=3, PRICE={tree:30,lamp:50,garden:80,paint:120,shield:40};
+var GUESTS=['Mira','Jonas','Ana','Lukas','Sofia','Elias','Lena','Marco','Nora','Tim','Chiara','Noah','Ida','Leo','Emma','Aron'];
+function litTs(k){var t=state.lit[k];return t?(typeof t==='number'&&t>1e12?t:Date.now()):0;}
+function litInfo(k){
+  var t=litTs(k);if(!t)return null;
+  if(state.pin&&state.pin[k])return {state:'lit',pinned:true};
+  var iv=LV[Math.min(state.lvl[k]||0,2)],age=(Date.now()-t)/864e5;
+  if(age<iv)return {state:'lit',left:Math.max(1,Math.ceil(iv-age))};
+  if(age<iv+FADE)return {state:'fading',left:Math.max(1,Math.ceil(iv+FADE-age))};
+  return null;
+}
+function isOn(st){return st==='lit'||st==='fading';}
+function guestFor(k){return GUESTS[hashStr(k)%GUESTS.length];}
+function rentPerDay(){
+  var n=0;state.sems.forEach(function(sem){if(sem.finished)return;sem.modules.forEach(function(m){for(var u=1;u<=m.units;u++){var k=m.id+':'+u;if(isOn(uStatus(m,u))&&!(state.pin&&state.pin[k]))n++;}});});
+  return Math.min(RENT_CAP,n);
+}
+function collectRent(){
+  if(readOnly)return 0;
+  var now=Date.now();
+  if(!state.rentAt){state.rentAt=now;save();return 0;}
+  var days=Math.floor((now-state.rentAt)/864e5);if(days<1)return 0;
+  var pay=Math.min(days,RENT_STORE)*rentPerDay();
+  state.rentAt=days>RENT_STORE?now:state.rentAt+days*864e5;
+  state.coins+=pay;save();return pay;
+}
 var MAXU=30;
 function ensureUnits(m,n){n=clamp(n,1,MAXU);if(n<=m.units)return false;for(var u=m.units+1;u<=n;u++)m.titles[u-1]=m.titles[u-1]||('Week '+u);m.units=n;save();return true;}
-function litCount(m){var n=0;for(var u=1;u<=m.units;u++) if(state.lit[m.id+':'+u]) n++;return n;}
+function litCount(m){var n=0;for(var u=1;u<=m.units;u++) if(isOn(uStatus(m,u))) n++;return n;}
 function totals(sem){var l=0,t=0;sem.modules.forEach(function(m){l+=litCount(m);t+=m.units;});return {l:l,t:t};}
 function pending(){var s=curSem();return FILES.filter(function(f){return f.status==='pending'&&(!s||f.sem===s.id);});}
 function semDeadlines(sem){var ids={};sem.modules.forEach(function(m){ids[m.id]=1;});return state.deadlines.filter(function(d){return !d.mod||ids[d.mod];});}
@@ -326,7 +354,7 @@ function building(m,pop){
   }
   return s+'</svg>';
 }
-function chip(st){var t={lit:'Lights on',progress:'In progress',ready:'Ready',empty:'Waiting for files'}[st];return '<span class="chip s-'+st+'">'+t+'</span>';}
+function chip(st){var t={lit:'Lights on',fading:'Fading',progress:'In progress',ready:'Ready',empty:'Waiting for files'}[st];return '<span class="chip s-'+st+'">'+t+'</span>';}
 
 /* ================= isometric city ================= */
 var CITY={TW:32,TH:16,P:4.2,F:1.8,ZB:2.4};
@@ -341,7 +369,7 @@ function cityLayout(n){
 function cityMods(sem){
   return sem.modules.map(function(m){
     var st=[];for(var u=1;u<=m.units;u++)st.push(uStatus(m,u));
-    return {id:m.id,code:m.code,name:m.name,h:m.h,N:m.units,st:st,link:'#/m/'+m.id};
+    var dc=state.deco[m.id]||{};return {id:m.id,k:m.id,code:m.code,name:m.name,h:dc.hue!=null?dc.hue:m.h,N:m.units,st:st,link:'#/m/'+m.id,d:dc};
   });
 }
 function sampleMods(){
@@ -363,18 +391,22 @@ function boxP(x0,y0,x1,y1,z0,z1,c){
    +'<polygon class="'+c[1]+'" points="'+pts([iso(x1,y1,z0),iso(x1,y0,z0),iso(x1,y0,z1),iso(x1,y1,z1)])+'"/>'
    +'<polygon class="'+c[2]+'" points="'+pts([iso(x0,y0,z1),iso(x1,y0,z1),iso(x1,y1,z1),iso(x0,y1,z1)])+'"/>';
 }
-function treeSVG(x,y,s){
-  var p=iso(x,y,0);
+function treeSVG(x,y,s,z){
+  var p=iso(x,y,z||0);
   return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><ellipse class="ts" cx="3" cy="1" rx="'+(7*s).toFixed(1)+'" ry="'+(3.2*s).toFixed(1)+'"/><rect class="tk" x="-1" y="'+(-7*s).toFixed(1)+'" width="2" height="'+(7*s).toFixed(1)+'"/><circle class="tc1" cy="'+(-12*s).toFixed(1)+'" r="'+(7*s).toFixed(1)+'"/><circle class="tc2" cx="-1.6" cy="'+(-14.2*s).toFixed(1)+'" r="'+(4.6*s).toFixed(1)+'"/></g>';
+}
+function lampSVG(x,y){
+  var p=iso(x,y,0);
+  return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><line class="lp" x1="0" y1="0" x2="0" y2="-15"/><circle class="lamph" cy="-16" r="7"/><circle class="lamp" cy="-16" r="2.6" filter="url(#cglow)"/></g>';
 }
 function bldgSVG(m,x0,y0,x1,y1,idx,I){
   var N=m.N,fh=clamp(96/N,4,9),H=N*fh,zb=CITY.ZB,lit=0;
-  m.st.forEach(function(s){if(s==='lit')lit++;});
+  m.st.forEach(function(s){if(isOn(s))lit++;});
   var s='<g class="bgrp" style="--h:'+m.h+';--i:'+idx+'"'+(I&&m.link?' data-a="go" data-to="'+m.link+'"':'')+'>';
   if(I&&m.link) s+='<title>'+esc(m.code+' · '+m.name+': '+lit+' of '+N+' lights on')+'</title>';
   s+='<polygon class="shadow" points="'+pts([iso(x0+.2,y0+.2,0),iso(x1+.55,y0+.2,0),iso(x1+.55,y1+.55,0),iso(x0+.2,y1+.55,0)])+'"/>';
   s+=boxP(x0-.2,y0-.2,x1+.2,y1+.2,0,zb,['pl-l','pl-r','pl-t']);
-  var fl='',wl='',wo='',T=[[.14,.4],[.6,.86]];
+  var fl='',wl='',wo='',wg='',T=[[.14,.4],[.6,.86]];
   for(var u=1;u<=N;u++){
     var z0=zb+(u-1)*fh,z1=zb+u*fh,st=m.st[u-1];
     fl+='<polygon class="fl fl-l fl-'+st+'" points="'+pts([iso(x0,y1,z0),iso(x1,y1,z0),iso(x1,y1,z1),iso(x0,y1,z1)])+'"/>'
@@ -386,15 +418,17 @@ function bldgSVG(m,x0,y0,x1,y1,idx,I){
         buf+='<polygon class="'+wc+'" points="'+pts([iso(xa,y1,za),iso(xb,y1,za),iso(xb,y1,zc),iso(xa,y1,zc)])+'"/>'
           +'<polygon class="'+wc+'" points="'+pts([iso(x1,ya,za),iso(x1,yb,za),iso(x1,yb,zc),iso(x1,ya,zc)])+'"/>';
       });
-      if(st==='lit') wl+=buf;else wo+=buf;
+      if(st==='lit'){wl+=buf;if(hashStr((m.k||m.code)+':'+u)&1){var f0=x0+(x1-x0)*.23,f1=x0+(x1-x0)*.29;wg+='<polygon class="guest" points="'+pts([iso(f0,y1,za),iso(f1,y1,za),iso(f1,y1,zc-fh*.05),iso(f0,y1,zc-fh*.05)])+'"/>';}}
+      else wo+=buf;
     }
   }
   var allEmpty=m.st.every(function(x){return x==='empty';});
   s+=fl+'<polygon class="door'+(allEmpty&&I?' door-new':'')+'" points="'+pts([iso(x0+(x1-x0)*.44,y1,zb),iso(x0+(x1-x0)*.56,y1,zb),iso(x0+(x1-x0)*.56,y1,zb+fh*.62),iso(x0+(x1-x0)*.44,y1,zb+fh*.62)])+'"/>'
-   +'<g>'+wo+'</g><g class="lw" filter="url(#cglow)">'+wl+'</g>';
+   +'<g>'+wo+'</g><g class="lw" filter="url(#cglow)">'+wl+'</g><g>'+wg+'</g>';
   var HT=zb+H,cx=(x0+x1)/2,cy=(y0+y1)/2,v=hashStr(m.code)%3,top=HT;
   s+='<polygon class="roof" points="'+pts([iso(x0,y0,HT),iso(x1,y0,HT),iso(x1,y1,HT),iso(x0,y1,HT)])+'"/>';
-  if(v===0){s+=boxP(cx-.3,cy-.3,cx+.3,cy+.3,HT,HT+7,['rb-l','rb-r','rb-t']);top=HT+7;}
+  if(m.d&&m.d.garden){s+=boxP(cx-.75,cy-.75,cx+.75,cy+.75,HT,HT+1.6,['gd-l','gd-r','gd-t'])+treeSVG(cx-.3,cy-.35,.5,HT+1.6)+treeSVG(cx+.35,cy+.1,.45,HT+1.6)+treeSVG(cx-.2,cy+.4,.4,HT+1.6);top=HT+10;}
+  else if(v===0){s+=boxP(cx-.3,cy-.3,cx+.3,cy+.3,HT,HT+7,['rb-l','rb-r','rb-t']);top=HT+7;}
   else if(v===1){var a=iso(cx,cy,HT),b=iso(cx,cy,HT+18);s+='<line class="ant" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/><circle class="beacon" cx="'+b[0].toFixed(1)+'" cy="'+b[1].toFixed(1)+'" r="1.8"/>';top=HT+18;}
   else{s+=boxP(cx-.45,cy-.2,cx+.1,cy+.35,HT,HT+4,['rb-l','rb-r','rb-t']);s+=boxP(cx+.05,cy-.5,cx+.45,cy-.1,HT,HT+8,['rb-l','rb-r','rb-t']);top=HT+8;}
   if(lit===N&&N>0){var q=iso(cx,cy,top+4);s+='<circle class="star" cx="'+q[0].toFixed(1)+'" cy="'+q[1].toFixed(1)+'" r="4" filter="url(#cglow)"/>';top+=8;}
@@ -412,6 +446,9 @@ function citySVG(mods,o){
       var m=mods[slot],x0=ox+(P-F)/2,y0=oy+(P-F)/2,x1=x0+F,y1=y0+F,H=CITY.ZB+m.N*clamp(96/m.N,4,9);
       minY=Math.min(minY,iso(x0,y0,H)[1]-50);
       items.push({d:(x0+x1+y0+y1)/2-.01,html:bldgSVG(m,x0,y0,x1,y1,slot,I)});
+      var dc=m.d||{};
+      for(var q=0;q<(dc.tree||0)&&q<3;q++){var tp=[[P/2+.5,.7],[.7,P/2+.5],[P-.8,.9]][q];items.push({d:ox+tp[0]+oy+tp[1],html:treeSVG(ox+tp[0],oy+tp[1],1.05)});}
+      if(dc.lamp){[[x0-.2,y1+.4],[x1+.4,y1+.4]].forEach(function(lp){items.push({d:lp[0]+lp[1]+.05,html:lampSVG(lp[0],lp[1])});});}
       var hs=hashStr(m.code+slot);
       [[.7,.7],[P-.7,.7],[.7,P-.7],[P-.7,P-.7]].forEach(function(sp,j){
         if(j===3||((hs>>j)&1)) items.push({d:ox+sp[0]+oy+sp[1],html:treeSVG(ox+sp[0],oy+sp[1],.8+((hs>>(j+4))&3)*.12)});
@@ -431,18 +468,18 @@ function citySVG(mods,o){
   for(var j=1;j<R;j++) g+='<polyline class="road" points="'+pts([iso(0,P*j,0),iso(C*P,P*j,0)])+'"/>';
   for(var s2=0;s2<C*R;s2++){var qx=(s2%C)*P,qy=Math.floor(s2/C)*P;g+='<polygon class="lawn" points="'+pts([iso(qx+.3,qy+.3,0),iso(qx+P-.3,qy+.3,0),iso(qx+P-.3,qy+P-.3,0),iso(qx+.3,qy+P-.3,0)])+'"/>';}
   items.forEach(function(it){g+=it.html;});
-  var lit=0,tot=0;mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(s==='lit')lit++;});});
+  var lit=0,tot=0;mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});});
   return '<svg class="cityv"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Your semester as a city: '+mods.length+' buildings, '+lit+' of '+tot+' floors have their lights on"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
 }
 function cityBox(mods,o){
   o=o||{};var I=!!o.interactive,lit=0,tot=0;
-  mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(s==='lit')lit++;});});
+  mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});});
   var cls='city'+(o.full?' full':'')+(o.build?' build':'')+(I?'':' static');
   var h='<section class="'+cls+'" aria-label="'+esc(o.label||'Your district')+'"><div class="cityvp"'+(I?' data-pz="1"':'')+'>'+citySVG(mods,o)+'</div>';
-  if(o.title) h+='<div class="cstat"><span>'+esc(o.title)+'</span><b>'+lit+' of '+tot+' floors lit</b><i class="cbar"><u style="width:'+(tot?Math.round(lit/tot*100):0)+'%"></u></i></div>';
+  if(o.title) h+='<div class="cstat"><span>'+esc(o.title)+'</span><b>'+lit+' of '+tot+' floors lit</b><i class="cbar"><u style="width:'+(tot?Math.round(lit/tot*100):0)+'%"></u></i>'+(o.coins!==undefined?'<button class="ccoin" data-a="go" data-to="#/shop"><i class="cdot"></i>'+o.coins+' coins'+(o.rent?' · +'+o.rent+'/day':'')+' · Shop</button>':'')+'</div>';
   if(I) h+='<div class="cctl"><button class="cbtn" data-a="czoom" data-d="1" aria-label="Zoom in">＋</button><button class="cbtn" data-a="czoom" data-d="-1" aria-label="Zoom out">−</button><button class="cbtn" data-a="creset" aria-label="Reset the view">⌖</button>'
     +(o.full?'<button class="cbtn" data-a="cclose" aria-label="Close the full screen view">✕</button>':'<button class="cbtn" data-a="cfull" aria-label="Open the city full screen">⛶</button>')+'</div>';
-  if(o.legend!==false) h+='<div class="clegend"><span><i style="background:#ffd166"></i>Lights on</span><span><i style="background:#c08a3c"></i>In progress</span><span><i style="background:#4e5b8c"></i>Ready</span><span><i style="background:#3a3f4d"></i>Waiting for files</span></div>';
+  if(o.legend!==false) h+='<div class="clegend"><span><i style="background:#ffd166"></i>Lights on</span><span><i style="background:#c08a3c"></i>In progress</span><span><i style="background:#8a6a2f"></i>Fading</span><span><i style="background:#4e5b8c"></i>Ready</span><span><i style="background:#3a3f4d"></i>Waiting for files</span></div>';
   if(I) h+='<p class="chint">Tap a building to open it. Drag to look around.</p>';
   return h+'</section>';
 }
@@ -497,6 +534,7 @@ document.addEventListener('wheel',function(e){
   e.preventDefault();
   ui.cityT=zoomAt({x:ui.cityT.x,y:ui.cityT.y,k:ui.cityT.k},vpoint(e.clientX,e.clientY),ui.cityT.k*Math.exp(-e.deltaY*.0018));applyCity();
 },{passive:false});
+document.addEventListener('toggle',function(e){if(e.target&&e.target.id==='devtools')ui.devOpen=e.target.open;},true);
 document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull){ui.cityFull=false;render();}});
 
 /* ================= routing ================= */
@@ -510,6 +548,7 @@ function route(){
   if(p[0]==='port') return {name:'port'};
   if(p[0]==='deadlines') return {name:'deadlines'};
   if(p[0]==='settings') return {name:'settings'};
+  if(p[0]==='shop') return {name:'shop'};
   if(p[0]==='setup') return {name:'setup'};
   if(p[0]==='m'){
     var m=M(p[1]); if(!m) return {name:'campus'};
@@ -540,7 +579,7 @@ function vCampus(){
    +'<h1 tabindex="-1" id="h1">'+(state.name?'Hello, '+esc(state.name):'Keep your lights on')+'</h1>'
    +'<p class="lede">Tap a building to open its weeks, or pick a module below.</p></header>';
   var bld=ui.cityBuild;if(bld)setTimeout(function(){ui.cityBuild=false;},4500);
-  h+=cityBox(cityMods(sem),{interactive:true,build:bld,full:ui.cityFull,title:sem.name});
+  h+=cityBox(cityMods(sem),{interactive:true,build:bld,full:ui.cityFull,title:sem.name,coins:state.coins,rent:rentPerDay()});
   if(n) h+='<section class="card accent stack"><p class="eyebrow">Next up</p><h2>'+esc(n.m.code)+' · '+esc(n.m.titles[n.u-1])+'</h2><p class="lede">'+esc(n.why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+'/study">Start block</button><button class="btn ghost" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+'">Open unit</button></div></section>';
   else if(!pending().length&&!FILES.some(function(f){return f.sem===sem.id;})&&!sem.demo) h+='<section class="card stack"><h3>Add your first files</h3><p class="lede">Drop your slides and scripts into the Port. Booklyn suggests where each one belongs.</p><div class="row"><button class="btn" data-a="go" data-to="#/port">Open the Port</button></div></section>';
   if(p) h+='<section class="card row between"><div><h3>'+p+' file'+(p>1?'s':'')+' waiting in the Port</h3><p class="lede">Review where they belong, then import.</p></div><button class="btn" data-a="go" data-to="#/port">Review</button></section>';
@@ -619,6 +658,7 @@ function matRow(m,u,x){
 function vUnit(r){
   var m=r.m,u=r.u,st=uStatus(m,u),ms=mats(m,u),k=m.id+':'+u;
   var h='<button class="back" data-a="go" data-to="#/m/'+m.id+'">← '+esc(m.code)+'</button><header class="stack"><p class="eyebrow">'+esc(m.code)+' · Floor '+u+'</p><h1 tabindex="-1" id="h1">'+esc(m.titles[u-1])+'</h1><div class="row">'+chip(st)+'</div></header>';
+  h+=unitGuest(m,u,k,st);
   if(!ms.length) h+='<section class="card stack"><h3>This floor is waiting for files</h3><p class="lede">Add the material for this unit and the floor is ready for a study block.</p><div class="row"><button class="btn" data-a="pickhere" data-mod="'+m.id+'" data-unit="'+u+'">Add files here</button><button class="btn ghost" data-a="go" data-to="#/port">Open the Port</button></div></section>';
   else h+='<section class="card stack"><h2>Study block</h2><p class="lede">Focus for 25 minutes, then do a short check. Pass it and the light goes on.</p><div class="row"><button class="btn" data-a="go" data-to="#/m/'+m.id+'/'+u+'/study">Start block</button></div></section>'
    +'<section class="stack"><div class="row between"><h2>Material</h2><button class="btn small ghost" data-a="pickhere" data-mod="'+m.id+'" data-unit="'+u+'">Add files here</button></div><div class="stack">'+ms.map(function(x){return matRow(m,u,x);}).join('')+'</div></section>';
@@ -628,6 +668,17 @@ function vUnit(r){
   return h;
 }
 
+function unitGuest(m,u,k,st){
+  var li=litInfo(k),g=guestFor(k),pin=!!(state.pin&&state.pin[k]),t='';
+  if(li&&li.pinned) t=g+' lives here rent-free. This light stays on.';
+  else if(st==='lit') t=g+' lives here and pays rent. The light stays on for about '+li.left+' more day'+(li.left>1?'s':'')+'.';
+  else if(st==='fading') t='The light is fading and '+g+' is packing. Pass the check within '+li.left+' day'+(li.left>1?'s':'')+' to keep your guest and earn 5 coins.';
+  else if(state.lvl[k]!==undefined) t=g+' is away. Pass the check to bring them back and earn 5 coins.';
+  var h='';
+  if(t) h+='<div class="notice guestnote"><strong>Guest</strong> · '+esc(t)+(st==='fading'&&state.shields>0?' <button class="btn small" data-a="shield" data-k="'+k+'">Use a shield ('+state.shields+' left)</button>':'')+'</div>';
+  h+='<label class="check"><input type="checkbox" data-c="pin" data-k="'+k+'" '+(pin?'checked':'')+'><div class="t">Keep this light on for good<div class="s">Use it when the unit is easy or will not be in the exam. The light never fades, but it pays no rent.</div></div></label>';
+  return h;
+}
 function mmss(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
 function quizFor(m,u){var s=semOf(m.id);return s&&s.demo?QUIZ[m.code.toLowerCase()+':'+u]:null;}
 function vStudy(r){
@@ -652,12 +703,31 @@ function vStudy(r){
      +'<p class="foot">Pass with at least 2 of 3. Be honest. This is only for you.</p><div class="row"><button class="btn" data-a="finishself" '+(study.checks.filter(Boolean).length>=2?'':'disabled')+'>Finish</button></div></section>';
   } else {
     h+=study.passed
-     ?'<section class="card stack" style="text-align:center"><div class="big">'+building(m,u)+'</div><h2>The light is on</h2><p class="lede" style="margin:0 auto">'+(quiz?study.score+' of 3 correct. ':'')+litCount(m)+' of '+m.units+' floors in '+esc(m.code)+' have their lights on.</p><div class="row" style="justify-content:center"><button class="btn" data-a="go" data-to="#/m/'+m.id+'">Back to '+esc(m.code)+'</button><button class="btn ghost" data-a="go" data-to="#/">Campus</button></div></section>'
+     ?'<section class="card stack" style="text-align:center"><div class="big">'+building(m,u)+'</div><h2>The light is on</h2><p class="lede" style="margin:0 auto">'+(quiz?study.score+' of 3 correct. ':'')+litCount(m)+' of '+m.units+' floors in '+esc(m.code)+' have their lights on.</p>'+rewardHTML()+'<div class="row" style="justify-content:center"><button class="btn" data-a="go" data-to="#/m/'+m.id+'">Back to '+esc(m.code)+'</button><button class="btn ghost" data-a="go" data-to="#/">Campus</button></div></section>'
      :'<section class="card stack"><h2>'+study.score+' of 3. One more pass.</h2><p class="lede">You need 2 correct to turn the light on. Re-read the material, then try again.</p><div class="row"><button class="btn" data-a="retry">Try again</button><button class="btn ghost" data-a="go" data-to="#/m/'+m.id+'/'+u+'">Back to material</button></div></section>';
   }
   return h;
 }
 
+function shopItem(name,desc,price,control){return '<div class="shopitem"><div class="grow"><div class="t">'+name+'</div><div class="s">'+desc+'</div></div><div class="shopbuy"><span class="price"><i class="cdot"></i>'+price+'</span>'+control+'</div></div>';}
+function vShop(){
+  var sem=curSem();if(!sem)return vWelcome();
+  var mods=sem.modules;if(!ui.shopMod||!mods.some(function(x){return x.id===ui.shopMod;}))ui.shopMod=mods[0].id;
+  var sm=M(ui.shopMod),d=state.deco[sm.id]||{},co=state.coins;
+  function bb(item,label,off,extra){return '<button class="btn small" data-a="buy" data-item="'+item+'" '+(extra||'')+(off?' disabled':'')+'>'+label+'</button>';}
+  var h='<header class="stack"><p class="eyebrow">Shop</p><h1 tabindex="-1" id="h1">Decorate your city</h1><p class="lede">Earn coins by lighting floors, and from the rent your guests pay each day. Everything here is for looks, except the shield.</p><div class="coinline"><i class="cdot"></i><b>'+co+' coins</b><span>Rent right now: +'+rentPerDay()+' a day</span></div></header>';
+  h+='<label class="f">Place items at<select data-c="shopmod">'+mods.map(function(x){return '<option value="'+x.id+'"'+(x.id===sm.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>';
+  h+='<div id="shopcity">'+cityBox(cityMods(sem),{interactive:false,legend:false,label:'Your district'})+'</div>';
+  h+='<section class="stack">'
+   +shopItem('Tree','Plant a tree next to '+esc(sm.code)+' ('+(d.tree||0)+' of 3).',PRICE.tree,bb('tree','Plant',co<PRICE.tree||(d.tree||0)>=3))
+   +shopItem('Street lamps','Two glowing lamps in front of '+esc(sm.code)+'.',PRICE.lamp,d.lamp?'<span class="foot">Owned</span>':bb('lamp','Buy',co<PRICE.lamp))
+   +shopItem('Rooftop garden','Green planters and small trees on the roof of '+esc(sm.code)+'.',PRICE.garden,d.garden?'<span class="foot">Owned</span>':bb('garden','Buy',co<PRICE.garden))
+   +shopItem('Paint','Repaint '+esc(sm.code)+' in another colour.',PRICE.paint,'<div class="swatches">'+[20,45,95,165,215,270,330].map(function(hu){return '<button class="sw'+(d.hue===hu?' on':'')+'" style="background:hsl('+hu+' 45% 48%)" data-a="buy" data-item="paint" data-hue="'+hu+'" aria-label="Paint in colour '+hu+'" '+(co<PRICE.paint?'disabled':'')+'></button>';}).join('')+(d.hue!=null?'<button class="btn small ghost" data-a="buy" data-item="unpaint">Original</button>':'')+'</div>')
+   +shopItem('Shield','Saves one fading light, any floor, without a check. You can hold 2 ('+state.shields+' now).',PRICE.shield,bb('shield','Buy',co<PRICE.shield||state.shields>=2))
+   +'</section>'
+   +'<section class="card stack"><h3>How coins work</h3><p class="lede">First light on a floor +10. Saving a fading light +5. A week lit in every module +15. A finished building +50. Each lit floor pays 1 coin of rent a day (up to 25), stored for 3 days at most. Floors you keep on for good pay no rent.</p></section>'+foot();
+  return h;
+}
 function vDeadlines(){
   var sem=curSem(); if(!sem) return vWelcome();
   if(!ui.dl) ui.dl={title:'',date:'',mod:'',kind:'Exam'};
@@ -699,6 +769,7 @@ function vSettings(){
    +'<div class="row">'+(ui.confirm==='sem'?'<button class="btn small danger" data-a="rmsem2">Remove it and its files</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="rmsem1">Remove this semester…</button>')+'</div></section>';
   h+='<section class="card stack"><h3>Storage</h3><p class="lede" id="stor">Checking…</p><div class="row"><button class="btn small ghost" data-a="persist">Ask the browser to keep my files</button></div></section>';
   h+='<section class="card stack"><h3>Back up your progress</h3><p class="lede">'+(state.lastBackup?'Last backup: '+new Date(state.lastBackup).toLocaleDateString('en-GB')+'. ':'No backup yet. ')+'Download a file with your semesters, lights, notes and deadlines. Keep it in a safe place such as your cloud drive. The imported files themselves are not included, so keep the originals.</p><textarea id="bk" aria-label="Backup text" spellcheck="false" placeholder="Press “Create backup text”"></textarea><div class="row"><button class="btn small" data-a="dlbackup">Download backup file</button><button class="btn small ghost" data-a="loadbackup">Restore from file</button><input type="file" id="bkfile" accept=".json,application/json" hidden><button class="btn small ghost" data-a="export">Create backup text</button><button class="btn small ghost" data-a="restore">Restore from text</button></div></section>';
+  h+='<section class="card stack"><details id="devtools"'+(ui.devOpen?' open':'')+'><summary><h3 style="display:inline">Testing tools</h3></summary><p class="lede" style="margin:8px 0">For the project team. Hide these before the user tests.</p><div class="row"><button class="btn small" data-a="tcoins" data-n="1000">Add 1,000 coins</button><button class="btn small ghost" data-a="tcoins" data-n="-9999999">Set coins to 0</button></div><div class="row" style="margin-top:8px"><button class="btn small ghost" data-a="tage" data-n="8">Age all lights 8 days</button><button class="btn small ghost" data-a="tage" data-n="20">Age all lights 20 days</button><button class="btn small ghost" data-a="trent">Make 3 days of rent due</button></div></details></section>';
   h+='<section class="card stack"><h3>Reset everything</h3><p class="lede">Deletes all semesters, progress and imported files from this device.</p><div class="row">'+(ui.confirm==='all'?'<button class="btn small danger" data-a="reset2">Yes, delete everything</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="reset1">Reset…</button>')+'</div></section>';
   h+='<section class="stack"><h3>About</h3><p class="foot">Booklyn · saved-data schema '+SCHEMA+'. Older data is migrated automatically and backed up first. Data from a newer version is never overwritten.</p></section>'+foot();
   return h;
@@ -706,18 +777,19 @@ function vSettings(){
 
 /* ================= shell ================= */
 function nav(cur){
-  var items=[['campus','Campus','#/','campus'],['port','Port','#/port','port'],['deadlines','Deadlines','#/deadlines','dead'],['settings','Settings','#/settings','set']];
+  var items=[['campus','Campus','#/','campus'],['port','Port','#/port','port'],['deadlines','Deadlines','#/deadlines','dead'],['shop','Shop','#/shop','shop'],['settings','Settings','#/settings','set']];
   var on={module:'campus',unit:'campus',study:'campus',setup:'campus'}[cur]||cur,p=pending().length;
   return items.map(function(i){return '<button class="navbtn" data-a="go" data-to="'+i[2]+'" '+(on===i[0]?'aria-current="page"':'')+'><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[i[3]]+'</svg><span>'+i[1]+'</span>'+(i[0]==='port'&&p?'<span class="badge" aria-label="'+p+' files waiting">'+p+'</span>':'')+'</button>';}).join('');
 }
 function render(focus){
   var r=route(); lastRendered=cur();
   if(r.name!=='campus') ui.cityFull=false;
+  if(r.name==='campus'&&state.sems.length){var rp=collectRent();if(rp)setTimeout(function(){toast('Rent collected: +'+rp+' coins');},400);}
   document.documentElement.removeAttribute('data-theme');
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
-  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='setup'?vSetup():vSettings();
+  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
   $('#app').innerHTML='<nav class="rail" aria-label="Main"><div class="brand">Booklyn<small>Keep your lights on</small></div>'+nav(r.name)+'</nav><main class="main">'+body+'</main><nav class="tabbar" aria-label="Main">'+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
@@ -747,8 +819,31 @@ function startTimer(){
 }
 
 /* ================= actions ================= */
-function setLit(k){state.lit[k]=Date.now();var p=k.split(':'),m=M(p[0]);if(m)mats(m,+p[1]).forEach(function(x){state.seen[x.id]=true;});save();}
-function finishQuiz(){study.step='result';study.passed=study.score>=2;if(study.passed)setLit(study.k);}
+function setLit(k){
+  var p=k.split(':'),m=M(p[0]),u=+p[1],li=litInfo(k),pinned=!!(state.pin&&state.pin[k]),res={coins:0,notes:[]};
+  if(!pinned){
+    if(state.lvl[k]===undefined){state.lvl[k]=0;res.coins+=10;res.notes.push('first light on this floor');}
+    else if(!li){state.lvl[k]=Math.max(0,state.lvl[k]-1);res.coins+=5;res.notes.push('back on after fading');}
+    else if(li.state==='fading'){state.lvl[k]=Math.min(2,(state.lvl[k]||0)+1);res.coins+=5;res.notes.push('saved in time, so the light now lasts longer');}
+  }
+  state.lit[k]=Date.now();
+  if(m)mats(m,u).forEach(function(x){state.seen[x.id]=true;});
+  if(m&&!pinned){
+    var sem=semOf(m.id);
+    if(sem){
+      var wk='w:'+sem.id+':'+u;
+      if(!state.paid[wk]&&sem.modules.every(function(x){return u>x.units||isOn(uStatus(x,u));})){state.paid[wk]=1;res.coins+=15;res.notes.push('week '+u+' lit in every module (+15)');}
+    }
+    var bk='b:'+m.id,all=true;for(var i=1;i<=m.units;i++)if(!isOn(uStatus(m,i)))all=false;
+    if(!state.paid[bk]&&all){state.paid[bk]=1;res.coins+=50;res.notes.push(m.code+' complete (+50)');}
+  }
+  state.coins+=res.coins;save();return res;
+}
+function rewardHTML(){
+  var r=study&&study.reward;if(!r||!r.coins)return '';
+  return '<div class="reward"><i class="cdot"></i><b>+'+r.coins+' coins</b><span>'+esc(r.notes.join(' · '))+'</span></div>';
+}
+function finishQuiz(){study.step='result';study.passed=study.score>=2;if(study.passed)study.reward=setLit(study.k);}
 function fileById(id){return FILES.filter(function(f){return f.id===id;})[0];}
 function demoSem(){
   var mods=DEMO.map(function(d){
@@ -762,6 +857,7 @@ function seedDemo(){
   if(state.sems.some(function(s){return s.id==='demo';})){state.activeSem='demo';return;}
   var s=demoSem();state.sems.push(s);state.activeSem='demo';
   Object.keys(DEMO_LIT).forEach(function(c){DEMO_LIT[c].forEach(function(u){state.lit[c.toLowerCase()+':'+u]=Date.now();});});
+  state.lit['bscm:1']=Date.now()-9*864e5;state.lit['cnb:1']=Date.now()-20*864e5;state.lvl['bscm:1']=0;state.lvl['cnb:1']=0;
   DEMO_DEADLINES.forEach(function(d){state.deadlines.push({id:uid(),date:d.date,mod:d.code.toLowerCase(),kind:d.kind,title:d.title});});
 }
 function setPath(o,path,v){var p=path.split('.');for(var i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=v;}
@@ -776,6 +872,25 @@ document.addEventListener('click',function(e){
   var a=b.dataset.a,id=b.dataset.id;
   if(a==='go'){go(b.dataset.to);}
   else if(a==='czoom'){var cv=ui.cityVB;if(cv){ui.cityT=zoomAt({x:ui.cityT.x,y:ui.cityT.y,k:ui.cityT.k},[cv[0]+cv[2]/2,cv[1]+cv[3]/2],ui.cityT.k*(+b.dataset.d>0?1.4:1/1.4));applyCity();}}
+  else if(a==='buy'){
+    var it=b.dataset.item,sm2=M(ui.shopMod),dd;
+    if(it==='unpaint'){if(sm2&&state.deco[sm2.id]){delete state.deco[sm2.id].hue;save();render();}return;}
+    var cost=PRICE[it];if(!cost)return;
+    if(state.coins<cost){toast('Not enough coins yet.');return;}
+    if(it==='shield'){if(state.shields>=2){toast('You can hold 2 shields.');return;}state.shields++;}
+    else{
+      if(!sm2)return;dd=state.deco[sm2.id]=state.deco[sm2.id]||{};
+      if(it==='tree'){if((dd.tree||0)>=3){toast('This building has all its trees.');return;}dd.tree=(dd.tree||0)+1;}
+      else if(it==='lamp'){if(dd.lamp)return;dd.lamp=true;}
+      else if(it==='garden'){if(dd.garden)return;dd.garden=true;}
+      else if(it==='paint'){dd.hue=+b.dataset.hue;}
+    }
+    state.coins-=cost;save();render();toast('Bought. It is already in your city.');
+  }
+  else if(a==='shield'){var sk=b.dataset.k,sli=litInfo(sk);if(state.shields>0&&sli&&sli.state==='fading'){state.shields--;state.lit[sk]=Date.now();save();render();toast('Shield used. The light is back to full.');}}
+  else if(a==='tcoins'){state.coins=Math.max(0,state.coins+(+b.dataset.n||0));save();render();toast('Coins: '+state.coins);}
+  else if(a==='tage'){Object.keys(state.lit).forEach(function(k){state.lit[k]=litTs(k)-(+b.dataset.n||0)*864e5;});save();render();toast('Lights aged. Open Campus to see them fade.');}
+  else if(a==='trent'){state.rentAt=Date.now()-3*864e5;save();toast('Open Campus to collect the rent.');}
   else if(a==='creset'){ui.cityT={x:0,y:0,k:1};applyCity();}
   else if(a==='cfull'){ui.cityFull=true;render();var cb=$('[data-a="cclose"]');if(cb)cb.focus();}
   else if(a==='cclose'){ui.cityFull=false;render();}
@@ -870,6 +985,8 @@ document.addEventListener('change',function(e){
   if(c==='sem'){if(t.value==='__new'){ui.setup=null;go('#/setup');}else{state.activeSem=t.value;ui.cityT={x:0,y:0,k:1};save();render();}}
   else if(c==='seen'){if(t.checked)state.seen[t.dataset.id]=true;else delete state.seen[t.dataset.id];save();render();}
   else if(c==='dead'){if(t.checked)state.tasksDone[t.dataset.id]=true;else delete state.tasksDone[t.dataset.id];save();render();}
+  else if(c==='shopmod'){ui.shopMod=t.value;render();}
+  else if(c==='pin'){var pk=t.dataset.k;if(t.checked){state.pin[pk]=true;if(!litTs(pk)){state.lit[pk]=Date.now();if(state.lvl[pk]===undefined)state.lvl[pk]=0;var pm=M(pk.split(':')[0]);if(pm)mats(pm,+pk.split(':')[1]).forEach(function(x){state.seen[x.id]=true;});}}else delete state.pin[pk];save();render();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
     var row=t.closest('[data-f]'),f=row&&fileById(row.dataset.f);if(!f)return;
