@@ -141,7 +141,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{}};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 function load(){
@@ -174,8 +174,12 @@ function backupDue(){
   return !state.lastBackup||now-state.lastBackup>week;
 }
 var saveT;
+var SYNC={me:null,checked:false,na:false,base:0,last:0,dirty:false,known:'',busy:false,pushing:false,msg:'',link:'',conflict:null,timer:null,adopting:false};
+try{var _sm=JSON.parse(localStorage.getItem('booklyn:sync')||'{}');SYNC.base=_sm.base||0;SYNC.last=_sm.last||0;SYNC.known=_sm.email||'';SYNC.dirty=!!_sm.dirty;}catch(e){}
+function syncMeta(){try{localStorage.setItem('booklyn:sync',JSON.stringify({base:SYNC.base,last:SYNC.last,email:SYNC.me||SYNC.known||'',dirty:SYNC.dirty}));}catch(e){}}
 function save(){
   if(readOnly) return; clearTimeout(saveT);
+  if(!SYNC.adopting){SYNC.dirty=true;syncMeta();if(SYNC.me)syncSchedule();}
   saveT=setTimeout(function(){try{localStorage.setItem(KEY,JSON.stringify(state));storageOK=true;}catch(e){storageOK=false;}},150);
 }
 state=load();
@@ -449,6 +453,17 @@ function solarSVG(cx,cy,z){
   });
   return o;
 }
+var GN=['Mara','Luca','Noah','Lena','Elias','Sofia','Jonas','Nina','Ben','Lia','Marco','Aylin','Dario','Yara','Tim','Alma','Finn','Elena','Omar','Mila','Leo','Anja','Samir','Clara','Nico','Ida','Tariq','Jana','Remo','Emma','Davide','Selin','Paul','Mia','Andri','Laura','Kian','Rosa','Fabio','Zoe','Milo','Nora','Aron','Lucia','Jari','Eva','Timo','Dina','Gian','Alba','Pablo','Irene','Hugo','Lotte','Enzo','Maya','Rafa','Tina','Yusuf','Carla'];
+function guestName(modId,u){return GN[(hashStr(String(modId))+u*7)%GN.length];}
+function personSVG(xc,y1,z,hp,v){
+  var p=iso(xc,y1,z),b=hp*.3,r=hp*.17,o='<g class="guest" transform="matrix(1 .5 0 1 '+p[0].toFixed(2)+' '+p[1].toFixed(2)+')">';
+  o+='<path d="M'+(-b).toFixed(2)+',0 L'+(-b).toFixed(2)+','+(-hp*.4).toFixed(2)+' Q'+(-b).toFixed(2)+','+(-hp*.6).toFixed(2)+' 0,'+(-hp*.62).toFixed(2)+' Q'+b.toFixed(2)+','+(-hp*.6).toFixed(2)+' '+b.toFixed(2)+','+(-hp*.4).toFixed(2)+' L'+b.toFixed(2)+',0 Z"/>';
+  o+='<rect x="'+(-r*.45).toFixed(2)+'" y="'+(-hp*.7).toFixed(2)+'" width="'+(r*.9).toFixed(2)+'" height="'+(hp*.12).toFixed(2)+'"/>';
+  o+='<ellipse cx="0" cy="'+(-hp*.8).toFixed(2)+'" rx="'+(r*.92).toFixed(2)+'" ry="'+(r*1.08).toFixed(2)+'"/>';
+  if(v===1)o+='<path class="gh" d="M'+(-r).toFixed(2)+','+(-hp*.8).toFixed(2)+' Q'+(-r).toFixed(2)+','+(-hp*1.02).toFixed(2)+' 0,'+(-hp*1.0).toFixed(2)+' Q'+r.toFixed(2)+','+(-hp*1.02).toFixed(2)+' '+r.toFixed(2)+','+(-hp*.8).toFixed(2)+' Q'+(r*.4).toFixed(2)+','+(-hp*.9).toFixed(2)+' '+(-r).toFixed(2)+','+(-hp*.8).toFixed(2)+'Z"/>';
+  if(v===2)o+='<path class="ga" d="M'+b.toFixed(2)+','+(-hp*.38).toFixed(2)+' L'+(b+hp*.22).toFixed(2)+','+(-hp*.78).toFixed(2)+'"/>';
+  return o+'</g>';
+}
 function bldgSVG(m,x0,y0,x1,y1,idx,I){
   var N=m.N,fh=clamp(96/N,4,9),H=N*fh,zb=CITY.ZB,lit=0;
   m.st.forEach(function(s){if(isOn(s))lit++;});
@@ -459,16 +474,17 @@ function bldgSVG(m,x0,y0,x1,y1,idx,I){
   var fl='',wl='',wo='',wg='',T=[[.14,.4],[.6,.86]];
   for(var u=1;u<=N;u++){
     var z0=zb+(u-1)*fh,z1=zb+u*fh,st=m.st[u-1];
-    fl+='<polygon class="fl fl-l fl-'+st+'" points="'+pts([iso(x0,y1,z0),iso(x1,y1,z0),iso(x1,y1,z1),iso(x0,y1,z1)])+'"/>'
+    fl+='<polygon class="fl fl-l fl-'+st+'" points="'+pts([iso(x0,y1,z0),iso(x1,y1,z0),iso(x1,y1,z1),iso(x0,y1,z1)])+'">'+(I&&!m.nocount&&(st==='lit'||st==='fading')?'<title>'+esc(m.code+' · floor '+u+' · '+guestName(m.k||m.code,u)+(st==='fading'?' (leaving soon)':' lives here'))+'</title>':'')+'</polygon>'
       +'<polygon class="fl fl-r fl-'+st+'" points="'+pts([iso(x1,y1,z0),iso(x1,y0,z0),iso(x1,y0,z1),iso(x1,y1,z1)])+'"/>';
     if(st!=='empty'){
-      var za=z0+fh*.26,zc=z0+fh*.72,wc='w w-'+st,buf='';
+      var za=z0+fh*.18,zc=z0+fh*.8,wc='w w-'+st,buf='';
       T.forEach(function(t){
         var xa=x0+(x1-x0)*t[0],xb=x0+(x1-x0)*t[1],ya=y0+(y1-y0)*t[0],yb=y0+(y1-y0)*t[1];
         buf+='<polygon class="'+wc+'" points="'+pts([iso(xa,y1,za),iso(xb,y1,za),iso(xb,y1,zc),iso(xa,y1,zc)])+'"/>'
           +'<polygon class="'+wc+'" points="'+pts([iso(x1,ya,za),iso(x1,yb,za),iso(x1,yb,zc),iso(x1,ya,zc)])+'"/>';
       });
-      if(st==='lit'){wl+=buf;if(hashStr((m.k||m.code)+':'+u)&1){var f0=x0+(x1-x0)*.23,f1=x0+(x1-x0)*.29;wg+='<polygon class="guest" points="'+pts([iso(f0,y1,za),iso(f1,y1,za),iso(f1,y1,zc-fh*.05),iso(f0,y1,zc-fh*.05)])+'"/>';}}
+      if(st==='lit'){wl+=buf;var gv=hashStr((m.k||m.code)+':'+u)%3,xc=x0+(x1-x0)*.27;wg+=personSVG(xc,y1,za,(zc-za)*.9,gv);
+        if(!m.nocount){var tp=iso(x0+(x1-x0)*.46,y1,z0+fh*.34);wg+='<text class="gname" transform="matrix(1 .5 0 1 '+tp[0].toFixed(2)+' '+tp[1].toFixed(2)+')" font-size="'+(fh*.5).toFixed(2)+'">'+esc(guestName(m.k||m.code,u))+'</text>';}}
       else wo+=buf;
     }
   }
@@ -528,7 +544,7 @@ function citySVG(mods,o){
   items.forEach(function(it){g+=it.html;});
   if(SCENE==='snow'){for(var fk=0;fk<46;fk++){var fx=(hashStr('f'+fk)%1000)/1000*C*P,fy=(hashStr('g'+fk)%1000)/1000*R*P,fp=iso(fx,fy,(hashStr('h'+fk)%60)+4);g+='<circle class="flake" style="animation-delay:-'+((fk%9)*.7).toFixed(1)+'s" cx="'+fp[0].toFixed(1)+'" cy="'+fp[1].toFixed(1)+'" r="'+(1+(fk%3)*.5)+'"/>';}}
   var lit=0,tot=0;mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});});
-  return '<svg class="cityv sc-'+SCENE+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Your semester as a city: '+mods.length+' buildings, '+lit+' of '+tot+' floors have their lights on"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
+  return '<svg class="cityv sc-'+SCENE+(I&&T.k>=2.3?' zin':'')+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Your semester as a city: '+mods.length+' buildings, '+lit+' of '+tot+' floors have their lights on"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
 }
 function cityBox(mods,o){
   o=o||{};var I=!!o.interactive,lit=0,tot=0;
@@ -553,7 +569,7 @@ function clampT(T){
   var cx=v[0]+v[2]/2,cy=v[1]+v[3]/2,px=clamp((cx-T.x)/T.k,v[0],v[0]+v[2]),py=clamp((cy-T.y)/T.k,v[1],v[1]+v[3]);
   T.x=cx-px*T.k;T.y=cy-py*T.k;return T;
 }
-function applyCity(){var g=$('#cityg');if(g){var T=ui.cityT;g.setAttribute('transform','translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')');}}
+function applyCity(){var g=$('#cityg');if(g){var sv=$('#citysvg');if(sv)sv.classList.toggle('zin',ui.cityT.k>=2.3);var T=ui.cityT;g.setAttribute('transform','translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')');}}
 function zoomAt(T,p,k2){k2=clamp(k2,.8,5);T.x=p[0]-(p[0]-T.x)*(k2/T.k);T.y=p[1]-(p[1]-T.y)*(k2/T.k);T.k=k2;return clampT(T);}
 var cityPtrs={},cityGest=null,citySupp=0;
 document.addEventListener('click',function(e){if(Date.now()-citySupp<400){e.stopPropagation();e.preventDefault();}},true);
@@ -678,7 +694,7 @@ function vCampus(){
   var sem=curSem(); if(!sem) return vWelcome();
   var n=nextUp(sem),p=pending().length,t=totals(sem),pct=t.t?Math.round(t.l/t.t*100):0;
   var ups=semDeadlines(sem).filter(function(d){return !state.tasksDone[d.id]&&daysTo(d)>=0;}).sort(function(a,b){return pdate(a.date)-pdate(b.date);}).slice(0,3);
-  var h=(backupDue()?'<div class="notice stack"><p style="margin:0"><strong>Protect your work.</strong> '+(state.lastBackup?'Your last backup is more than a week old.':'You have no backup yet.')+' If you clear this browser’s data, your semesters and progress are gone.</p><div class="row"><button class="btn small" data-a="dlbackup">Download backup</button><button class="btn small ghost" data-a="snoozebk">Remind me in 3 days</button></div></div>':'')+'<header class="stack"><div class="sem"><p class="eyebrow">Week '+weekNo(sem)+' · '+fmt(new Date())+'</p></div>'
+  var h=(SYNC.conflict?'<div class="notice warn stack"><p style="margin:0"><strong>Your cloud copy and this device differ.</strong> Open Settings to choose which one to keep.</p><div class="row"><button class="btn small" data-a="go" data-to="#/settings">Open Settings</button></div></div>':'')+(backupDue()?'<div class="notice stack"><p style="margin:0"><strong>Protect your work.</strong> '+(state.lastBackup?'Your last backup is more than a week old.':'You have no backup yet.')+' If you clear this browser’s data, your semesters and progress are gone.</p><div class="row"><button class="btn small" data-a="dlbackup">Download backup</button><button class="btn small ghost" data-a="snoozebk">Remind me in 3 days</button></div></div>':'')+'<header class="stack"><div class="sem"><p class="eyebrow">Week '+weekNo(sem)+' · '+fmt(new Date())+'</p></div>'
    +'<div class="sem"><label class="sr" for="semsel">Semester</label><select id="semsel" data-c="sem">'+state.sems.map(function(s){return '<option value="'+s.id+'"'+(s.id===sem.id?' selected':'')+'>'+esc(s.name)+(s.finished?' (finished)':'')+'</option>';}).join('')+'<option value="__new">＋ New semester…</option></select></div>'
    +'<h1 tabindex="-1" id="h1">'+(state.name?'Hello, '+esc(state.name):'Keep your lights on')+'</h1>'
    +'<p class="lede">Tap a building to open its weeks, or pick a module below.</p></header>';
@@ -741,7 +757,7 @@ function vModule(r){
     h+='<ul class="list">';
     for(var u=1;u<=m.units;u++){
       var st=uStatus(m,u),n=mats(m,u).length;
-      h+='<li><button class="item '+st+'" data-a="go" data-to="#/m/'+m.id+'/'+u+'"><span class="floor" style="--h:'+m.h+'">'+u+'</span><div class="grow"><div class="t">'+esc(m.titles[u-1])+'</div><div class="s">'+(n?n+' file'+(n>1?'s':''):'No files yet')+'</div></div>'+chip(st)+'</button></li>';
+      h+='<li><button class="item '+st+'" data-a="go" data-to="#/m/'+m.id+'/'+u+'"><span class="floor" style="--h:'+m.h+'">'+u+'</span><div class="grow"><div class="t">'+esc(m.titles[u-1])+'</div><div class="s">'+(n?n+' file'+(n>1?'s':''):'No files yet')+(st==='lit'||st==='fading'?' · '+esc(guestName(m.id,u))+(st==='fading'?' is packing':' lives here'):'')+'</div></div>'+chip(st)+'</button></li>';
     }
     h+='</ul><div class="row" style="margin-top:12px"><button class="btn ghost small" data-a="addfloor" data-m="'+m.id+'">＋ Add a floor</button>'+(m.units>1&&!mats(m,m.units).length&&!state.lit[m.id+':'+m.units]?'<button class="btn ghost small" data-a="rmfloor" data-m="'+m.id+'">Remove last floor (Week '+m.units+')</button>':'')+'</div>';
   } else {
@@ -769,7 +785,7 @@ function matRow(m,u,x){
 
 function vUnit(r){
   var m=r.m,u=r.u,st=uStatus(m,u),ms=mats(m,u),k=m.id+':'+u;
-  var h='<button class="back" data-a="go" data-to="#/m/'+m.id+'">← '+esc(m.code)+'</button><header class="stack"><p class="eyebrow">'+esc(m.code)+' · Floor '+u+'</p><h1 tabindex="-1" id="h1">'+esc(m.titles[u-1])+'</h1><div class="row">'+chip(st)+'</div></header>';
+  var h='<button class="back" data-a="go" data-to="#/m/'+m.id+'">← '+esc(m.code)+'</button><header class="stack"><p class="eyebrow">'+esc(m.code)+' · Floor '+u+'</p><h1 tabindex="-1" id="h1">'+esc(m.titles[u-1])+'</h1><div class="row">'+chip(st)+((st==='lit'||st==='fading')?'<span class="chip">Guest: '+esc(guestName(m.id,u))+'</span>':'')+'</div></header>';
   h+=unitGuest(m,u,k,st);
   if(!ms.length) h+='<section class="card stack"><h3>This floor is waiting for files</h3><p class="lede">Add the material for this unit and the floor is ready for a study block.</p><div class="row"><button class="btn" data-a="pickhere" data-mod="'+m.id+'" data-unit="'+u+'">Add files here</button><button class="btn ghost" data-a="go" data-to="#/port">Open the Port</button></div></section>';
   else h+='<section class="card stack"><h2>Study block</h2><p class="lede">Focus for 25 minutes, then do a short check. Pass it and the light goes on.</p><div class="row"><button class="btn" data-a="go" data-to="#/m/'+m.id+'/'+u+'/study">Start block</button></div></section>'
@@ -793,9 +809,156 @@ function unitGuest(m,u,k,st){
 }
 function mmss(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
 function quizFor(m,u){var s=semOf(m.id);return s&&s.demo?QUIZ[m.code.toLowerCase()+':'+u]:null;}
+
+/* ================= questions from your own files ================= */
+var STOPW={};('the and for are but not you all can had her was one our out has have this that with from they been were will would there their what about which when your said each she how its who did get may him his than then them these some into only other over such more most very just also like make time even back after use two way could first where those being both under while should because between through during before another does doing against without within along might must much many any own same too off here again once further few nor per via etc eg ie '+
+ 'der die das und ist ein eine einer eines einem einen nicht mit von zu den dem des sich auf für als auch sie sind wird werden wurde wurden kann können oder aber wenn dass dies diese dieser dieses diesem diesen bei nach aus über unter noch nur wie was wer wo hat haben sein seine ihre ihr zum zur vom im am um bis durch gegen ohne dann denn doch schon sehr mehr alle alles andere anderen einen jede jeder jedes man wir ihr ich du er es '+
+ 'el la los las un una unos unas de del al y en que es por con para como más pero sus este esta estos estas ese esa son fue ser está están hay muy también todo todos cada otro otra entre sobre sin desde hasta cuando donde porque').split(' ').forEach(function(w){if(w)STOPW[w]=1;});
+function loadScript(src){return new Promise(function(res,rej){var el=document.createElement('script');el.src=src;el.onload=res;el.onerror=function(){rej(new Error('script'));};document.head.appendChild(el);});}
+async function pdfText(blob){
+  if(!window.pdfjsLib){await loadScript('vendor/pdf.min.js');}
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worker.min.js';
+  var doc=await window.pdfjsLib.getDocument({data:await blob.arrayBuffer()}).promise,out=[],n=Math.min(doc.numPages,80);
+  for(var p=1;p<=n;p++){
+    var pg=await doc.getPage(p),tc=await pg.getTextContent(),line='',last=null;
+    tc.items.forEach(function(it){if(last!==null&&Math.abs(it.transform[5]-last)>3)line+='\n';line+=it.str+' ';last=it.transform[5];});
+    out.push(line);if(out.join('\n').length>70000)break;
+  }
+  return out.join('\n\n');
+}
+async function inflateRaw(d){var ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(d);w.close();return new Uint8Array(await new Response(ds.readable).arrayBuffer());}
+async function unzipSome(buf,want){
+  var dv=new DataView(buf),u8=new Uint8Array(buf),n=u8.length,e=-1,i;
+  for(i=n-22;i>=Math.max(0,n-65557);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break;}}
+  if(e<0)return {};
+  var cnt=dv.getUint16(e+10,true),off=dv.getUint32(e+16,true),out={};
+  for(var c=0;c<cnt;c++){
+    if(dv.getUint32(off,true)!==0x02014b50)break;
+    var meth=dv.getUint16(off+10,true),csz=dv.getUint32(off+20,true),nl=dv.getUint16(off+28,true),el=dv.getUint16(off+30,true),cl=dv.getUint16(off+32,true),lho=dv.getUint32(off+42,true),name=new TextDecoder().decode(u8.subarray(off+46,off+46+nl));
+    if(want(name)){var ds=lho+30+dv.getUint16(lho+26,true)+dv.getUint16(lho+28,true),data=u8.subarray(ds,ds+csz);out[name]=meth===0?data:await inflateRaw(data);}
+    off+=46+nl+el+cl;
+  }
+  return out;
+}
+function xmlText(xml,tag){
+  var o=xml.replace(new RegExp('</'+tag+':p>','g'),'\n').replace(new RegExp('<'+tag+':t[^>]*>([^<]*)</'+tag+':t>','g'),function(_,t){return t+' ';});
+  return o.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'");
+}
+async function officeText(blob,name){
+  var pptx=/\.pptx$/.test(name),files=await unzipSome(await blob.arrayBuffer(),function(n){return pptx?/^ppt\/slides\/slide\d+\.xml$/.test(n):n==='word/document.xml';});
+  var keys=Object.keys(files).sort(function(a,b){return (parseInt(a.replace(/\D/g,''),10)||0)-(parseInt(b.replace(/\D/g,''),10)||0);});
+  return keys.map(function(k){return xmlText(new TextDecoder().decode(files[k]),pptx?'a':'w');}).join('\n\n');
+}
+async function fileText(rec){
+  if(rec.text!==undefined)return rec.text;
+  var blob=await dbBlob(rec.id),name=String(rec.name||'').toLowerCase(),t='';
+  if(!blob)return '';
+  try{
+    if(/\.(txt|md|csv|tex|html?|py|java|js|json|sql)$/.test(name))t=await blob.text();
+    else if(/\.pdf$/.test(name))t=await pdfText(blob);
+    else if(/\.(docx|pptx)$/.test(name))t=await officeText(blob,name);
+  }catch(e){t='';}
+  t=t.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim().slice(0,70000);
+  rec.text=t;try{await dbPut(rec);}catch(e){}
+  return t;
+}
+function bankKey(k){return 'booklyn:bank:'+k;}
+function bankGet(k){try{var b=JSON.parse(localStorage.getItem(bankKey(k))||'null');if(b&&b.q)return b;}catch(e){}return {q:[],used:[]};}
+function bankPut(k,b){try{localStorage.setItem(bankKey(k),JSON.stringify(b));}catch(e){}}
+function shuffled(arr,seed){var a=arr.slice(),h=seed>>>0||1;for(var i=a.length-1;i>0;i--){h=(h*1103515245+12345)>>>0;var j=h%(i+1),t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function localQuestions(text,max){
+  var clean=text.replace(/\s+/g,' '),words=clean.match(/[A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ][A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ\-]{4,}/g)||[],freq={};
+  words.forEach(function(w){var l=w.toLowerCase();if(STOPW[l]||l.length>22)return;freq[l]=(freq[l]||0)+1;});
+  var terms=Object.keys(freq).filter(function(w){return freq[w]>=2;}).sort(function(a,b){return freq[b]-freq[a]||(a<b?-1:1);}).slice(0,80);
+  if(terms.length<6)return [];
+  var tset={};terms.forEach(function(t,i){tset[t]=i;});
+  var sents=(clean.match(/[^.!?]{50,230}[.!?]/g)||[]).map(function(x){return x.trim();}).filter(function(x){
+    var w=x.split(' ').length,letters=(x.match(/[A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ]/g)||[]).length;
+    return w>=8&&w<=34&&letters/x.length>.72&&!/https?:|www\.|@|©/.test(x)&&/^[A-ZÄÖÜÁÉÍÓÚÑ]/.test(x);
+  });
+  var out=[],usedT={};
+  shuffled(sents,hashStr(clean.slice(0,200))).forEach(function(sent){
+    if(out.length>=max)return;
+    var toks=sent.match(/[A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ][A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ\-]{4,}/g)||[],cand=toks.filter(function(t,i){var l=t.toLowerCase();return tset[l]!==undefined&&sent.indexOf(t)>3&&!usedT[l];});
+    if(!cand.length)return;
+    cand.sort(function(a,b){return tset[b.toLowerCase()]-tset[a.toLowerCase()];});
+    var ans=cand[Math.min(cand.length-1,1)],al=ans.toLowerCase();
+    var re=new RegExp('\\b'+ans.replace(/[-\/\\^$*+?.()|[\]{}]/g,'\\$&')+'\\b','g');
+    if((sent.match(re)||[]).length!==1)return;
+    var dist=terms.filter(function(t){return t!==al&&sent.toLowerCase().indexOf(t)<0&&Math.abs(t.length-al.length)<=4;});
+    function sfx(w){return /ing$/.test(w)?'g':/ed$/.test(w)?'d':/ly$/.test(w)?'y':/s$/.test(w)?'s':'o';}
+    var same=dist.filter(function(t){return sfx(t)===sfx(al);});
+    if(same.length>=3)dist=same;
+    dist=shuffled(dist,hashStr(sent)).slice(0,3);
+    if(dist.length<3)return;
+    var cap=/^[A-ZÄÖÜÁÉÍÓÚÑ]/.test(ans);
+    var opts=dist.map(function(d){return cap?d.charAt(0).toUpperCase()+d.slice(1):d;});opts.push(ans);
+    var order=shuffled([0,1,2,3],hashStr(sent+'o')),o2=order.map(function(i){return opts[i];});
+    usedT[al]=1;
+    out.push({id:'l'+hashStr(sent),q:'Fill in the blank: “'+sent.replace(re,'_____')+'”',o:o2,a:o2.indexOf(ans),e:'From your file: “'+sent+'”',src:'local',asked:0});
+  });
+  return out;
+}
+function chunksOf(text,size){var parts=text.split(/\n\n+/),chunks=[],cur='';parts.forEach(function(p){if((cur+p).length>size&&cur.length>600){chunks.push(cur);cur='';}cur+=(cur?'\n\n':'')+p;});if(cur.length>300)chunks.push(cur);return chunks.map(function(c){return c.slice(0,size);});}
+async function aiMore(text,bank){
+  var chunks=chunksOf(text,3500);if(!chunks.length)return 0;
+  var free=chunks.map(function(c,i){return i;}).filter(function(i){return bank.used.indexOf(hashStr(chunks[i]))<0;});
+  var pick=free.length?free[Math.floor(Math.random()*free.length)]:Math.floor(Math.random()*chunks.length);
+  var r=await api('POST','/api/quiz',{text:chunks[pick],n:4});
+  if(!r.ok||!r.questions){
+    if(r.status===429)SYNC.aiMsg='The daily AI limit is used up. Booklyn used questions made on your device instead.';
+    else if(r.status===503)SYNC.aiMsg='The AI service is not set up yet. Booklyn used questions made on your device instead.';
+    else if(r.status===401)SYNC.aiMsg='Sign in to use AI questions.';
+    return 0;
+  }
+  bank.used.push(hashStr(chunks[pick]));
+  var have={};bank.q.forEach(function(q){have[q.q]=1;});var n=0;
+  r.questions.forEach(function(q){if(have[q.q])return;bank.q.push({id:'a'+hashStr(q.q),q:q.q,o:q.o,a:q.a,e:q.e,src:'ai',asked:0});n++;});
+  return n;
+}
+async function prepareQuiz(m,u){
+  var k=m.id+':'+u,recs=FILES.filter(function(f){return f.status==='imported'&&f.mod===m.id&&f.unit===u;});
+  if(!recs.length)return null;
+  var texts=await Promise.race([Promise.all(recs.map(fileText)),new Promise(function(res){setTimeout(function(){res([]);},25000);})]);
+  var text=texts.filter(Boolean).join('\n\n');
+  if(text.length<400)return null;
+  var bank=bankGet(k);
+  bank.q=bank.q.filter(function(q){return !q.bad;});
+  var hasLocal=bank.q.some(function(q){return q.src==='local';});
+  if(!hasLocal)localQuestions(text,14).forEach(function(q){if(!bank.q.some(function(x){return x.id===q.id;}))bank.q.push(q);});
+  SYNC.aiMsg='';
+  var freshAi=bank.q.filter(function(q){return q.src==='ai'&&!q.asked;}).length;
+  if(state.aiOpt&&SYNC.me&&navigator.onLine!==false&&freshAi<3){try{await aiMore(text,bank);}catch(e){}}
+  var seed=Date.now()&0xffff;
+  function low(arr){return shuffled(arr,seed).sort(function(x,y){return (x.asked||0)-(y.asked||0);});}
+  var ais=low(bank.q.filter(function(q){return q.src==='ai';})),locs=low(bank.q.filter(function(q){return q.src==='local';}));
+  var pick=ais.filter(function(q){return !q.asked;}).slice(0,3);
+  locs.forEach(function(q){if(pick.length<3&&pick.indexOf(q)<0)pick.push(q);});
+  ais.forEach(function(q){if(pick.length<3&&pick.indexOf(q)<0)pick.push(q);});
+  if(pick.length<3){bankPut(k,bank);return null;}
+  pick.forEach(function(q){q.asked=(q.asked||0)+1;});
+  bankPut(k,bank);
+  return pick.map(function(q){return {id:q.id,q:q.q,o:q.o,a:q.a,e:q.e,src:q.src,k:k};});
+}
+function goCheck(){
+  var mm=M(study.k.split(':')[0]),uu=+study.k.split(':')[1];
+  if(quizFor(mm,uu)){study.step='check';render(true);return;}
+  var key=study.k;study.step='prep';render(true);
+  prepareQuiz(mm,uu).catch(function(){return null;}).then(function(qs){
+    if(!study||study.k!==key)return;
+    study.quiz=qs;study.q=0;study.score=0;study.picked=null;study.step='check';render(true);
+  });
+}
+function reportBad(){
+  var q=study&&study.quiz&&study.quiz[study.q];if(!q)return;
+  var b=bankGet(q.k);b.q.forEach(function(x){if(x.id===q.id)x.bad=true;});bankPut(q.k,b);
+  study.picked=study.picked===null?-1:study.picked;toast('Thanks. That question will not come back.');
+}
+
 function vStudy(r){
-  var m=r.m,u=r.u,k=m.id+':'+u,quiz=quizFor(m,u);
+  var m=r.m,u=r.u,k=m.id+':'+u;
   if(!study||study.k!==k) study={k:k,step:'focus',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false};
+  var quiz=study.quiz||quizFor(m,u);
   var steps='<div class="steps" aria-hidden="true"><i class="on"></i><i class="'+(study.step!=='focus'?'on':'')+'"></i><i class="'+(study.step==='result'?'on':'')+'"></i></div>';
   var h='<button class="back" data-a="leave" data-to="#/m/'+m.id+'/'+u+'">← Leave block</button><header class="stack"><p class="eyebrow">'+esc(m.code)+' · Floor '+u+'</p><h1 tabindex="-1" id="h1">'+esc(m.titles[u-1])+'</h1>'+steps+'</header>';
   if(study.step==='focus'){
@@ -803,11 +966,13 @@ function vStudy(r){
      +'<div class="row" style="justify-content:center"><button class="btn" data-a="timer" id="tbtn">'+(study.running?'Pause':(study.remaining<1500?'Resume':'Start 25 minutes'))+'</button><button class="btn ghost" data-a="treset">Reset</button></div>'
      +'<p class="foot" style="text-align:center">'+mats(m,u).map(function(x){return esc(x.name);}).join(' · ')+'</p></section>'
      +'<div class="row between"><span class="foot">Already studied this unit?</span><button class="btn ghost" data-a="tocheck">Skip to the check</button></div>';
+  } else if(study.step==='prep'){
+    h+='<section class="card stack" style="text-align:center"><p class="eyebrow">2 · Check</p><h2>Preparing your questions…</h2><p class="lede">Booklyn is reading your files for this unit. This can take a few seconds the first time.</p></section>';
   } else if(study.step==='check'&&quiz){
-    var q=quiz[study.q],L=['A','B','C'];
+    var q=quiz[study.q],L=['A','B','C','D'];
     h+='<section class="card stack"><p class="eyebrow">2 · Check · Question '+(study.q+1)+' of 3</p><h2>'+esc(q.q)+'</h2><div class="stack">'
      +q.o.map(function(o,i){var cls=study.picked===null?'':(i===q.a?' right':(i===study.picked?' wrong':''));return '<button class="opt'+cls+'" data-a="pick" data-i="'+i+'" '+(study.picked!==null?'disabled':'')+'><span class="k">'+L[i]+'</span><span>'+esc(o)+'</span></button>';}).join('')+'</div>'
-     +(study.picked!==null?'<div class="notice" role="status"><strong>'+(study.picked===q.a?'Correct. ':'Not quite. ')+'</strong>'+esc(q.e)+'</div><div class="row"><button class="btn" data-a="nextq">'+(study.q<2?'Next question':'See result')+'</button></div>':'')+'</section>';
+     +(study.picked!==null?'<div class="notice" role="status"><strong>'+(study.picked===q.a?'Correct. ':'Not quite. ')+'</strong>'+esc(q.e)+'</div><div class="row"><button class="btn" data-a="nextq">'+(study.q<2?'Next question':'See result')+'</button>'+(q.k?'<button class="btn ghost small" data-a="badq">Report a bad question</button>':'')+'</div>':'')+(q.k?'<p class="foot">'+(q.src==='ai'?'Written by an AI from your files. It can be wrong: check it against the material.':'Made on your device from your files.')+'</p>':'')+(SYNC.aiMsg&&study.q===0?'<p class="foot">'+esc(SYNC.aiMsg)+'</p>':'')+'</section>';
   } else if(study.step==='check'){
     var ps=['Explain “'+m.titles[u-1]+'” in one sentence without looking.','Name two terms from this unit that you could define to a friend.','Solve or sketch one exercise from the material.'];
     h+='<section class="card stack"><p class="eyebrow">2 · Self-check</p><h2>Tick what you can do without notes</h2><div class="stack">'
@@ -896,6 +1061,7 @@ function vSettings(){
    +'<div class="row">'+(ui.confirm==='sem'?'<button class="btn small danger" data-a="rmsem2">Remove it and its files</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="rmsem1">Remove this semester…</button>')+'</div></section>';
   h+='<section class="card stack"><h3>Storage</h3><p class="lede" id="stor">Checking…</p><div class="row"><button class="btn small ghost" data-a="persist">Ask the browser to keep my files</button></div></section>';
   h+='<section class="card stack"><h3>Back up your progress</h3><p class="lede">'+(state.lastBackup?'Last backup: '+new Date(state.lastBackup).toLocaleDateString('en-GB')+'. ':'No backup yet. ')+'Download a file with your semesters, lights, notes and deadlines. Keep it in a safe place such as your cloud drive. The imported files themselves are not included, so keep the originals.</p><textarea id="bk" aria-label="Backup text" spellcheck="false" placeholder="Press “Create backup text”"></textarea><div class="row"><button class="btn small" data-a="dlbackup">Download backup file</button><button class="btn small ghost" data-a="loadbackup">Restore from file</button><input type="file" id="bkfile" accept=".json,application/json" hidden><button class="btn small ghost" data-a="export">Create backup text</button><button class="btn small ghost" data-a="restore">Restore from text</button></div></section>';
+  h+=accountCard();
   h+='<section class="card stack"><details id="devtools"'+(ui.devOpen?' open':'')+'><summary><h3 style="display:inline">Testing tools</h3></summary><p class="lede" style="margin:8px 0">For the project team. Hide these before the user tests.</p><div class="row"><button class="btn small" data-a="tcoins" data-n="1000">Add 1,000 coins</button><button class="btn small ghost" data-a="tcoins" data-n="-9999999">Set coins to 0</button></div><div class="row" style="margin-top:8px"><button class="btn small ghost" data-a="tage" data-n="8">Age all lights 8 days</button><button class="btn small ghost" data-a="tage" data-n="20">Age all lights 20 days</button><button class="btn small ghost" data-a="trent">Make 3 days of rent due</button></div></details></section>';
   h+='<section class="card stack"><h3>Reset everything</h3><p class="lede">Deletes all semesters, progress and imported files from this device.</p><div class="row">'+(ui.confirm==='all'?'<button class="btn small danger" data-a="reset2">Yes, delete everything</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="reset1">Reset…</button>')+'</div></section>';
   h+='<section class="stack"><h3>About</h3><p class="foot">Booklyn · saved-data schema '+SCHEMA+'. Older data is migrated automatically and backed up first. Data from a newer version is never overwritten.</p></section>'+foot();
@@ -941,7 +1107,7 @@ function startTimer(){
   tick=setInterval(function(){
     var rem=Math.max(0,Math.ceil((study.end-Date.now())/1000));study.remaining=rem;
     var t=$('#tm'),b=$('#tb');if(t)t.textContent=mmss(rem);if(b)b.style.width=Math.round((1500-rem)/15)+'%';
-    if(rem===0){pauseTimer();study.step='check';toast('Time is up. Now the check.');render(true);}
+    if(rem===0){pauseTimer();toast('Time is up. Now the check.');goCheck();}
   },250);
 }
 
@@ -1047,6 +1213,25 @@ document.addEventListener('click',function(e){
     if(S.name)state.name=S.name;
     state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;ui.cityBuild=true;ui.cityT={x:0,y:0,k:1};save();go('#/');toast('Your district is ready. Tap a building to add its first files.');
   }
+  else if(a==='syreq'){
+    var em=($('#syemail')||{}).value;em=String(em||'').trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){SYNC.msg='Enter a valid email address.';render();return;}
+    SYNC.busy=true;SYNC.msg='Sending…';SYNC.link='';render();
+    api('POST','/api/auth/request',{email:em}).then(function(r){
+      SYNC.busy=false;
+      if(r.ok){SYNC.msg='Check your inbox for the sign-in link. It works once and expires in 15 minutes.';SYNC.link=r.devLink||'';}
+      else if(r.status===503)SYNC.msg='Email sending is not set up on this site yet.';
+      else if(r.status===400)SYNC.msg='That email address does not look right.';
+      else SYNC.msg=r.offline?'You are offline.':'Could not send the link. Try again in a minute.';
+      render();
+    });
+  }
+  else if(a==='sysync'){SYNC.msg='';syncPull().then(function(){if(!SYNC.conflict&&SYNC.dirty)return syncPush();}).then(function(){if(!SYNC.msg&&!SYNC.conflict)toast('Synced.');});}
+  else if(a==='sylogout'){api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.conflict=null;SYNC.msg='';SYNC.link='';render();toast('Signed out. Your progress stays on this device.');});}
+  else if(a==='sydel1'){ui.confirm='acct';render();}
+  else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){SYNC.me=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast('Your cloud data was deleted. Your progress stays on this device.');}else toast('Could not delete just now. Try again.');render();});}
+  else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast('Using the cloud copy.');else render();}
+  else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast('Using this device. The cloud copy was replaced.');render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
   else if(a==='iliasimport'){if(!ui.ilias.busy)importIlias(b.dataset.key);}
   else if(a==='pickfiles'){ui.preset=null;$('#fi').click();}
@@ -1065,11 +1250,12 @@ document.addEventListener('click',function(e){
   else if(a==='del2'){dbDel(id).then(function(){FILES=FILES.filter(function(f){return f.id!==id;});ui.confirm=null;render();toast('File removed.');});}
   else if(a==='timer'){if(study.running)pauseTimer();else startTimer();render();var btn=$('#tbtn');if(btn)btn.focus();}
   else if(a==='treset'){pauseTimer();study.remaining=1500;render();}
-  else if(a==='tocheck'){pauseTimer();study.step='check';render(true);}
-  else if(a==='pick'){var i=+b.dataset.i,q=quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1])[study.q];study.picked=i;if(i===q.a)study.score++;render();var nb=document.querySelector('[data-a="nextq"]');if(nb)nb.focus();}
+  else if(a==='tocheck'){pauseTimer();goCheck();}
+  else if(a==='badq'){reportBad();render();}
+  else if(a==='pick'){var i=+b.dataset.i,q=(study.quiz||quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1]))[study.q];study.picked=i;if(i===q.a)study.score++;render();var nb=document.querySelector('[data-a="nextq"]');if(nb)nb.focus();}
   else if(a==='nextq'){if(study.q<2){study.q++;study.picked=null;render(true);}else{finishQuiz();render(true);}}
   else if(a==='finishself'){study.score=study.checks.filter(Boolean).length;finishQuiz();render(true);}
-  else if(a==='retry'){var k=study.k;study={k:k,step:'check',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false};render(true);}
+  else if(a==='retry'){var k=study.k;study={k:k,step:'check',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false};goCheck();}
   else if(a==='adddl'){
     var d=ui.dl;if(!d.title.trim()||!d.date){toast('Add a title and a date.');return;}
     state.deadlines.push({id:uid(),date:d.date,mod:d.mod,kind:d.kind,title:d.title.trim()});ui.dl=null;save();render();toast('Deadline added.');
@@ -1122,6 +1308,7 @@ document.addEventListener('change',function(e){
   else if(c==='dead'){if(t.checked)state.tasksDone[t.dataset.id]=true;else delete state.tasksDone[t.dataset.id];save();render();}
   else if(c==='shopmod'){ui.shopMod=t.value;render();}
   else if(c==='pin'){var pk=t.dataset.k;if(t.checked){state.pin[pk]=true;if(!litTs(pk)){state.lit[pk]=Date.now();if(state.lvl[pk]===undefined)state.lvl[pk]=0;var pm=M(pk.split(':')[0]);if(pm)mats(pm,+pk.split(':')[1]).forEach(function(x){state.seen[x.id]=true;});}}else delete state.pin[pk];save();render();}
+  else if(c==='aiopt'){state.aiOpt=t.checked;save();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
     var row=t.closest('[data-f]'),f=row&&fileById(row.dataset.f);if(!f)return;
@@ -1145,8 +1332,92 @@ document.addEventListener('dragover',function(e){var z=e.target.closest&&e.targe
 document.addEventListener('dragleave',function(e){var z=e.target.closest&&e.target.closest('[data-drop]');if(z)z.classList.remove('over');});
 document.addEventListener('drop',function(e){var z=e.target.closest&&e.target.closest('[data-drop]');if(z){e.preventDefault();z.classList.remove('over');ui.preset=null;if(e.dataTransfer&&e.dataTransfer.files.length)addFiles(e.dataTransfer.files);}});
 
+/* ================= account and sync ================= */
+function api(method,path,body,keep){
+  var o={method:method,credentials:'same-origin',headers:{}};
+  if(keep)o.keepalive=true;
+  if(body!==undefined){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body);}
+  return fetch(path,o).then(function(r){return r.json().catch(function(){return {};}).then(function(j){j.status=r.status;return j;});}).catch(function(){return {ok:false,status:0,offline:true};});
+}
+function syncRender(){
+  if(route().name!=='settings'&&!SYNC.conflict)return;
+  var ae=document.activeElement;if(ae&&ae.id==='syemail')return;
+  render();
+}
+function syncSchedule(){clearTimeout(SYNC.timer);SYNC.timer=setTimeout(function(){syncPush();},4000);}
+function syncAdopt(remote,updatedAt){
+  var s2=remote;
+  if(!s2||typeof s2.schema!=='number'){SYNC.msg='The cloud copy could not be read.';return false;}
+  if(s2.schema>SCHEMA){SYNC.msg='The cloud copy comes from a newer version of Booklyn. Reload this page to update.';return false;}
+  try{if(state.sems.some(function(x){return !x.demo;}))localStorage.setItem(KEY+'.beforesync',JSON.stringify(state));}catch(e){}
+  while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg){SYNC.msg='The cloud copy could not be read.';return false;}s2=mg(s2);}
+  SYNC.adopting=true;state=fill(s2);save();SYNC.adopting=false;
+  SYNC.base=updatedAt;SYNC.dirty=false;SYNC.last=Date.now();SYNC.conflict=null;SYNC.msg='';syncMeta();
+  render(true);return true;
+}
+async function syncPull(){
+  if(!SYNC.me||readOnly)return;
+  SYNC.busy=true;var r=await api('GET','/api/state');SYNC.busy=false;
+  if(!r.ok){if(r.status===401){SYNC.me=null;SYNC.msg='You were signed out. Sign in again to sync.';}else SYNC.msg=r.offline?'Offline. Your progress will sync when you are back online.':'Could not reach the cloud.';syncRender();return;}
+  var hasLocal=state.sems.some(function(x){return !x.demo;});
+  if(!r.state){if(hasLocal){SYNC.base=0;await syncPush();}else{SYNC.base=0;SYNC.dirty=false;syncMeta();}syncRender();return;}
+  if(SYNC.base===r.updatedAt){if(SYNC.dirty&&hasLocal)await syncPush();else{SYNC.dirty=false;syncMeta();}syncRender();return;}
+  if(!hasLocal||(SYNC.base&&!SYNC.dirty)){if(syncAdopt(r.state,r.updatedAt))toast('Your progress was updated from the cloud.');syncRender();return;}
+  SYNC.conflict={state:r.state,updatedAt:r.updatedAt};
+  toast('Your cloud copy and this device differ. Open Settings to choose.');syncRender();
+}
+async function syncPush(keep){
+  if(!SYNC.me||SYNC.pushing||readOnly||SYNC.conflict)return;
+  clearTimeout(SYNC.timer);SYNC.pushing=true;
+  var r=await api('PUT','/api/state',{state:state,base:SYNC.base},keep);SYNC.pushing=false;
+  if(r.ok){SYNC.base=r.updatedAt;SYNC.dirty=false;SYNC.last=Date.now();SYNC.msg='';syncMeta();}
+  else if(r.status===409){await syncPull();return;}
+  else if(r.status===401){SYNC.me=null;SYNC.msg='You were signed out. Sign in again to sync.';}
+  else SYNC.msg=r.offline?'Offline. Your progress will sync when you are back online.':'Could not sync just now.';
+  syncRender();
+}
+async function syncInit(){
+  if(readOnly)return;
+  var tk=null;try{tk=new URL(location.href).searchParams.get('token');}catch(e){}
+  if(tk){
+    try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}
+    var v=await api('POST','/api/auth/verify',{token:tk});
+    if(v.ok){SYNC.me=v.email;toast('Signed in as '+v.email+'.');}
+    else{SYNC.msg='That sign-in link has expired or was already used. Ask for a new one in Settings.';toast(SYNC.msg);}
+  }
+  if(!SYNC.me){var m=await api('GET','/api/me');if(m.ok)SYNC.me=m.email;else if(m.status===404||m.status===405||m.status===501)SYNC.na=true;}
+  SYNC.checked=true;
+  if(SYNC.me){if(SYNC.known&&SYNC.known!==SYNC.me){SYNC.base=0;}SYNC.known=SYNC.me;syncMeta();await syncPull();}
+  syncRender();
+}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&SYNC.me&&SYNC.dirty&&!SYNC.conflict)syncPush(true);});
+window.addEventListener('online',function(){if(SYNC.me&&SYNC.dirty)syncPush();});
+function accountCard(){
+  var h='<section class="card stack" id="account"><h3>Account and sync</h3>';
+  if(SYNC.na)return h+'<p class="lede">Accounts are not available on this address. Your progress stays on this device.</p></section>';
+  if(!SYNC.checked)return h+'<p class="lede">Checking…</p></section>';
+  if(SYNC.conflict){
+    var cs=SYNC.conflict.state||{},cn=(cs.sems||[]).length,ln=state.sems.length,cl=Object.keys(cs.lit||{}).length,dl=Object.keys(state.lit||{}).length;
+    h+='<div class="notice warn stack"><p style="margin:0"><strong>Your cloud copy and this device differ.</strong> The cloud copy has '+cn+' semester'+(cn===1?'':'s')+' and '+cl+' lit floor'+(cl===1?'':'s')+' (saved '+new Date(SYNC.conflict.updatedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'). This device has '+ln+' and '+dl+'. Choose which one to keep. The other one is replaced, and a safety copy of this device stays in the browser.</p>'
+      +'<div class="row"><button class="btn small" data-a="sycloud">Use the cloud copy</button><button class="btn small ghost" data-a="sydevice">Use this device</button></div></div>';
+  }
+  if(SYNC.me){
+    h+='<p class="lede">Signed in as <strong>'+esc(SYNC.me)+'</strong>. '+(SYNC.last?'Last synced: '+new Date(SYNC.last).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'. ':'')+(SYNC.dirty&&!SYNC.conflict?'Changes waiting to sync.':'')+'</p>'
+     +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
+     +'<label class="check"><input type="checkbox" data-c="aiopt" '+(state.aiOpt?'checked':'')+'><div><div class="t">Let an AI write extra questions</div><div class="s">Short text excerpts of your files are sent to Cloudflare Workers AI to write questions. Files are never sent or stored. Off by default. Without it, Booklyn still makes questions on your device.</div></div></label>'
+     +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+'>Sync now</button><button class="btn small ghost" data-a="sylogout">Sign out</button></div>'
+     +'<div class="row">'+(ui.confirm==='acct'?'<button class="btn small danger" data-a="sydel2">Yes, delete my cloud data</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="sydel1">Delete my cloud data…</button>')+'</div>';
+  } else {
+    h+='<p class="lede">Optional. Sign in to keep your progress safe and use it on your phone and your computer. Booklyn sends a one-time link to your email. There is no password.</p>'
+     +'<div class="row"><input type="email" id="syemail" placeholder="you@example.com" autocomplete="email" style="flex:1 1 220px" aria-label="Your email address"><button class="btn small" data-a="syreq" '+(SYNC.busy?'disabled':'')+'>Send me a link</button></div>'
+     +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
+     +(SYNC.link?'<p class="foot">Local test link: <a href="'+esc(SYNC.link)+'">sign in</a></p>':'');
+  }
+  return h+'<p class="foot">Only your progress (semesters, modules, lights, coins, notes and deadlines) is stored in the cloud. Your files never leave this device. Your email is used only to send sign-in links. You can delete everything at any time.</p></section>';
+}
 /* ================= boot ================= */
 try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catch(e){}
 render(false);
+try{syncInit();}catch(e){}
 dbAll().then(function(all){FILES=all||[];render(false);}).catch(function(){filesOK=false;render(false);});
 })();
