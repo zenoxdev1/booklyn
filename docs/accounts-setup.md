@@ -7,6 +7,17 @@ How it works: the user enters an email, the site sends a one-time link (`/?token
 usable once). Opening it signs in and sets an HttpOnly session cookie (30 days). The app then pulls and
 pushes one JSON document per user. If the cloud and the device both changed, the user chooses which to keep.
 
+## Two ways to sign in
+
+- **Sync code (no email, no domain, free).** One button creates an account identified by a secret 20-character code
+  (about 99 bits). The server keeps only a hash of it. The code is shown once and kept on the device, so the
+  same browser signs in again by itself; another device types the code. If the code is lost nobody can recover it,
+  so Settings also keeps "Show my sync code" and the backup file works as before.
+- **Email link (optional).** Needs the Resend steps below and a domain you control. If they are not set up, the
+  email form says so and the sync code keeps working.
+
+The sync code only needs the D1 database and its `DB` binding (steps 1 and 2). Skip steps 3 and 4 until you have a domain.
+
 ## One-time setup
 
 1. **D1 database.** Cloudflare dashboard > Storage & Databases > D1 > Create database `booklyn`.

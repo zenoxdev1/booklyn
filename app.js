@@ -174,9 +174,9 @@ function backupDue(){
   return !state.lastBackup||now-state.lastBackup>week;
 }
 var saveT;
-var SYNC={me:null,checked:false,na:false,base:0,last:0,dirty:false,known:'',busy:false,pushing:false,msg:'',link:'',conflict:null,timer:null,adopting:false};
-try{var _sm=JSON.parse(localStorage.getItem('booklyn:sync')||'{}');SYNC.base=_sm.base||0;SYNC.last=_sm.last||0;SYNC.known=_sm.email||'';SYNC.dirty=!!_sm.dirty;}catch(e){}
-function syncMeta(){try{localStorage.setItem('booklyn:sync',JSON.stringify({base:SYNC.base,last:SYNC.last,email:SYNC.me||SYNC.known||'',dirty:SYNC.dirty}));}catch(e){}}
+var SYNC={me:null,uid:'',kind:'',newCode:'',showCode:false,checked:false,na:false,base:0,last:0,dirty:false,known:'',busy:false,pushing:false,msg:'',link:'',conflict:null,timer:null,adopting:false};
+try{var _sm=JSON.parse(localStorage.getItem('booklyn:sync')||'{}');SYNC.base=_sm.base||0;SYNC.last=_sm.last||0;SYNC.known=_sm.uid||_sm.email||'';SYNC.dirty=!!_sm.dirty;}catch(e){}
+function syncMeta(){try{localStorage.setItem('booklyn:sync',JSON.stringify({base:SYNC.base,last:SYNC.last,uid:SYNC.uid||SYNC.known||'',dirty:SYNC.dirty}));}catch(e){}}
 function save(){
   if(readOnly) return; clearTimeout(saveT);
   if(!SYNC.adopting){SYNC.dirty=true;syncMeta();if(SYNC.me)syncSchedule();}
@@ -1226,10 +1226,19 @@ document.addEventListener('click',function(e){
       render();
     });
   }
+  else if(a==='sycodenew'){codeEnter('',true);}
+  else if(a==='sycodein'){var cv=(($('#sycode')||{}).value||'').trim();if(!cv){SYNC.msg='Enter your sync code.';render();return;}codeEnter(cv,false);}
+  else if(a==='sycopy'){var cc=SYNC.newCode||codeStored();try{navigator.clipboard.writeText(cc).then(function(){toast('Code copied.');},function(){toast('Select the code and copy it.');});}catch(e){toast('Select the code and copy it.');}}
+  else if(a==='sycodedl'){try{var bl=new Blob(['Booklyn sync code: '+SYNC.newCode+'\nKeep this file private. Anyone with the code can open your progress.\n'],{type:'text/plain'}),la=document.createElement('a');la.href=URL.createObjectURL(bl);la.download='booklyn-sync-code.txt';document.body.appendChild(la);la.click();setTimeout(function(){URL.revokeObjectURL(la.href);la.remove();},1000);}catch(e){toast('Could not create the file.');}}
+  else if(a==='sycodedone'){SYNC.newCode='';render();}
+  else if(a==='syshow'){SYNC.showCode=true;render();}
+  else if(a==='syhide'){SYNC.showCode=false;render();}
+  else if(a==='sylogout2'){codeStore('');ui.confirm=null;api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.kind='';SYNC.uid='';SYNC.conflict=null;SYNC.msg='';SYNC.newCode='';SYNC.showCode=false;render();toast('Signed out. Your progress stays on this device.');});}
   else if(a==='sysync'){SYNC.msg='';syncPull().then(function(){if(!SYNC.conflict&&SYNC.dirty)return syncPush();}).then(function(){if(!SYNC.msg&&!SYNC.conflict)toast('Synced.');});}
+  else if(a==='sylogout'&&SYNC.kind==='code'){ui.confirm='logout';render();}
   else if(a==='sylogout'){api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.conflict=null;SYNC.msg='';SYNC.link='';render();toast('Signed out. Your progress stays on this device.');});}
   else if(a==='sydel1'){ui.confirm='acct';render();}
-  else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){SYNC.me=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast('Your cloud data was deleted. Your progress stays on this device.');}else toast('Could not delete just now. Try again.');render();});}
+  else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){codeStore('');SYNC.kind='';SYNC.uid='';SYNC.me=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast('Your cloud data was deleted. Your progress stays on this device.');}else toast('Could not delete just now. Try again.');render();});}
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast('Using the cloud copy.');else render();}
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast('Using this device. The cloud copy was replaced.');render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
@@ -1339,6 +1348,9 @@ function api(method,path,body,keep){
   if(body!==undefined){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body);}
   return fetch(path,o).then(function(r){return r.json().catch(function(){return {};}).then(function(j){j.status=r.status;return j;});}).catch(function(){return {ok:false,status:0,offline:true};});
 }
+function codeStored(){try{return localStorage.getItem('booklyn:synccode')||'';}catch(e){return '';}}
+function codeStore(c){try{if(c)localStorage.setItem('booklyn:synccode',c);else localStorage.removeItem('booklyn:synccode');}catch(e){}}
+function setAccount(r){SYNC.kind=r.kind||'email';SYNC.me=r.kind==='code'?'Sync code':(r.email||'');SYNC.uid=r.uid||'';}
 function syncRender(){
   if(route().name!=='settings'&&!SYNC.conflict)return;
   var ae=document.activeElement;if(ae&&ae.id==='syemail')return;
@@ -1382,13 +1394,24 @@ async function syncInit(){
   if(tk){
     try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}
     var v=await api('POST','/api/auth/verify',{token:tk});
-    if(v.ok){SYNC.me=v.email;toast('Signed in as '+v.email+'.');}
+    if(v.ok){setAccount(v);toast('Signed in as '+v.email+'.');}
     else{SYNC.msg='That sign-in link has expired or was already used. Ask for a new one in Settings.';toast(SYNC.msg);}
   }
-  if(!SYNC.me){var m=await api('GET','/api/me');if(m.ok)SYNC.me=m.email;else if(m.status===404||m.status===405||m.status===501)SYNC.na=true;}
+  if(!SYNC.me){var m=await api('GET','/api/me');if(m.ok)setAccount(m);else if(m.status===404||m.status===405||m.status===501)SYNC.na=true;}
+  if(!SYNC.me&&!SYNC.na&&codeStored()){var lg=await api('POST','/api/code/login',{code:codeStored()});if(lg.ok)setAccount({kind:'code',uid:lg.uid});}
   SYNC.checked=true;
-  if(SYNC.me){if(SYNC.known&&SYNC.known!==SYNC.me){SYNC.base=0;}SYNC.known=SYNC.me;syncMeta();await syncPull();}
+  if(SYNC.me){if(SYNC.known&&SYNC.known!==SYNC.uid){SYNC.base=0;}SYNC.known=SYNC.uid;syncMeta();await syncPull();}
   syncRender();
+}
+async function codeEnter(code,isNew){
+  SYNC.busy=true;SYNC.msg='';render();
+  var r=isNew?await api('POST','/api/code/create',{}):await api('POST','/api/code/login',{code:code});
+  SYNC.busy=false;
+  if(!r.ok){SYNC.msg=r.status===429?'Too many tries. Wait a little and try again.':r.status===404||r.status===400?'That code was not found. Check it and try again.':r.status===404?'':(r.offline?'You are offline.':'Could not reach the server. Try again.');render();return;}
+  var c=isNew?r.code:code;codeStore(c);setAccount({kind:'code',uid:r.uid});
+  if(isNew)SYNC.newCode=c;
+  if(SYNC.known&&SYNC.known!==SYNC.uid)SYNC.base=0;SYNC.known=SYNC.uid;syncMeta();
+  await syncPull();render();
 }
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&SYNC.me&&SYNC.dirty&&!SYNC.conflict)syncPush(true);});
 window.addEventListener('online',function(){if(SYNC.me&&SYNC.dirty)syncPush();});
@@ -1402,16 +1425,19 @@ function accountCard(){
       +'<div class="row"><button class="btn small" data-a="sycloud">Use the cloud copy</button><button class="btn small ghost" data-a="sydevice">Use this device</button></div></div>';
   }
   if(SYNC.me){
-    h+='<p class="lede">Signed in as <strong>'+esc(SYNC.me)+'</strong>. '+(SYNC.last?'Last synced: '+new Date(SYNC.last).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'. ':'')+(SYNC.dirty&&!SYNC.conflict?'Changes waiting to sync.':'')+'</p>'
+    h+='<p class="lede">'+(SYNC.kind==='code'?'Signed in with a <strong>sync code</strong>. ':'Signed in as <strong>'+esc(SYNC.me)+'</strong>. ')+(SYNC.last?'Last synced: '+new Date(SYNC.last).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'. ':'')+(SYNC.dirty&&!SYNC.conflict?'Changes waiting to sync.':'')+'</p>'
+     +(SYNC.newCode?'<div class="notice stack"><p style="margin:0"><strong>Your sync code. Save it now.</strong> It is the only way to open your progress on another device, and nobody can recover it for you.</p><p style="margin:0;font:700 1.25rem ui-monospace,Consolas,monospace;letter-spacing:.06em;word-break:break-all">'+esc(SYNC.newCode)+'</p><div class="row"><button class="btn small" data-a="sycopy">Copy code</button><button class="btn small ghost" data-a="sycodedl">Download as a file</button><button class="btn small ghost" data-a="sycodedone">I saved it</button></div></div>':'')
+     +(SYNC.kind==='code'&&!SYNC.newCode&&codeStored()?(SYNC.showCode?'<p style="margin:0;font:700 1.1rem ui-monospace,Consolas,monospace;letter-spacing:.06em;word-break:break-all">'+esc(codeStored())+'</p><div class="row"><button class="btn small ghost" data-a="sycopy">Copy code</button><button class="btn small ghost" data-a="syhide">Hide</button></div>':'<div class="row"><button class="btn small ghost" data-a="syshow">Show my sync code</button></div>'):'')
      +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
      +'<label class="check"><input type="checkbox" data-c="aiopt" '+(state.aiOpt?'checked':'')+'><div><div class="t">Let an AI write extra questions</div><div class="s">Short text excerpts of your files are sent to Cloudflare Workers AI to write questions. Files are never sent or stored. Off by default. Without it, Booklyn still makes questions on your device.</div></div></label>'
-     +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+'>Sync now</button><button class="btn small ghost" data-a="sylogout">Sign out</button></div>'
+     +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+'>Sync now</button>'+(ui.confirm==='logout'?'<button class="btn small danger" data-a="sylogout2">Sign out and forget the code here</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="sylogout">Sign out</button>')+'</div>'
      +'<div class="row">'+(ui.confirm==='acct'?'<button class="btn small danger" data-a="sydel2">Yes, delete my cloud data</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="sydel1">Delete my cloud data…</button>')+'</div>';
   } else {
-    h+='<p class="lede">Optional. Sign in to keep your progress safe and use it on your phone and your computer. Booklyn sends a one-time link to your email. There is no password.</p>'
-     +'<div class="row"><input type="email" id="syemail" placeholder="you@example.com" autocomplete="email" style="flex:1 1 220px" aria-label="Your email address"><button class="btn small" data-a="syreq" '+(SYNC.busy?'disabled':'')+'>Send me a link</button></div>'
+    h+='<p class="lede">Optional. Keep your progress safe and use it on your phone and your computer. No email and no password: Booklyn gives you a secret sync code.</p>'
+     +'<div class="row"><button class="btn small" data-a="sycodenew" '+(SYNC.busy?'disabled':'')+'>Create my sync code</button></div>'
+     +'<div class="row"><input type="text" id="sycode" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" autocomplete="off" autocapitalize="characters" style="flex:1 1 220px" aria-label="Your sync code"><button class="btn small ghost" data-a="sycodein" '+(SYNC.busy?'disabled':'')+'>I already have a code</button></div>'
      +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
-     +(SYNC.link?'<p class="foot">Local test link: <a href="'+esc(SYNC.link)+'">sign in</a></p>':'');
+     +'<details><summary class="foot" style="cursor:pointer">Prefer an email link?</summary><div class="stack" style="margin-top:8px"><div class="row"><input type="email" id="syemail" placeholder="you@example.com" autocomplete="email" style="flex:1 1 220px" aria-label="Your email address"><button class="btn small ghost" data-a="syreq" '+(SYNC.busy?'disabled':'')+'>Send me a link</button></div>'+(SYNC.link?'<p class="foot">Local test link: <a href="'+esc(SYNC.link)+'">sign in</a></p>':'')+'</div></details>';
   }
   return h+'<p class="foot">Only your progress (semesters, modules, lights, coins, notes and deadlines) is stored in the cloud. Your files never leave this device. Your email is used only to send sign-in links. You can delete everything at any time.</p></section>';
 }

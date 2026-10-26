@@ -60,3 +60,29 @@ export function isLocal(request) {
   const h = new URL(request.url).hostname;
   return h === 'localhost' || h === '127.0.0.1';
 }
+
+// Sync codes: 20 characters from an alphabet without look-alike letters (about 99 bits).
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export function newSyncCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(20));
+  let c = '';
+  bytes.forEach((b) => (c += CODE_ALPHABET[b % CODE_ALPHABET.length]));
+  return c;
+}
+export function normalizeCode(input) {
+  const c = String(input || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return c.length === 20 && [...c].every((ch) => CODE_ALPHABET.includes(ch)) ? c : '';
+}
+export function formatCode(c) {
+  return c.match(/.{5}/g).join('-');
+}
+// Counts attempts per IP in login_tokens (rows are marked used so they can never sign anyone in).
+export async function tooManyAttempts(env, request, kind, limit) {
+  const ip = request.headers.get('CF-Connecting-IP') || 'local';
+  const now = Date.now();
+  const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM login_tokens WHERE email = ? AND ip = ? AND created_at > ?').bind(kind, ip, now - 3600 * 1000).first();
+  if (row.n >= limit) return true;
+  await env.DB.prepare('INSERT INTO login_tokens (hash, email, ip, created_at, expires_at, used) VALUES (?, ?, ?, ?, ?, 1)')
+    .bind(randomToken(16), kind, ip, now, now).run();
+  return false;
+}

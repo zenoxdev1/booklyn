@@ -23,5 +23,5 @@ export async function onRequestPost({ request, env }) {
   await env.DB.prepare('INSERT INTO sessions (hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
     .bind(await sha256(session), user.id, now, now + SESSION_DAYS * 864e5).run();
   await env.DB.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now).run();
-  return json({ ok: true, email: row.email }, 200, { 'Set-Cookie': sessionCookie(session, SESSION_DAYS * 86400) });
+  return json({ ok: true, email: row.email, kind: 'email', uid: String(user.id) }, 200, { 'Set-Cookie': sessionCookie(session, SESSION_DAYS * 86400) });
 }
