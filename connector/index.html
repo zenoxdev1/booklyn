@@ -25,7 +25,7 @@
 <main id="main">
 <div class="doc">
 <h1>ILIAS connector</h1>
-<p class="meta">An optional browser extension for Edge and Chrome on a computer. Current version: 0.3.1 (beta).</p>
+<p class="meta">An optional browser extension for Edge and Chrome on a computer. Current version: 0.4.0 (beta).</p>
 <p>The connector looks for course files on the HSLU ILIAS pages you can open while signed in, and hands the ones you choose to Booklyn. It never asks for your password, and nothing is uploaded to Booklyn&rsquo;s servers: files go straight from ILIAS into your own browser storage.</p>
 
 <h2>What it picks up</h2>
@@ -48,12 +48,14 @@
 <ul>
 <li>It works only on a computer. Phone browsers do not run this kind of extension, so Booklyn hides the ILIAS box on phones. Add files by hand there.</li>
 <li>Files over 12 MB must be added by hand.</li>
-<li>Updating: download the new zip, replace the folder contents and press the reload icon on the extensions page. Booklyn tells you in the Port when an update is available.</li>
+<li>Updating (rare): you do <strong>not</strong> need to remove the extension. Download the new zip, extract it <em>over</em> the same folder (replace the files) and press the reload arrow on the extension&rsquo;s card at <code>edge://extensions</code>. Since version 0.4.0 the scanning logic lives in Booklyn itself, so scan improvements arrive on their own and the extension itself changes only rarely. Booklyn tells you in the Port when a new extension version exists.</li>
 <li>It only reads <code>elearning.hslu.ch</code> and the Booklyn page. You can check this in <code>manifest.json</code> inside the zip.</li>
 <li>Use it only as HSLU allows. See the <a href="/terms/">terms</a>.</li>
 </ul>
 
 <h2 id="changelog">Changelog</h2>
+<h3 style="font-size:1.1rem;margin:16px 0 4px">0.4.0 (beta) &middot; 27 Oct 2026</h3>
+<ul><li>The extension now only fetches pages and files with your own sign-in. The scanning logic moved into Booklyn, so fixes reach you without reinstalling.</li><li>Fixed: calendar and settings links were mistaken for courses, so some courses showed nothing.</li><li>New &ldquo;Copy scan report&rdquo; button in the Port, to help find why a course shows no files.</li></ul>
 <h3 style="font-size:1.1rem;margin:16px 0 4px">0.3.1 (beta) &middot; 27 Oct 2026</h3>
 <ul><li>Fixed: the scan could use up its page budget on one course and never reach the others. Every course now gets its own budget.</li><li>Starts from &ldquo;My courses and groups&rdquo; as well as the dashboard.</li><li>Files are labelled with their course, and Booklyn shows what each course gave.</li></ul>
 <h3 style="font-size:1.1rem;margin:16px 0 4px">0.3.0 (beta) &middot; 26 Oct 2026</h3>
@@ -68,7 +70,7 @@
 <ul><li>First version.</li></ul>
 
 <h2>One-click install, later</h2>
-<p>A listing in the Microsoft Edge Add-ons store and the Chrome Web Store would make installation a single click and automatic updates. That is planned once the connector has been tested by more students.</p>
+<p>A listing in the Microsoft Edge Add-ons store and the Chrome Web Store would make installation a single click with automatic updates, and removes the Developer mode step. It is planned once the connector has been tested by more students.</p>
 </div>
 </main>
 </div>

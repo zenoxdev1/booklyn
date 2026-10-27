@@ -35,7 +35,7 @@ async function relay(request) {
 chrome.runtime.onMessage.addListener((request, sender, respond) => {
   let origin;
   try { origin = new URL(sender.url || '').origin; } catch (_) { return; }
-  if (!BOOKLYN_ORIGINS.has(origin) || !['scan', 'download'].includes(request?.action)) return;
+  if (!BOOKLYN_ORIGINS.has(origin) || !['fetch', 'download'].includes(request?.action)) return;
   relay(request).then(respond).catch(error => respond({ ok: false, code: 'error', message: error.message }));
   return true;
 });

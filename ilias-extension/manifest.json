@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Booklyn ILIAS Connector",
   "short_name": "Booklyn",
-  "version": "0.3.1",
-  "version_name": "0.3.1 beta",
+  "version": "0.4.0",
+  "version_name": "0.4.0 beta",
   "description": "Finds new course files on HSLU ILIAS and sends the ones you choose to Booklyn. Your sign-in never leaves your browser.",
   "homepage_url": "https://booklyn.pages.dev/connector/",
   "minimum_chrome_version": "110",
@@ -21,13 +21,23 @@
       "32": "icons/ext-32.png"
     }
   },
-  "permissions": ["tabs"],
-  "host_permissions": ["https://elearning.hslu.ch/ilias/*"],
-  "background": { "service_worker": "background.js" },
+  "permissions": [
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://elearning.hslu.ch/ilias/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://elearning.hslu.ch/ilias/*"],
-      "js": ["ilias-content.js"],
+      "matches": [
+        "https://elearning.hslu.ch/ilias/*"
+      ],
+      "js": [
+        "ilias-content.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -38,7 +48,9 @@
         "http://localhost:8000/*",
         "http://127.0.0.1:8000/*"
       ],
-      "js": ["booklyn-content.js"],
+      "js": [
+        "booklyn-content.js"
+      ],
       "run_at": "document_idle"
     }
   ]

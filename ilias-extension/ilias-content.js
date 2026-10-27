@@ -1,35 +1,19 @@
 (() => {
+  // Thin connector: this script only fetches ILIAS pages and files for Booklyn, using your own ILIAS sign-in.
+  // The logic that decides what to look at lives in Booklyn itself, so it updates without reinstalling the extension.
   const ORIGIN = 'https://elearning.hslu.ch';
   const DASHBOARD = ORIGIN + '/ilias/ilias.php?baseClass=ildashboardgui&cmd=show';
-  const MAX_PAGES = 260;        // whole scan
-  const MAX_COURSES = 14;       // courses / groups followed
-  const PER_COURSE_PAGES = 20;  // each course gets its own budget, so one big course cannot starve the others
-  const MAX_DEPTH = 3;
-  const CONCURRENCY = 6;
-  const TIME_BUDGET_MS = 100000;
-  const SEEDS = [
-    ORIGIN + '/ilias/ilias.php?baseClass=ildashboardgui&cmd=show',
-    ORIGIN + '/ilias/ilias.php?baseClass=ilmembershipoverviewgui',
-    ORIGIN + '/ilias/ilias.php?baseClass=ildashboardgui&cmd=jumpToMemberships'
-  ];
   const MAX_FILE_BYTES = 12 * 1024 * 1024;
-  // Booklyn can read the text of these. Everything else (video, audio, images, zips, old Office files, spreadsheets) is skipped.
-  const READABLE = /^(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i;
+  const MAX_PAGE_CHARS = 1500000;
   const UNREADABLE = /^(mp4|m4v|mov|mkv|avi|webm|wmv|flv|mpe?g|mp3|m4a|aac|wav|ogg|oga|flac|wma|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|tgz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
-  const HINT = /(?<![a-z])(pdf|docx|pptx|doc|ppt|xlsx|xls|zip|rar|mp4|mov|mkv|avi|webm|mp3|m4a|wav|png|jpe?g|gif|txt|csv)(?![a-z])/i;
+  // Links that change things in ILIAS are never fetched.
+  const FORBIDDEN = /logout|cmd=(confirm)?(delete|cut|paste|copy|undelete|perform|save|update|create|post)|cmd=send(?!file)/i;
 
   function extOf(name) {
     const match = /\.([a-z0-9]{2,5})$/i.exec(String(name || '').trim());
     return match ? match[1].toLowerCase() : '';
   }
-  function kindOf(ext) { return READABLE.test(ext) ? 'doc' : UNREADABLE.test(ext) ? 'skip' : 'unknown'; }
-  function hintFor(anchor) {
-    const box = anchor.closest('.il-item, .il-std-item, .ilContainerListItem, li, tr, [class*="ListItem"]');
-    const text = (box && box.textContent || '').replace(/\s+/g, ' ').trim();
-    if (!text || text.length > 500) return '';
-    const match = HINT.exec(text);
-    return match ? match[1].toLowerCase() : '';
-  }
+  function kindOf(ext) { return UNREADABLE.test(ext) ? 'skip' : ''; }
 
   function safeUrl(href, base) {
     try {
@@ -47,173 +31,23 @@
       /\.(pdf|docx?|pptx?|xlsx?|zip|txt|csv)$/i.test(name);
   }
 
-  // Returns {type, id} for a course / folder / group / category link, 'news' for news pages, or null.
-  function containerOf(url) {
-    const target = url.searchParams.get('target') || '';
-    const cls = (url.searchParams.get('cmdClass') || '').toLowerCase();
-    const base = (url.searchParams.get('baseClass') || '').toLowerCase();
-    const cmd = (url.searchParams.get('cmd') || '').toLowerCase();
-    const ref = url.searchParams.get('ref_id') || '';
-    let m = /^(crs|fold|grp|cat)_(\d+)/i.exec(target) || /\/go\/(crs|fold|grp|cat)\/(\d+)/i.exec(url.pathname);
-    if (m) return { type: m[1].toLowerCase(), id: m[2] };
-    m = /^ilobj(course|folder|group|category)gui$/.exec(cls);
-    if (m && ref) return { type: { course: 'crs', folder: 'fold', group: 'grp', category: 'cat' }[m[1]], id: ref };
-    if (base === 'ilrepositorygui' && ref && /^(|view|render|frameset|showsummary)$/.test(cmd)) return { type: 'ref', id: ref };
-    if (/notification|news/.test(cls + ' ' + base) || cmd === 'shownews') return { type: 'news', id: '' };
-    return null;
-  }
-
-  function fileKey(url, name) {
-    const target = url.searchParams.get('target');
-    const ref = url.searchParams.get('ref_id');
-    const obj = url.searchParams.get('obj_id');
-    if (target && /^file_\d+/i.test(target)) return 'target:' + target.toLowerCase();
-    if (ref && (url.searchParams.get('cmd') || '').toLowerCase() === 'sendfile') return 'target:file_' + ref;
-    if (ref) return 'ref:' + ref;
-    if (obj) return 'obj:' + obj;
-    return 'url:' + url.pathname + '?' + [...url.searchParams.entries()]
-      .filter(([key]) => !/^(sess|token|auth|phpsessid)/i.test(key))
-      .sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => key + '=' + value).join('&') + ':' + name;
-  }
-
-  const CHROME_RX = 'nav, header, footer, [role="navigation"], .breadcrumb_wrapper, .il-breadcrumbs, .il-maincontrols, #il_mainmenu, .il-layout-page-header, .ilMainMenu';
-
-  function collect(doc, pageUrl, files, found, ctx, courseName) {
-    for (const anchor of doc.querySelectorAll('a[href]')) {
-      if (anchor.closest(CHROME_RX)) continue; // menus and breadcrumbs point outside the course
-      const url = safeUrl(anchor.getAttribute('href'), pageUrl);
-      if (!url) continue;
-      const name = (anchor.getAttribute('title') || anchor.getAttribute('aria-label') || anchor.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 180);
-      if (isFile(url, name)) {
-        if (!name || /^(download|herunterladen|open|öffnen)$/i.test(name)) continue;
-        const key = fileKey(url, name);
-        if (!files.has(key)) {
-          const ext = extOf(name) || hintFor(anchor);
-          files.set(key, { key, name, url: url.href, openUrl: url.href, context: ctx, course: courseName, ext, kind: kindOf(ext) });
-        }
-      } else {
-        const info = containerOf(url);
-        if (info) found.push({ href: url.href, name, info });
-      }
-    }
-    for (const button of doc.querySelectorAll('[data-action]')) {
-      const url = safeUrl(button.getAttribute('data-action'), pageUrl);
-      if (!url || (url.searchParams.get('cmd') || '').toLowerCase() !== 'sendfile') continue;
-      const key = fileKey(url, '');
-      const file = files.get(key);
-      if (file) file.url = url.href;
-    }
-  }
-
-  async function fetchPage(href) {
+  async function fetchHtml(href) {
+    const url = safeUrl(href, DASHBOARD);
+    if (!url || FORBIDDEN.test(url.pathname + url.search)) return { ok: false, message: 'Not an ILIAS page.' };
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 12000);
+    const timer = setTimeout(() => ctl.abort(), 15000);
     try {
-      const response = await fetch(href, { credentials: 'include', signal: ctl.signal });
-      if (/\/login\.php/i.test(response.url)) return { login: true };
-      if (!response.ok || !(response.headers.get('content-type') || '').includes('text/html')) return {};
-      return { doc: new DOMParser().parseFromString(await response.text(), 'text/html') };
-    } catch (_) {
-      return {};
+      const response = await fetch(url.href, { credentials: 'include', signal: ctl.signal });
+      if (/\/login\.php/i.test(response.url)) return { ok: false, login: true, message: 'Sign in to ILIAS first.' };
+      const type = response.headers.get('content-type') || '';
+      if (!response.ok || !type.includes('text/html')) { try { response.body && response.body.cancel(); } catch (_) {} return { ok: false, status: response.status, message: 'Not a page.' }; }
+      const html = (await response.text()).slice(0, MAX_PAGE_CHARS);
+      return { ok: true, url: response.url, html };
+    } catch (error) {
+      return { ok: false, message: error.name === 'AbortError' ? 'Timed out.' : 'Could not load the page.' };
     } finally {
       clearTimeout(timer);
     }
-  }
-
-  function titleOf(doc) { return (doc.querySelector('h1')?.textContent || doc.title || '').replace(/\s+/g, ' ').trim().slice(0, 120); }
-
-  async function scan() {
-    const files = new Map();
-    const visited = new Set();
-    const courses = [];
-    const byKey = new Map();
-    const started = Date.now();
-    let pages = 0, login = false, timeUp = false;
-
-    function addCourse(found) {
-      const { info, href, name } = found;
-      if (info.type === 'news') {
-        if (byKey.has('news')) return;
-        byKey.set('news', true);
-        courses.push({ key: 'news', name: 'ILIAS news', queue: [{ url: href, depth: MAX_DEPTH }], taken: 0, limit: 3, pages: 0, news: true });
-        return;
-      }
-      if (info.type === 'cat') return; // a category is only a shelf of courses; its courses come from the dashboard
-      const key = info.type + '_' + info.id;
-      const alt = 'ref_' + info.id;
-      if (byKey.has(key) || byKey.has(alt) || courses.length >= MAX_COURSES) return;
-      byKey.set(key, true); byKey.set(alt, true);
-      courses.push({ key, name: name || key, queue: [{ url: href, depth: 0 }], taken: 0, limit: PER_COURSE_PAGES, pages: 0 });
-    }
-
-    // Phase 1: the places that list your courses (dashboard, "My courses and groups", the page you are on).
-    async function readSeeds(list) {
-      const results = await Promise.all(list.map(async href => {
-        const url = safeUrl(href, ORIGIN);
-        if (!url || visited.has(url.href)) return {};
-        visited.add(url.href);
-        if (url.href === location.href) return { url, doc: document };
-        return { url, ...(await fetchPage(url.href)) };
-      }));
-      for (const { url, doc, login: needsLogin } of results) {
-        if (needsLogin) { login = true; continue; }
-        if (!doc) continue;
-        pages++;
-        const found = [];
-        collect(doc, url.href, files, found, titleOf(doc) || 'ILIAS', '');
-        found.forEach(addCourse);
-      }
-    }
-    await readSeeds(SEEDS);
-    // Fallback: if the dashboard lists nothing, start from the page you are on.
-    if (!courses.some(c => !c.news) && !SEEDS.includes(location.href)) await readSeeds([location.href]);
-
-    // Phase 2: crawl every course in turns, each with its own page budget.
-    let cursor = 0;
-    while (pages < MAX_PAGES) {
-      if (Date.now() - started > TIME_BUDGET_MS) { timeUp = true; break; }
-      const batch = [];
-      let idle = 0;
-      while (batch.length < CONCURRENCY && idle < courses.length && pages + batch.length < MAX_PAGES) {
-        const course = courses[cursor++ % courses.length];
-        const next = course.queue.length && course.taken < course.limit ? course.queue.shift() : null;
-        if (!next) { idle++; continue; }
-        idle = 0;
-        const url = safeUrl(next.url, ORIGIN);
-        if (!url || visited.has(url.href)) continue;
-        visited.add(url.href);
-        course.taken++;
-        batch.push({ course, next, url });
-      }
-      if (!batch.length) break;
-      const results = await Promise.all(batch.map(async item => ({ ...item, ...(await fetchPage(item.url.href)) })));
-      for (const { course, next, url, doc, login: needsLogin } of results) {
-        if (needsLogin) { login = true; continue; }
-        if (!doc) continue;
-        pages++; course.pages++;
-        const title = titleOf(doc);
-        if (course.pages === 1 && title && !course.news) course.name = title;
-        const ctx = (course.name + (title && title !== course.name ? ' › ' + title : '')).slice(0, 160);
-        const found = [];
-        collect(doc, url.href, files, found, ctx, course.name);
-        if (next.depth < MAX_DEPTH) {
-          found.filter(f => f.info.type !== 'news' && !(f.info.type === 'crs' && 'crs_' + f.info.id !== course.key && 'ref_' + f.info.id !== course.key))
-            .slice(0, 20).forEach(f => course.queue.push({ url: f.href, depth: next.depth + 1 }));
-        }
-      }
-    }
-
-    if (login && !pages) return { ok: false, code: 'login', message: 'Sign in to ILIAS, then scan again.' };
-    const all = [...files.values()];
-    const keep = all.filter(file => file.kind !== 'skip').slice(0, 500);
-    const skipped = all.filter(file => file.kind === 'skip').slice(0, 300).map(({ key, name, ext, openUrl, context }) => ({ key, name, ext, openUrl, context }));
-    const summary = courses.filter(c => !c.news).map(c => ({
-      name: c.name, pages: c.pages,
-      files: all.filter(f => f.course === c.name && f.kind !== 'skip').length,
-      skipped: all.filter(f => f.course === c.name && f.kind === 'skip').length,
-      more: c.queue.length > 0 && c.taken >= c.limit
-    }));
-    return { ok: true, files: keep, skipped, pages, courses: summary, limited: timeUp || pages >= MAX_PAGES || summary.some(c => c.more) };
   }
 
   function filename(disposition, fallback) {
@@ -264,8 +98,8 @@
   }
 
   chrome.runtime.onMessage.addListener((request, _sender, respond) => {
-    if (request?.action === 'scan') {
-      scan().then(respond).catch(error => respond({ ok: false, message: error.message }));
+    if (request?.action === 'fetch') {
+      fetchHtml(request.url).then(respond).catch(error => respond({ ok: false, message: error.message }));
       return true;
     }
     if (request?.action === 'download') {

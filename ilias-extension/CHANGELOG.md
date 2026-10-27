@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 (beta) - 27 Oct 2026
+- The extension is now a thin bridge: it only fetches ILIAS pages and files using your own sign-in. The scanning logic lives in Booklyn, so scan fixes arrive without reinstalling.
+- Fixed: calendar and settings links were mistaken for courses.
+- Pages that change things in ILIAS (logout, delete, paste...) are never fetched.
+
 ## 0.3.1 (beta) - 27 Oct 2026
 - Fixed: the scan could spend its whole page budget on one course and never reach the others. Every course now gets its own budget (20 pages each, up to 14 courses).
 - Starts from "My courses and groups" as well as the dashboard, and ignores menu and breadcrumb links.

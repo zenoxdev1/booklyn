@@ -668,7 +668,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
 var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
-var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.3.1';
+var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
 function isMobileDevice(){try{return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(window.matchMedia&&matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<900);}catch(e){return false;}}
@@ -682,7 +682,7 @@ window.addEventListener('message',function(event){
 function iliasRequest(type,details){
   if(!iliasBridge)return Promise.resolve({ok:false,message:'Install the Booklyn ILIAS Connector, reload Booklyn, then try again.'});
   return new Promise(function(resolve){
-    var id=uid(),timer=setTimeout(function(){delete iliasRequests[id];resolve({ok:false,message:'ILIAS took too long to respond. Open ILIAS in a tab, wait for it to load, then try again.'});},type==='scan'?150000:90000);
+    var id=uid(),timer=setTimeout(function(){delete iliasRequests[id];resolve({ok:false,message:'ILIAS took too long to respond. Open ILIAS in a tab, wait for it to load, then try again.'});},type==='fetch'?30000:90000);
     iliasRequests[id]={resolve:resolve,timer:timer};
     window.postMessage(Object.assign({source:'booklyn-app',type:type,requestId:id},details||{}),location.origin);
   });
@@ -701,9 +701,134 @@ function iliasSuggest(file){
   return m?m.code+(sg.unit?' · week '+sg.unit:''):'';
 }
 function iliasCounts(){var c={todo:0,in:0,dis:0};ui.ilias.items.forEach(function(f){c[iliasCls(f)]++;});return c;}
+
+/* ---- ILIAS crawl: runs in Booklyn, the connector only fetches pages with your own ILIAS sign-in ---- */
+var IL_ORIGIN='https://elearning.hslu.ch', IL_BASE=IL_ORIGIN+'/ilias/';
+var IL_SEEDS=[IL_BASE+'ilias.php?baseClass=ildashboardgui&cmd=show',IL_BASE+'ilias.php?baseClass=ilmembershipoverviewgui',IL_BASE+'ilias.php?baseClass=ildashboardgui&cmd=jumpToMemberships'];
+var IL_LIM={pages:260,courses:14,perCourse:20,depth:3,conc:6,budget:100000};
+var IL_READ=/^(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i;
+var IL_SKIP=/^(mp4|m4v|mov|mkv|avi|webm|wmv|flv|mpe?g|mp3|m4a|aac|wav|ogg|oga|flac|wma|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|tgz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
+var IL_HINT=/(?:^|[^a-z])(pdf|docx|pptx|doc|ppt|xlsx|xls|zip|rar|mp4|mov|mkv|avi|webm|mp3|m4a|wav|png|jpe?g|gif|txt|csv)(?![a-z])/i;
+var IL_CHROME='nav, header, footer, [role="navigation"], .breadcrumb_wrapper, .il-breadcrumbs, .il-maincontrols, #il_mainmenu, .il-layout-page-header, .ilMainMenu';
+function ilExt(n){var m=/\.([a-z0-9]{2,5})$/i.exec(String(n||'').trim());return m?m[1].toLowerCase():'';}
+function ilKind(e){return IL_READ.test(e)?'doc':IL_SKIP.test(e)?'skip':'unknown';}
+function ilUrl(h,base){try{var u=new URL(h,base||IL_BASE);return u.origin===IL_ORIGIN&&u.pathname.indexOf('/ilias/')===0?u:null;}catch(e){return null;}}
+function ilIsFile(u,name){
+  var t=u.searchParams.get('target')||'',c=(u.searchParams.get('cmdClass')||'').toLowerCase(),m=(u.searchParams.get('cmd')||'').toLowerCase();
+  return /^file_\d+/i.test(t)||c==='ilobjfilegui'||m==='sendfile'||/\.(pdf|docx?|pptx?|xlsx?|zip|txt|csv|png|jpe?g)(?:$|[?#])/i.test(u.href)||/\.(pdf|docx?|pptx?|xlsx?|zip|txt|csv)$/i.test(name);
+}
+/* A real course / folder / group link. Calendar, member, settings and tool links are NOT containers. */
+function ilContainer(u){
+  var q=u.searchParams,t=q.get('target')||'',c=(q.get('cmdClass')||'').toLowerCase(),b=(q.get('baseClass')||'').toLowerCase(),m=(q.get('cmd')||'').toLowerCase(),ref=q.get('ref_id')||'';
+  var x=/^(crs|fold|grp|cat)_(\d+)$/i.exec(t)||/\/go\/(crs|fold|grp|cat)\/(\d+)\/?$/i.exec(u.pathname);
+  if(x)return {type:x[1].toLowerCase(),id:x[2]};
+  var okCmd=/^(|view|render|frameset)$/.test(m);
+  x=/^ilobj(course|folder|group|category)gui$/.exec(c);
+  if(x&&ref&&okCmd)return {type:{course:'crs',folder:'fold',group:'grp',category:'cat'}[x[1]],id:ref};
+  if(b==='ilrepositorygui'&&ref&&(!c||c==='ilrepositorygui')&&okCmd)return {type:'ref',id:ref};
+  if(m==='shownews')return {type:'news',id:''};
+  return null;
+}
+function ilFileKey(u,name){
+  var t=u.searchParams.get('target'),ref=u.searchParams.get('ref_id'),obj=u.searchParams.get('obj_id'),m=(u.searchParams.get('cmd')||'').toLowerCase();
+  if(t&&/^file_\d+/i.test(t))return 'target:'+t.toLowerCase();
+  if(ref&&m==='sendfile')return 'target:file_'+ref;
+  if(ref)return 'ref:'+ref;
+  if(obj)return 'obj:'+obj;
+  var rest=[];u.searchParams.forEach(function(v,k){if(!/^(sess|token|auth|phpsessid)/i.test(k))rest.push(k+'='+v);});
+  return 'url:'+u.pathname+'?'+rest.sort().join('&')+':'+name;
+}
+function ilHint(a){
+  var box=a.closest('.il-item, .il-std-item, .ilContainerListItem, li, tr, [class*="ListItem"]'),tx=(box&&box.textContent||'').replace(/\s+/g,' ').trim();
+  if(!tx||tx.length>500)return '';var m=IL_HINT.exec(tx);return m?m[1].toLowerCase():'';
+}
+function ilTitle(doc){return ((doc.querySelector('h1')&&doc.querySelector('h1').textContent)||doc.title||'').replace(/\s+/g,' ').trim().slice(0,120);}
+function ilShort(h){try{var u=new URL(h);var keep=[];u.searchParams.forEach(function(v,k){if(!/^(sess|token|auth|phpsessid|client_id)/i.test(k))keep.push(k+'='+v);});return u.pathname.replace('/ilias/','')+(keep.length?'?'+keep.join('&'):'');}catch(e){return String(h).slice(0,80);}}
+function ilCollect(doc,pageUrl,files,found,ctx,courseName){
+  var anchors=doc.querySelectorAll('a[href]'),n=0;
+  for(var i=0;i<anchors.length;i++){
+    var a=anchors[i];if(a.closest(IL_CHROME))continue;
+    var u=ilUrl(a.getAttribute('href'),pageUrl);if(!u)continue;n++;
+    var name=(a.getAttribute('title')||a.getAttribute('aria-label')||a.textContent||'').replace(/\s+/g,' ').trim().slice(0,180);
+    if(ilIsFile(u,name)){
+      if(!name||/^(download|herunterladen|open|öffnen)$/i.test(name))continue;
+      var key=ilFileKey(u,name);
+      if(!files.has(key)){var ext=ilExt(name)||ilHint(a);files.set(key,{key:key,name:name,url:u.href,openUrl:u.href,context:ctx,course:courseName,ext:ext,kind:ilKind(ext)});}
+    }else{var info=ilContainer(u);if(info)found.push({href:u.href,name:name,info:info});}
+  }
+  var btns=doc.querySelectorAll('[data-action]');
+  for(var j=0;j<btns.length;j++){
+    var bu=ilUrl(btns[j].getAttribute('data-action'),pageUrl);
+    if(!bu||(bu.searchParams.get('cmd')||'').toLowerCase()!=='sendfile')continue;
+    var f=files.get(ilFileKey(bu,''));if(f)f.url=bu.href;
+  }
+  return n;
+}
+async function iliasCrawl(){
+  var files=new Map(),visited={},courses=[],byKey={},started=Date.now(),pages=0,login=false,blocked=null,timeUp=false,report=[];
+  function note(s){if(report.length<500)report.push(s);}
+  function progress(){ui.ilias.status='Checking ILIAS… '+pages+' pages · '+files.size+' files found so far';if(route().name==='port')render();}
+  async function getPage(href){
+    var r=await iliasRequest('fetch',{url:href});
+    if(r&&r.login)login=true;
+    if(r&&!r.ok&&r.code&&!blocked)blocked=r;
+    if(!r||!r.ok||typeof r.html!=='string')return null;
+    return {url:String(r.url||href),doc:new DOMParser().parseFromString(r.html,'text/html')};
+  }
+  function addCourse(f){
+    var info=f.info;
+    if(info.type==='news'){if(byKey.news)return;byKey.news=1;courses.push({key:'news',name:'ILIAS news',queue:[{url:f.href,depth:IL_LIM.depth}],taken:0,limit:3,pages:0,news:true});return;}
+    if(info.type==='cat')return;
+    var key=info.type+'_'+info.id,alt='ref_'+info.id;
+    if(byKey[key]||byKey[alt]||courses.length>=IL_LIM.courses)return;
+    byKey[key]=byKey[alt]=1;
+    courses.push({key:key,name:f.name||key,queue:[{url:f.href,depth:0}],taken:0,limit:IL_LIM.perCourse,pages:0});
+  }
+  async function seeds(list){
+    var got=await Promise.all(list.map(async function(h){var u=ilUrl(h);if(!u||visited[u.href])return null;visited[u.href]=1;var p=await getPage(u.href);return p?{h:u.href,p:p}:null;}));
+    got.forEach(function(g){
+      if(!g)return;pages++;var found=[],n=ilCollect(g.p.doc,g.p.url,files,found,ilTitle(g.p.doc)||'ILIAS','');
+      note('SEED '+ilShort(g.h)+' -> '+ilShort(g.p.url)+' | "'+ilTitle(g.p.doc)+'" | links:'+n+' | containers: '+(found.slice(0,40).map(function(f){return f.info.type+'_'+f.info.id+' "'+f.name.slice(0,40)+'"';}).join(', ')||'none'));
+      found.forEach(addCourse);
+    });
+    progress();
+  }
+  await seeds(IL_SEEDS);
+  if(blocked&&!pages)return {ok:false,message:blocked.message||'Could not reach ILIAS.'};
+  if(!courses.some(function(c){return !c.news;}))note('NO COURSES FOUND on the seed pages');
+  var cursor=0;
+  while(pages<IL_LIM.pages){
+    if(Date.now()-started>IL_LIM.budget){timeUp=true;break;}
+    var batch=[],idle=0;
+    while(batch.length<IL_LIM.conc&&idle<courses.length&&pages+batch.length<IL_LIM.pages){
+      var c=courses[cursor++%courses.length],next=c.queue.length&&c.taken<c.limit?c.queue.shift():null;
+      if(!next){idle++;continue;}idle=0;
+      var u=ilUrl(next.url);if(!u||visited[u.href])continue;visited[u.href]=1;c.taken++;batch.push({c:c,next:next,u:u});
+    }
+    if(!batch.length)break;
+    var res=await Promise.all(batch.map(async function(b){b.p=await getPage(b.u.href);return b;}));
+    res.forEach(function(b){
+      if(!b.p)return;pages++;b.c.pages++;
+      var title=ilTitle(b.p.doc);if(b.c.pages===1&&title&&!b.c.news)b.c.name=title;
+      var ctx=(b.c.name+(title&&title!==b.c.name?' › '+title:'')).slice(0,160),found=[],before=files.size,n=ilCollect(b.p.doc,b.p.url,files,found,ctx,b.c.name);
+      var follow=b.next.depth<IL_LIM.depth?found.filter(function(f){return f.info.type!=='news'&&!(f.info.type==='crs'&&'crs_'+f.info.id!==b.c.key&&'ref_'+f.info.id!==b.c.key);}).slice(0,20):[];
+      follow.forEach(function(f){b.c.queue.push({url:f.href,depth:b.next.depth+1});});
+      note('['+b.c.name.slice(0,30)+'] d'+b.next.depth+' '+ilShort(b.p.url)+' | "'+title+'" | links:'+n+' | +files:'+(files.size-before)+' | follow:'+follow.length);
+    });
+    progress();
+  }
+  if(login&&!pages)return {ok:false,code:'login',message:'Sign in to ILIAS, then scan again.'};
+  var all=Array.from(files.values());
+  var keep=all.filter(function(f){return f.kind!=='skip';}).slice(0,500);
+  var skipped=all.filter(function(f){return f.kind==='skip';}).slice(0,300).map(function(f){return {key:f.key,name:f.name,ext:f.ext,openUrl:f.openUrl,context:f.context};});
+  var summary=courses.filter(function(c){return !c.news;}).map(function(c){return {name:c.name,pages:c.pages,
+    files:all.filter(function(f){return f.course===c.name&&f.kind!=='skip';}).length,skipped:all.filter(function(f){return f.course===c.name&&f.kind==='skip';}).length,more:c.queue.length>0&&c.taken>=c.limit};});
+  return {ok:true,files:keep,skipped:skipped,pages:pages,courses:summary,report:report.join('\n').slice(0,40000),limited:timeUp||pages>=IL_LIM.pages||summary.some(function(c){return c.more;})};
+}
 async function scanIlias(){
+  if(iliasBridge&&verNum(iliasVersion)<verNum(CONNECTOR_MIN_SCAN)){ui.ilias.status='Booklyn needs connector v'+CONNECTOR_MIN_SCAN+' or newer (yours is v'+(iliasVersion||'?')+'). Download it again from the Connector page, extract it over your old connector folder, then press the reload arrow on edge://extensions. After this version, scan improvements arrive with Booklyn itself, so you will rarely need to do it again.';render();return;}
   ui.ilias.busy=true;ui.ilias.status='Checking ILIAS…';render();
-  var result=await iliasRequest('scan');
+  var result=await iliasCrawl();
   ui.ilias.busy=false;ui.ilias.scanned=true;
   if(!result.ok){ui.ilias.status=result.message||'Could not check ILIAS.';render();return;}
   var discovered=0;
@@ -714,6 +839,7 @@ async function scanIlias(){
     file.isNew=!state.iliasKnown[file.key];if(file.isNew)discovered++;
     state.iliasKnown[file.key]=Date.now();return file;
   });
+  ui.ilias.report=String(result.report||'');
   ui.ilias.courses=(result.courses||[]).slice(0,30).map(function(x){return {name:String(x.name||'').slice(0,80),pages:+x.pages||0,files:+x.files||0,skipped:+x.skipped||0,more:!!x.more};});
   state.iliasLast=Date.now();save();
   var c=iliasCounts();
@@ -755,8 +881,9 @@ async function importAllIlias(){
   go('#/port');
 }
 function iliasCoursesHTML(){
-  var cs=ui.ilias.courses||[];if(!cs.length)return '';
-  return '<details class="foot"><summary>'+cs.length+' courses scanned</summary><ul class="list">'+cs.map(function(x){
+  var cs=ui.ilias.courses||[],rb=ui.ilias.report?'<button class="btn ghost small" data-a="ilreport">Copy scan report</button>':'';
+  if(!cs.length)return ui.ilias.scanned?'<div class="row"><span class="foot">No courses were found on your ILIAS dashboard.</span>'+rb+'</div>':'';
+  return '<details class="foot"><summary>'+cs.length+' courses scanned</summary><div class="row">'+rb+'</div><ul class="list">'+cs.map(function(x){
     return '<li class="item"><div class="grow"><div class="t">'+esc(x.name||'Course')+'</div><div class="s">'+x.files+' readable file'+(x.files===1?'':'s')+(x.skipped?' · '+x.skipped+' skipped':'')+' · '+x.pages+' page'+(x.pages===1?'':'s')+' checked'+(x.more?' · more pages not checked':'')+(!x.files&&!x.skipped?' · nothing found here (the content may be in a learning module, wiki or video page)':'')+'</div></div></li>';
   }).join('')+'</ul></details>';
 }
@@ -1366,6 +1493,7 @@ document.addEventListener('click',function(e){
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast('Using the cloud copy.');else render();}
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast('Using this device. The cloud copy was replaced.');render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
+  else if(a==='ilreport'){var rep=ui.ilias.report||'';try{navigator.clipboard.writeText(rep).then(function(){ui.ilias.status='Scan report copied. Paste it in the chat.';render();},function(){ui.ilias.status='Could not copy. Your browser blocked the clipboard.';render();});}catch(e){ui.ilias.status='Could not copy the report.';render();}}
   else if(a==='iliasimport'){if(!ui.ilias.busy)importIlias(b.dataset.key);}
   else if(a==='iliasall'){if(!ui.ilias.busy)importAllIlias();}
   else if(a==='ilfilter'){ui.ilias.filter=b.dataset.f;render();}
