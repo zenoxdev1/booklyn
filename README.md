@@ -12,10 +12,12 @@ Unofficial student project, not affiliated with HSLU. Files stay on the device (
       app.js            screens, routing, city drawing, sync, wiring (being split up step by step)
       js/storage.js     IndexedDB access: every write resolves only after the browser confirmed it
       js/imports.js     when a file counts as "added" or "imported" (failed writes never count)
-      js/quiz-core.js   chunking, local questions, question bank, 5-question and 80 % rules
+      js/quiz-core.js   chunking with headings and pages, definition questions, quality rules, question bank, 5-question and 80 % rules
       js/backup.js      progress backup, full backup, checked restore, merge rules
       vendor/, fonts/, icons
     functions/api/      Cloudflare Pages Functions: sync, sign-in, optional AI questions
+      quiz.js           the /api/quiz endpoint (limits, auth)
+      _quizlib.mjs      the AI quiz pipeline: analyse, write, check, replace (pure logic, tested in Node)
     db/schema.sql       D1 schema for sync accounts
     ilias-extension/    the browser extension that reads ILIAS (thin bridge)
     tests/unit/         Node tests, no dependencies
@@ -35,8 +37,21 @@ Then open http://localhost:3000/app/ (the port is printed). Opening the files di
     node --test tests/unit/*.test.mjs                 # fast, no installs
     pip install playwright && playwright install chromium
     python3 tests/e2e/batch1.py                       # starts its own local server
+    python3 tests/e2e/batch2.py
 
 What they cover: failed imports and retries without duplicates, import confirmation only after a successful write, complete chunking (no truncated text), cache refresh when files are added or removed, the 5-question and 80 % rule, wrong answers coming back first, full backup and restore (merge and replace), damaged and hostile backups.
+
+## Quiz quality
+
+- Every quiz has 5 questions; 4 right pass (80 %). Fewer than 5 good questions: Booklyn says why and offers the self-check, it never pads or invents.
+- **With AI** (optional, needs a sync account and the setting): a few pages at a time (with their heading and page range) go to `/api/quiz`. The server first analyses the material (subject, concepts with exact quotes, relations, objectives; it stops with a reason if the text is unreadable or too thin), then writes candidate questions, then checks each one with fixed rules (4 distinct options, no "all of the above", answer not in the question, no length giveaway, supporting quote must really occur in the material, answer words must be supported) and a second strict AI review. Failed ones are replaced once. Nothing unchecked is returned. The answer shows the explanation, the supporting quote and the source (file and page).
+- **Without AI**: only clear definitions found in the files ("X is …", "X ist …") become questions, with the definitions or terms of other concepts as wrong options. Random-word blanks are no longer made.
+- Each question can be reported as unclear, wrong or not relevant (kept on the device, nothing is sent).
+- Limits: 30 AI requests per user and 250 in total per day (`AI_DAILY_CAP`), each request makes 3 to 5 model calls. The model is `AI_MODEL` (default Llama 3.1 8B on Workers AI).
+
+## ILIAS import
+
+The scan knows which ILIAS course every file comes from. The module is taken from the course: automatically when the course name contains the module code (e.g. `I.BA_CONWB.H2601` and module `CONWB`), otherwise Booklyn asks once and remembers (`iliasCourseMap`). The week comes from the folder or file name; if there is none the file is marked "Check this". Ready files are collapsed in the Port: open the list to review or correct each file's module and week, or import directly.
 
 ## Backups
 

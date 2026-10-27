@@ -115,10 +115,18 @@ export function validQuestion(q) {
    bank = { v:2, q:[questions], used:[chunk hashes already sent to the AI], done:{fileKey:true}, stats:{questionId:{asked,miss}} }
    Every question carries `fk`, the key of the file it came from, so questions of a removed or
    replaced file can be dropped. */
-export function newBank() { return { v: 2, q: [], used: [], done: {}, stats: {} }; }
+export function newBank() { return { v: 3, q: [], used: [], done: {}, stats: {}, aiReason: '' }; }
 export function upgradeBank(b) {
   if (!b || typeof b !== 'object' || !Array.isArray(b.q)) return newBank();
-  if (b.v === 2) { b.used = b.used || []; b.done = b.done || {}; b.stats = b.stats || {}; return b; }
+  if (b.v === 3) { b.used = b.used || []; b.done = b.done || {}; b.stats = b.stats || {}; b.aiReason = b.aiReason || ''; return b; }
+  if (b.v === 2) {
+    /* version 2 held fill-in-the-blank questions made from single words: they were often unclear, so they are dropped.
+       Questions written by the AI stay, and so does the answer history. */
+    var nb = newBank();
+    nb.stats = b.stats || {}; nb.used = b.used || [];
+    (b.q || []).forEach(function (q) { if (q && q.src === 'ai' && q.fk) nb.q.push(q); });
+    return nb;
+  }
   /* old banks did not record which file a question came from: keep only what students answered, rebuild the rest */
   var nb = newBank();
   b.q.forEach(function (q) { if (q && q.id && q.asked) nb.stats[q.id] = { asked: q.asked, miss: 0 }; });
@@ -139,7 +147,7 @@ export function addQuestions(bank, qs, fk, fileName) {
   var have = {}; bank.q.forEach(function (q) { have[q.id] = 1; });
   var n = 0;
   qs.forEach(function (q) {
-    if (have[q.id] || !validQuestion(q)) return;
+    if (have[q.id] || !validQuestion(q) || qualityIssue(q)) return;
     q.fk = fk; q.file = fileName || ''; have[q.id] = 1; bank.q.push(q); n++;
   });
   return n;
@@ -166,7 +174,7 @@ export function selectQuiz(bank, n, seed) {
   rest.forEach(function (q) { if (pick.length < n) pick.push(q); });
   missed.forEach(function (q) { if (pick.length < n && pick.indexOf(q) < 0) pick.push(q); });
   return shuffled(pick, seed + 7).map(function (q) {
-    return { id: q.id, q: q.q, o: q.o, a: q.a, e: q.e, src: q.src, file: q.file || '', page: q.page || null, pageLabel: q.pageLabel || '' };
+    return { id: q.id, q: q.q, o: q.o, a: q.a, e: q.e, src: q.src, file: q.file || '', page: q.page || null, pageLabel: q.pageLabel || '', ref: q.ref || '', evidence: q.evidence || '', title: q.title || '' };
   });
 }
 export function markAsked(bank, ids) { ids.forEach(function (id) { var s = bank.stats[id] || (bank.stats[id] = { asked: 0, miss: 0 }); s.asked++; }); }
@@ -177,5 +185,123 @@ export function recordAnswer(bank, id, correct) {
 /* Text under a question: the file name (and page) only when Booklyn really knows it. */
 export function sourceLine(q) {
   if (!q || !q.file) return '';
+  if (q.ref) return q.file + ', ' + q.ref;
   return q.file + (q.page ? ', ' + (q.pageLabel || 'p.') + ' ' + q.page : '');
+}
+export function pageRef(label, from, to) {
+  if (!from) return '';
+  var l = label || 'p.';
+  return from === to || !to ? l + ' ' + from : l + ' ' + from + '–' + to;
+}
+
+/* ---------- quality rules every question must pass, whoever wrote it ---------- */
+var REFERS_TO_TEXT = /\b(according to (the|this) (text|slide|slides|material|lecture|document|script|passage)|in (the|this) (text|slide|slides|passage|lecture|script)|laut (dem )?(text|skript|folie)|im (text|skript))\b/i;
+var BAD_OPTION = /^(all|none) of the above|^both\b|^(alle|keine) (der|oben)|^beide\b|^a and b\b|^a und b\b/i;
+export function qualityIssue(q) {
+  if (!validQuestion(q)) return 'incomplete';
+  if (q.o.length !== 4) return 'needs 4 options';
+  if (q.q.length < 20 || q.q.length > 400) return 'question length';
+  if (REFERS_TO_TEXT.test(q.q)) return 'refers to the document';
+  if (q.o.some(function (x) { return BAD_OPTION.test(x.trim()); })) return 'all/none of the above';
+  var right = q.o[q.a].trim().toLowerCase();
+  if (right.length >= 6 && q.q.toLowerCase().indexOf(right) >= 0 && !/_____/.test(q.q)) return 'answer appears in the question';
+  var others = q.o.filter(function (_, i) { return i !== q.a; }), mx = Math.max.apply(null, others.map(function (x) { return x.length; }));
+  if (right.length > 60 && right.length > 1.8 * mx) return 'correct option much longer than the others';
+  return '';
+}
+
+/* ---------- sections: chunks that keep their heading and page range ---------- */
+function headingOf(t) {
+  var lines = String(t).split('\n');
+  for (var i = 0; i < lines.length && i < 4; i++) {
+    var l = lines[i].trim();
+    if (!l) continue;
+    if (l.length >= 3 && l.length <= 90 && !/[.,;:!?]$/.test(l) && l.split(/\s+/).length <= 10 && /[A-Za-zÄÖÜäöü]/.test(l)) return l;
+    return '';
+  }
+  return '';
+}
+export function sectionChunks(text, size, label) {
+  size = size || 5500;
+  var pages = String(text || '').split('\f'), out = [];
+  if (pages.length > 1) {
+    var cur = null;
+    pages.forEach(function (pg, i) {
+      var t = pg.trim(); if (!t) return;
+      var title = headingOf(t), no = i + 1;
+      if (cur && cur.text.length + t.length + 2 <= size) { cur.text += '\n\n' + t; cur.to = no; if (!cur.title && title) cur.title = title; return; }
+      if (cur) { out.push(cur); cur = null; }
+      if (t.length > size) chunksOf(t, size).forEach(function (c) { out.push({ title: title, text: c, from: no, to: no, label: label }); });
+      else cur = { title: title, text: t, from: no, to: no, label: label };
+    });
+    if (cur) out.push(cur);
+  } else {
+    var last = '';
+    chunksOf(text, size).forEach(function (c) {
+      var h = headingOf(c) || last; last = h;
+      out.push({ title: h, text: c, from: null, to: null, label: '' });
+    });
+  }
+  return out.map(function (c) { c.ref = pageRef(c.label, c.from, c.to); return c; });
+}
+
+/* ---------- questions about definitions (made on the device, no AI) ----------
+   Only sentences that state a clear definition ("X is …", "X refers to …", "X ist …") are used.
+   The wrong options are the definitions or terms of other concepts from the same material, so they look plausible. */
+var PRON = /^(it|this|that|these|those|there|we|you|they|he|she|which|what|here|one|each|also|however)\b/i;
+var DEF_PATTERNS = [
+  /^((?:The |A |An )?[A-Z][A-Za-z0-9\-\/ ]{2,40}?) (?:is|are) (?:defined as |called |known as |described as )?((?:a|an|the|any|when|where|used|made|one) .{20,170}?)\.$/,
+  /^((?:The |A |An )?[A-Z][A-Za-z0-9\-\/ ]{2,40}?) (?:means|refers to|describes|denotes|stands for) (.{20,170}?)\.$/,
+  /^((?:Der |Die |Das |Ein |Eine )?[A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9\-\/ ]{2,40}?) (?:ist|sind|bezeichnet|beschreibt|bedeutet) (?:ein |eine |der |die |das |wenn |wo )?(.{20,170}?)\.$/
+];
+export function extractDefinitions(text) {
+  var pages = String(text).split('\f'), paged = pages.length > 1, defs = [], seen = {};
+  pages.forEach(function (pg, pi) {
+    var flat = pg.replace(/\s+/g, ' ');
+    (flat.match(/[A-ZÄÖÜ][^.!?]{30,260}[.]/g) || []).forEach(function (sent) {
+      sent = sent.trim();
+      for (var i = 0; i < DEF_PATTERNS.length; i++) {
+        var m = DEF_PATTERNS[i].exec(sent);
+        if (!m) continue;
+        var term = m[1].replace(/^(The|A|An|Der|Die|Das|Ein|Eine) /, '').trim(), def = m[2].trim();
+        if (PRON.test(term) || term.split(' ').length > 4 || term.length < 3) return;
+        if (/\d{3,}|http|\(see |\bfig\b/i.test(def) || def.split(' ').length < 4) return;
+        if (def.toLowerCase().indexOf(term.toLowerCase()) >= 0) return;
+        var key = term.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = 1;
+        defs.push({ term: term, def: def, sent: sent, page: paged ? pi + 1 : null });
+        return;
+      }
+    });
+  });
+  return defs;
+}
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+export function definitionQuestions(text, max, opts) {
+  opts = opts || {};
+  var defs = extractDefinitions(text), out = [];
+  if (defs.length < 4) return [];
+  defs.forEach(function (d, idx) {
+    if (out.length >= max) return;
+    var type = idx % 2;
+    var pool = defs.filter(function (x) { return x !== d && x.def.toLowerCase().indexOf(d.term.toLowerCase()) < 0 && x.term.toLowerCase().indexOf(d.term.toLowerCase()) < 0 && d.def.toLowerCase().indexOf(x.term.toLowerCase()) < 0; });
+    var qtext, right, wrongs;
+    if (type === 0) {
+      pool = shuffled(pool, hashStr(d.sent)).slice(0, 3);
+      if (pool.length < 3) return;
+      qtext = 'Which statement describes “' + d.term + '” correctly?';
+      right = cap(d.def); wrongs = pool.map(function (x) { return cap(x.def); });
+    } else {
+      pool = pool.filter(function (x) { return Math.abs(x.term.split(' ').length - d.term.split(' ').length) <= 1; });
+      pool = shuffled(pool, hashStr(d.sent)).slice(0, 3);
+      if (pool.length < 3) return;
+      qtext = 'Which term is described here: “' + cap(d.def) + '”?';
+      right = cap(d.term); wrongs = pool.map(function (x) { return cap(x.term); });
+    }
+    var optsArr = wrongs.concat([right]), order = shuffled([0, 1, 2, 3], hashStr(d.sent + 'o')), o2 = order.map(function (i) { return optsArr[i]; });
+    var q = { id: 'd' + hashStr(d.sent + type), q: qtext, o: o2, a: o2.indexOf(right), e: 'From your material: “' + d.sent + '”', src: 'def', evidence: d.sent, page: d.page, pageLabel: d.page ? (opts.pageLabel || 'p.') : '' };
+    if (!qualityIssue(q)) out.push(q);
+  });
+  return out;
 }

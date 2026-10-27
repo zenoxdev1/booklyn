@@ -30,7 +30,7 @@ async function makeBackup(files, banks = {}, state = sampleState()) {
 
 test('full backup round-trip: files, assignments, progress, notes, deadlines, banks, city, coins', async () => {
   const f1 = await mkFile('week1.txt', 'Hello from week one'), f2 = await mkFile('week2.txt', 'Second file ' + 'x'.repeat(5000));
-  const bank = Q.newBank(); Q.addQuestions(bank, [{ id: 'q1', q: 'Q?', o: ['a', 'b', 'c'], a: 1, e: 'e', src: 'local' }], f1.rec.hash, 'week1.txt'); bank.stats.q1 = { asked: 2, miss: 1 };
+  const bank = Q.newBank(); Q.addQuestions(bank, [{ id: 'q1', q: 'What does the first concept describe?', o: ['alpha', 'beta', 'gamma', 'delta'], a: 1, e: 'e', src: 'local' }], f1.rec.hash, 'week1.txt'); bank.stats.q1 = { asked: 2, miss: 1 };
   const made = await makeBackup([f1, f2], { 'm1:1': bank });
   assert.equal(made.files, 2);
   const got = await B.readBackup(made.blob, deps);
@@ -151,8 +151,8 @@ test('merge leaves out a semester whose module ids clash with another semester h
 
 test('merging a question bank keeps questions and the worse answer history of both', () => {
   const a = Q.newBank(), b = Q.newBank();
-  Q.addQuestions(a, [{ id: 'q1', q: 'One?', o: ['a', 'b', 'c'], a: 0, e: '', src: 'local' }], 'f', 'f.pdf'); a.stats.q1 = { asked: 1, miss: 0 };
-  Q.addQuestions(b, [{ id: 'q1', q: 'One?', o: ['a', 'b', 'c'], a: 0, e: '', src: 'local' }, { id: 'q2', q: 'Two?', o: ['a', 'b', 'c'], a: 0, e: '', src: 'local' }], 'f', 'f.pdf'); b.stats.q1 = { asked: 3, miss: 2 };
+  Q.addQuestions(a, [{ id: 'q1', q: 'What does the first concept describe?', o: ['alpha', 'beta', 'gamma', 'delta'], a: 0, e: '', src: 'local' }], 'f', 'f.pdf'); a.stats.q1 = { asked: 1, miss: 0 };
+  Q.addQuestions(b, [{ id: 'q1', q: 'What does the first concept describe?', o: ['alpha', 'beta', 'gamma', 'delta'], a: 0, e: '', src: 'local' }, { id: 'q2', q: 'What does the second concept describe?', o: ['alpha', 'beta', 'gamma', 'delta'], a: 0, e: '', src: 'local' }], 'f', 'f.pdf'); b.stats.q1 = { asked: 3, miss: 2 };
   const m = B.mergeBanks(a, b);
   assert.equal(m.q.length, 2);
   assert.deepEqual(m.stats.q1, { asked: 3, miss: 2 });

@@ -38,7 +38,7 @@ test('pass rule is 4 of 5', () => {
 });
 
 function q(id, extra = {}) {
-  return { id, q: 'Question ' + id + '?', o: ['A' + id, 'B' + id, 'C' + id, 'D' + id], a: 1, e: 'because', src: 'local', ...extra };
+  return { id, q: 'What does the concept number ' + id + ' describe?', o: ['A' + id, 'B' + id, 'C' + id, 'D' + id], a: 1, e: 'because', src: 'local', ...extra };
 }
 function bank(n) { const b = Q.newBank(); for (let i = 0; i < n; i++) b.q.push({ ...q('q' + i), fk: 'f1', file: 'f1.pdf' }); return b; }
 
@@ -100,7 +100,7 @@ test('cache refresh: questions of removed files are dropped, new files get quest
 test('old question banks (no file info) are rebuilt but keep what was asked', () => {
   const old = { q: [{ id: 'l1', q: 'x', o: ['a', 'b', 'c'], a: 0, e: '', asked: 3 }], used: [1] };
   const b = Q.upgradeBank(old);
-  assert.equal(b.v, 2);
+  assert.equal(b.v, 3);
   assert.equal(b.q.length, 0);
   assert.equal(b.stats.l1.asked, 3);
 });

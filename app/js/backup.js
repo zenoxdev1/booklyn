@@ -226,6 +226,7 @@ export function mergeStates(cur, inc) {
   out.iliasDismissed = union(out.iliasDismissed, inc.iliasDismissed);
   out.iliasHash = union(out.iliasHash, inc.iliasHash);
   out.iliasImported = union(out.iliasImported, inc.iliasImported);
+  out.iliasCourseMap = union(out.iliasCourseMap, inc.iliasCourseMap);
   out.coins = Math.max(out.coins || 0, inc.coins || 0);
   out.shields = Math.max(out.shields || 0, inc.shields || 0);
   out.lastBackup = Math.max(out.lastBackup || 0, inc.lastBackup || 0);

@@ -19,7 +19,10 @@ STATE = {'schema': 1, 'name': 'T', 'activeSem': 's1', 'sems': [{'id': 's1', 'nam
   'modules': [{'id': 'm1', 'code': 'NET', 'name': 'Networks', 'kw': 'network', 'h': 215, 'units': 4, 'titles': ['One', 'Two', 'Three', 'Four'], 'base': {}}]}]}
 
 VOC = ['router','packet','protocol','segment','address','gateway','frame','switch','subnet','header','payload','checksum','session','buffer','socket','firewall','tunnel','latency','bandwidth','datagram']
+DEFS = ['Latency is the time a packet needs to travel from the sender to the receiver across the network.','Bandwidth is the maximum amount of data that a link can transfer in a given period of time.','A router is a device that forwards packets between different networks using their destination address.','Throughput describes the amount of data that is actually delivered over a link per second.','A firewall is a system that filters network traffic according to a set of security rules.','A switch is a device that connects computers inside one local network and forwards frames by hardware address.','A gateway is a node that connects two networks which use different protocols for communication.','A socket is an endpoint that lets a program send and receive data over a network connection.','Jitter is the variation in the delay of packets that arrive at the receiver over time.','A subnet is a logical part of an IP network that is created by splitting a larger address range.']
 def lecture(n=70, tag=''):
+    return ' '.join(DEFS) + ' ' + lecture_old(n, tag)
+def lecture_old(n=70, tag=''):
     out = []
     for i in range(n):
         a, b, c, d, e = [VOC[(i * k + j) % len(VOC)] for j, k in enumerate((1, 3, 5, 7, 9))]
@@ -43,7 +46,10 @@ def add_files(pg, files):
 
 def toast(pg): return pg.inner_text('#toast')
 def bank(pg, k='m1:1'): return pg.evaluate("k=>JSON.parse(localStorage.getItem('booklyn:bank:'+k)||'null')", k)
-def pending_rows(pg): return pg.locator('.pfile').count()
+def pending_rows(pg):
+    t = pg.locator('[data-a="togready"]')
+    if t.count() and t.get_attribute('aria-expanded') == 'false': t.click()
+    return pg.locator('.pfile').count()
 
 with sync_playwright() as p:
     b = p.chromium.launch()

@@ -157,7 +157,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{}};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{},iliasCourseMap:{}};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 /* Untrusted data (backup files, the cloud copy) is cleaned before it is used: ids are checked because they end up in the page, text is trimmed, odd keys are dropped. */
@@ -174,12 +174,13 @@ function scrub(v,d){
 function clean(s){
   s=scrub(s,0);if(!s||typeof s!=='object'||Array.isArray(s))throw new Error('shape');
   fill(s);
-  ['lit','seen','notes','tasksDone','lvl','pin','deco','paid','iliasKnown','iliasDismissed','iliasHash','iliasImported','scenery','sceneOwn','how'].forEach(function(k){if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))s[k]={};});
+  ['lit','seen','notes','tasksDone','lvl','pin','deco','paid','iliasKnown','iliasDismissed','iliasHash','iliasImported','scenery','sceneOwn','how','iliasCourseMap'].forEach(function(k){if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))s[k]={};});
   if(!Array.isArray(s.sems)||!Array.isArray(s.deadlines)||!Array.isArray(s.lastImport))throw new Error('lists');
   s.name=String(s.name||'').slice(0,80);
   ['coins','shields','rentAt','lastBackup','snoozeBackup','iliasLast'].forEach(function(k){s[k]=Math.max(0,+s[k]||0);});
   s.lastImport=s.lastImport.map(String).slice(0,500);
   Object.keys(s.how).forEach(function(k){if(s.how[k]!=='quiz'&&s.how[k]!=='self')delete s.how[k];});
+  Object.keys(s.iliasCourseMap).forEach(function(k){if(!/^[a-z0-9-]{1,60}$/.test(k)||!ID_OK.test(String(s.iliasCourseMap[k])))delete s.iliasCourseMap[k];else s.iliasCourseMap[k]=String(s.iliasCourseMap[k]);});
   var used={};
   s.sems.forEach(function(sem){
     if(!sem||typeof sem!=='object'||!ID_OK.test(String(sem.id))||!Array.isArray(sem.modules))throw new Error('sem');
@@ -357,7 +358,7 @@ function suggest(text,sem){
 }
 
 /* ================= adding files ================= */
-async function addFiles(list,preset,skipDups){
+async function addFiles(list,preset,skipDups,hint){
   var sem=curSem(); if(!sem){toast('Set up a semester first.');return;}
   var arr=Array.prototype.slice.call(list); if(!arr.length) return;
   try{if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();}catch(e){}
@@ -370,6 +371,12 @@ async function addFiles(list,preset,skipDups){
       var rec={id:uid(),name:f.name,path:f.webkitRelativePath||'',size:f.size,type:f.type,mtime:f.lastModified,hash:h,addedAt:Date.now(),sem:sem.id,dup:null};
       if(preset){
         rec.status='imported';rec.mod=preset.mod;rec.unit=preset.unit;rec.include=true;rec.confirmed=true;rec.flag=false;rec.why='';
+      } else if(hint&&hint.mod&&M(hint.mod)){
+        /* the file comes from a known ILIAS course: the module is not guessed from the file name */
+        var hm=M(hint.mod);
+        rec.status='pending';rec.mod=hint.mod;rec.unit=hint.unit||clamp(weekNo(sem),1,hm.units);
+        rec.dup=dup?dup.id:null;rec.flag=!hint.unit||!!dup;rec.include=!dup;rec.confirmed=false;
+        rec.why=dup?('Same content as “'+dup.name+'”'):hint.why;
       } else {
         var sg=suggest(rec.path||rec.name,sem),m=sg.mod?M(sg.mod):null;
         rec.status='pending';rec.mod=sg.mod;rec.unit=sg.unit||(m?clamp(weekNo(sem),1,m.units):1);
@@ -670,7 +677,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -697,11 +704,37 @@ function iliasIn(file){
   return false;
 }
 function iliasCls(file){return iliasIn(file)?'in':state.iliasDismissed[file.key]?'dis':'todo';}
+function ckey(name){return String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);}
+/* Which module an ILIAS course belongs to: a choice saved earlier, else a module code or keyword in the course name. */
+function iliasCourseModule(courseName){
+  var sem=curSem();if(!sem||!courseName||courseName==='ILIAS news')return null;
+  var saved=state.iliasCourseMap[ckey(courseName)];
+  if(saved){var sm=M(saved);if(sm&&sem.modules.indexOf(sm)>-1)return {m:sm,how:'saved'};}
+  var sg=suggest(String(courseName),sem);
+  return sg.mod?{m:M(sg.mod),how:'name'}:null;
+}
+function iliasHint(file){
+  var r=iliasCourseModule(file.course);if(!r||!r.m)return null;
+  var sg=suggest(String(file.name||'')+' '+String(file.context||''),{modules:[{id:r.m.id,code:r.m.code,kw:'',units:MAXU}]});
+  var unit=sg.unit>=1&&sg.unit<=MAXU?sg.unit:0;
+  if(unit>r.m.units)ensureUnits(r.m,unit);
+  return {mod:r.m.id,unit:unit,why:'ILIAS course “'+String(file.course).slice(0,60)+'”'+(unit?' · week '+unit:' · week not found, please check')};
+}
 function iliasSuggest(file){
+  var h=iliasHint(file);
+  if(h){var m=M(h.mod);return m.code+(h.unit?' · week '+h.unit:' · week not found');}
   var sem=curSem();if(!sem)return '';
   var c={modules:sem.modules.map(function(m){return {id:m.id,code:m.code,kw:m.kw,units:MAXU};})};
-  var sg=suggest(String(file.name||'')+' '+String(file.context||''),c),m=sg.mod?M(sg.mod):null;
-  return m?m.code+(sg.unit?' · week '+sg.unit:''):'';
+  var sg=suggest(String(file.name||'')+' '+String(file.context||''),c),m2=sg.mod?M(sg.mod):null;
+  return m2?m2.code+(sg.unit?' · week '+sg.unit:''):'';
+}
+function iliasMapHTML(){
+  var sem=curSem();if(!sem)return '';
+  var seen={},open=[];
+  ui.ilias.items.forEach(function(f){var c=f.course;if(!c||c==='ILIAS news'||seen[c])return;seen[c]=1;if(!iliasCourseModule(c))open.push(c);});
+  if(!open.length)return '';
+  return '<div class="notice" role="region" aria-label="Match ILIAS courses to modules"><strong>Which module is this ILIAS course?</strong><p class="foot">Booklyn could not tell from the course name. Choose once and it remembers. Until then it guesses from each file name.</p>'
+   +open.map(function(c){var k=ckey(c);return '<label class="f">'+esc(c)+'<select data-c="ilmap" data-k="'+esc(k)+'"><option value="">Choose a module…</option>'+sem.modules.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>';}).join('')+'</div>';
 }
 function iliasCounts(){var c={todo:0,in:0,dis:0};ui.ilias.items.forEach(function(f){c[iliasCls(f)]++;});return c;}
 
@@ -863,7 +896,7 @@ async function importIlias(key,batch){
     try{
       var binary=atob(result.base64),bytes=new Uint8Array(binary.length);
       for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-      var added=await addFiles([new File([bytes],result.name||file.name,{type:result.mime||'application/octet-stream'})],null,true);
+      var added=await addFiles([new File([bytes],result.name||file.name,{type:result.mime||'application/octet-stream'})],null,true,iliasHint(file));
       if(added&&(added.added||added.dups)){
         state.iliasImported[key]=Date.now();if(added.hashes&&added.hashes[0])state.iliasHash[key]=added.hashes[0];
         delete state.iliasDismissed[key];save();out=added.added?'added':'dup';
@@ -894,7 +927,7 @@ function iliasCoursesHTML(){
 }
 function iliasListHTML(){
   var c=iliasCounts(),f=ui.ilias.filter||'todo',LAB={todo:'To add',in:'Already in Booklyn',dis:'Dismissed',skip:'Not readable',all:'All readable'},CNT={todo:c.todo,in:c.in,dis:c.dis,skip:(ui.ilias.skipped||[]).length,all:ui.ilias.items.length};
-  var h=iliasCoursesHTML()+'<div class="row tight" role="group" aria-label="Filter ILIAS files">'+['todo','in','dis','skip','all'].map(function(k){return '<button class="chip fchip" data-a="ilfilter" data-f="'+k+'" aria-pressed="'+(f===k)+'">'+LAB[k]+' · '+CNT[k]+'</button>';}).join('')+'</div>';
+  var h=iliasCoursesHTML()+iliasMapHTML()+'<div class="row tight" role="group" aria-label="Filter ILIAS files">'+['todo','in','dis','skip','all'].map(function(k){return '<button class="chip fchip" data-a="ilfilter" data-f="'+k+'" aria-pressed="'+(f===k)+'">'+LAB[k]+' · '+CNT[k]+'</button>';}).join('')+'</div>';
   if(c.todo)h+='<div class="row"><button class="btn small" data-a="iliasall" '+(ui.ilias.busy?'disabled':'')+'>Add all '+c.todo+' to the Port</button><span class="foot">Dismiss what you do not need first.</span></div>';
   if(f==='skip'){
     var sk=ui.ilias.skipped||[];
@@ -1005,8 +1038,19 @@ function vPort(){
   }
   var dupN=list.filter(isDupRow).length;
   if(dupN)h+='<section class="card stack"><h3>'+dupN+' duplicate'+(dupN===1?'':'s')+' waiting</h3><p class="lede">These files have exactly the same content as a file Booklyn already has. Removing them here only clears the extra copy from the Port.</p><div class="row"><button class="btn small" data-a="rmdups">Remove '+dupN+' duplicate'+(dupN===1?'':'s')+'</button></div></section>';
-  var ok=list.filter(eligible).length, held=list.filter(function(f){return f.include&&!eligible(f);}).length;
-  h+='<ul class="list">'+list.map(pendingRow).join('')+'</ul>';
+  var ready=list.filter(eligible),check=list.filter(function(f){return !eligible(f);}),ok=ready.length, held=list.filter(function(f){return f.include&&!eligible(f);}).length;
+  if(check.length)h+='<ul class="list">'+check.map(pendingRow).join('')+'</ul>';
+  if(ready.length){
+    h+='<section class="card stack"><div class="row between"><div><h3>'+ready.length+' ready file'+(ready.length===1?'':'s')+'</h3><div class="foot">Booklyn is sure where these belong. Looking through them is optional: you can import straight away.</div></div><button class="btn ghost small" data-a="togready" aria-expanded="'+(!!ui.readyOpen)+'">'+(ui.readyOpen?'Hide the list':'Review the list')+'</button></div>';
+    if(ui.readyOpen){
+      var gs={};ready.forEach(function(f){(gs[f.mod]=gs[f.mod]||[]).push(f);});
+      h+=Object.keys(gs).sort(function(a,b){var ma=M(a),mb=M(b);return String(ma&&ma.code).localeCompare(String(mb&&mb.code));}).map(function(k){
+        var mm=M(k),rows=gs[k].slice().sort(function(a,b){return (a.unit-b.unit)||String(a.name).localeCompare(String(b.name));});
+        return '<div class="stack"><h4>'+esc(mm?mm.code+' · '+mm.name:'No module')+' <span class="foot">'+rows.length+' file'+(rows.length===1?'':'s')+'</span></h4><ul class="list">'+rows.map(pendingRow).join('')+'</ul></div>';
+      }).join('');
+    }
+    h+='</section>';
+  }
   h+='<div class="actionbar"><div><strong>'+ok+' ready to import</strong><div class="foot">'+(held?held+' need a check first.':'Nothing is held back.')+'</div></div><button class="btn" data-a="import" '+(ok&&!ui.busyImport?'':'disabled')+'>'+(ui.busyImport?'Importing…':'Import '+ok+' file'+(ok===1?'':'s'))+'</button></div>';
   return h;
 }
@@ -1134,24 +1178,26 @@ function bankPut(k,b){try{localStorage.setItem(bankKey(k),JSON.stringify(b));}ca
 function allBanks(){var o={};try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key&&key.indexOf('booklyn:bank:')===0){var k=key.slice(13);try{o[k]=JSON.parse(localStorage.getItem(key));}catch(e){}}}}catch(e){}return o;}
 function clearBanks(){try{var del=[];for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key&&key.indexOf('booklyn:bank:')===0)del.push(key);}del.forEach(function(k){localStorage.removeItem(k);});}catch(e){}}
 async function aiMore(items,bank){
-  /* items: [{rec, text}]. Every chunk of every file can be picked; chunks already used are avoided. */
+  /* One request = one section (a few pages with their heading). The server analyses it, writes questions, checks them and returns only what passed. */
   var all=[];
-  items.forEach(function(it){QC.chunksOf(it.text.replace(/\f/g,'\n\n'),3500).forEach(function(c){all.push({rec:it.rec,text:c,h:hashStr(c)});});});
-  if(!all.length)return 0;
-  var free=all.filter(function(c){return bank.used.indexOf(c.h)<0;});
-  var pool=free.length?free:all,pick=pool[Math.floor(Math.random()*pool.length)];
-  var r=await api('POST','/api/quiz',{text:pick.text,n:4});
-  if(!r.ok||!r.questions){
-    if(r.status===429)SYNC.aiMsg='The daily AI limit is used up. Booklyn used questions made on your device instead.';
-    else if(r.status===503)SYNC.aiMsg='The AI service is not set up yet. Booklyn used questions made on your device instead.';
+  items.forEach(function(it){QC.sectionChunks(it.text,5500,pageLabelOf(it.rec)).forEach(function(c){if(c.text.length>=300)all.push({rec:it.rec,c:c,h:hashStr(it.rec.id+':'+c.text.length+':'+c.text.slice(0,200))});});});
+  if(!all.length)return -1;
+  var free=all.filter(function(x){return bank.used.indexOf(x.h)<0;}),pool=free.length?free:all,pick=pool[Math.floor(Math.random()*pool.length)];
+  var r=await api('POST','/api/quiz',{sections:[{title:pick.c.title||'',text:pick.c.text.replace(/\f/g,'\n\n'),ref:pick.c.ref||''}],n:QC.QUIZ_LEN});
+  if(!r.ok){
+    if(r.status===429)SYNC.aiMsg='The daily AI limit is used up. Booklyn used the questions it could make on your device.';
+    else if(r.status===503)SYNC.aiMsg='The AI service is not set up yet. Booklyn used the questions it could make on your device.';
     else if(r.status===401)SYNC.aiMsg='Sign in to use AI questions.';
-    return 0;
+    else SYNC.aiMsg='The AI service did not answer. Booklyn used the questions it could make on your device.';
+    return -1;
   }
   bank.used.push(pick.h);
-  var made=r.questions.map(function(q){return {id:'a'+hashStr(q.q),q:q.q,o:q.o,a:q.a,e:q.e,src:'ai'};});
+  if(!r.questions||!r.questions.length){bank.aiReason=String(r.reason||'').slice(0,240);return 0;}
+  bank.aiReason='';
+  var made=r.questions.map(function(q){return {id:'a'+hashStr(q.q),q:q.q,o:q.o,a:q.a,e:q.e,src:'ai',evidence:String(q.evidence||'').slice(0,240),title:String(q.title||'').slice(0,120),ref:String(q.ref||'').slice(0,40)};});
   return QC.addQuestions(bank,made,QC.fileKey(pick.rec),pick.rec.name);
 }
-/* Result: {quiz:[5 questions], notes:[]} or {fail:'nofiles'|'notext'|'timeout'|'few'|'error', have:n} */
+/* Result: {quiz:[5 questions], notes:[]} or {fail:'nofiles'|'notext'|'timeout'|'few'|'error', have:n, reason, aiOn} */
 async function prepareQuiz(m,u){
   var k=m.id+':'+u,recs=FILES.filter(function(f){return f.status==='imported'&&f.mod===m.id&&f.unit===u;});
   if(!recs.length)return {fail:'nofiles'};
@@ -1159,44 +1205,45 @@ async function prepareQuiz(m,u){
   if(!texts)return {fail:'timeout'};
   var items=recs.map(function(r,i){return {rec:r,text:texts[i]||''};}).filter(function(x){return x.text.length>=150;});
   if(!items.length)return {fail:'notext'};
-  var bank=bankGet(k),sy=QC.syncBank(bank,items.map(function(x){return x.rec;}));
-  /* only files that are new, or whose content changed, need new questions; questions of removed files were dropped above */
+  var bank=bankGet(k);QC.syncBank(bank,items.map(function(x){return x.rec;}));
+  /* On-device questions only come from clear definitions in the files; random-word blanks are no longer made. */
   items.forEach(function(it){
     var fk=QC.fileKey(it.rec);if(bank.done[fk])return;
-    QC.addQuestions(bank,QC.localQuestions(it.text,20,{pageLabel:pageLabelOf(it.rec)}),fk,it.rec.name);
+    QC.addQuestions(bank,QC.definitionQuestions(it.text,12,{pageLabel:pageLabelOf(it.rec)}),fk,it.rec.name);
     bank.done[fk]=true;
   });
   SYNC.aiMsg='';
-  var freshAi=bank.q.filter(function(q){return q.src==='ai'&&!(bank.stats[q.id]&&bank.stats[q.id].asked);}).length;
-  if(state.aiOpt&&SYNC.me&&navigator.onLine!==false&&freshAi<3){try{await aiMore(items,bank);}catch(e){}}
+  var aiOn=!!(state.aiOpt&&SYNC.me&&navigator.onLine!==false);
+  function freshAi(){return bank.q.filter(function(q){return q.src==='ai'&&!q.bad&&!(bank.stats[q.id]&&bank.stats[q.id].asked);}).length;}
+  if(aiOn){for(var t=0;t<2&&freshAi()<QC.QUIZ_LEN+1;t++){var got=-1;try{got=await aiMore(items,bank);}catch(e){got=-1;}if(got<0)break;}}
   var valid=bank.q.filter(QC.validQuestion).length,quiz=QC.selectQuiz(bank,QC.QUIZ_LEN,Date.now()&0xffff);
-  if(!quiz){bankPut(k,bank);return {fail:'few',have:valid};}
+  if(!quiz){bankPut(k,bank);return {fail:'few',have:valid,reason:bank.aiReason,aiOn:aiOn};}
   QC.markAsked(bank,quiz.map(function(q){return q.id;}));
   bankPut(k,bank);
   var notes=recs.filter(function(r){return r.textCut;}).map(function(r){return 'Only the first part of “'+r.name+'” was read (it is very long).';});
   return {quiz:quiz.map(function(q){q.k=k;return q;}),notes:notes};
 }
-function newStudy(k){return {k:k,step:'focus',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false,answers:[],refunded:false,fail:null,have:0,notes:[],quiz:null};}
+function newStudy(k){return {k:k,step:'focus',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false,answers:[],refunded:false,fail:null,have:0,notes:[],quiz:null,reason:'',aiOn:false};}
 function goCheck(){
   var mm=M(study.k.split(':')[0]),uu=+study.k.split(':')[1];
   if(quizFor(mm,uu)){study.step='check';render(true);return;}
   var key=study.k;study.step='prep';render(true);
   prepareQuiz(mm,uu).catch(function(){return {fail:'error'};}).then(function(res){
     if(!study||study.k!==key)return;
-    study.quiz=res.quiz||null;study.fail=res.fail||null;study.have=res.have||0;study.notes=res.notes||[];
+    study.quiz=res.quiz||null;study.fail=res.fail||null;study.have=res.have||0;study.notes=res.notes||[];study.reason=res.reason||'';study.aiOn=!!res.aiOn;
     study.q=0;study.score=0;study.picked=null;study.answers=[];study.refunded=false;study.step='check';render(true);
   });
 }
-function reportBad(){
+function reportBad(why){
   var q=study&&study.quiz&&study.quiz[study.q];if(!q||!q.k)return;
-  var b=bankGet(q.k);b.q.forEach(function(x){if(x.id===q.id)x.bad=true;});bankPut(q.k,b);
+  var b=bankGet(q.k);b.q.forEach(function(x){if(x.id===q.id){x.bad=true;x.badWhy=why||'';}});bankPut(q.k,b);
   var a=study.answers[study.q],msg='Thanks. That question will not come back.';
   if(a&&!a.bad){a.bad=true;if(!a.ok&&!study.refunded){study.refunded=true;study.score++;a.ok=true;msg+=' You get the point back for it.';}}
   toast(msg);
 }
 function noQuizText(){
   var f=study.fail;
-  if(f==='few')return 'Booklyn could only make '+study.have+' good question'+(study.have===1?'':'s')+' from the files in this unit. A quiz needs '+QC.QUIZ_LEN+', so it will not give you a shorter one. Add more material to the unit, or use the self-check below.';
+  if(f==='few')return 'Booklyn could only make '+study.have+' good question'+(study.have===1?'':'s')+' from the files in this unit. A quiz needs '+QC.QUIZ_LEN+', so it will not give you a shorter one or invent questions. '+(study.reason?'The AI said: '+study.reason+' ':'')+(study.aiOn?'':'Turn on AI questions in Settings (needs a sync account) for better questions. ')+'You can also add more material to the unit, or use the self-check below.';
   if(f==='nofiles')return 'This unit has no imported files yet, so Booklyn has nothing to ask about. Import the slides or script first, or use the self-check below.';
   if(f==='notext')return 'Booklyn could not read enough text in these files (scanned pages and pictures cannot be read). You can use the self-check below.';
   if(f==='timeout')return 'Reading the files took too long. Booklyn keeps what it already read, so trying again is usually faster.';
@@ -1221,16 +1268,16 @@ function vStudy(r){
      +'<p class="foot" style="text-align:center">'+mats(m,u).map(function(x){return esc(x.name);}).join(' · ')+'</p></section>'
      +'<div class="row between"><span class="foot">Already studied this unit?</span><button class="btn ghost" data-a="tocheck">Skip to the check</button></div>';
   } else if(study.step==='prep'){
-    h+='<section class="card stack" style="text-align:center"><p class="eyebrow">2 · Check</p><h2>Preparing your questions…</h2><p class="lede">Booklyn is reading your files for this unit. This can take a few seconds the first time.</p></section>';
+    h+='<section class="card stack" style="text-align:center"><p class="eyebrow">2 · Check</p><h2>Preparing your questions…</h2><p class="lede">Booklyn is reading your files for this unit. This can take a few seconds the first time'+(state.aiOpt&&SYNC.me?', and up to a minute when the AI writes and checks new questions':'')+'.</p></section>';
   } else if(study.step==='check'&&quiz){
     var q=quiz[study.q],L=['A','B','C','D','E'],srcLine=QC.sourceLine(q);
     h+='<section class="card stack"><p class="eyebrow">2 · Quiz · Question '+(study.q+1)+' of '+N+'</p><div class="bar" aria-hidden="true"><i style="width:'+Math.round(study.q/N*100)+'%"></i></div>'
      +'<p class="foot">Get '+QC.PASS_MIN+' of '+QC.QUIZ_LEN+' right ('+QC.PASS_PCT+' %) to turn the light on. Right so far: '+study.score+'.</p>'
      +'<h2>'+esc(q.q)+'</h2><div class="stack">'
      +q.o.map(function(o,i){var cls=study.picked===null?'':(i===q.a?' right':(i===study.picked?' wrong':''));return '<button class="opt'+cls+'" data-a="pick" data-i="'+i+'" '+(study.picked!==null?'disabled':'')+'><span class="k">'+L[i]+'</span><span>'+esc(o)+'</span></button>';}).join('')+'</div>'
-     +(study.picked!==null?'<div class="notice" role="status"><strong>'+(study.picked===q.a?'Correct. ':'Not quite. ')+'</strong>'+esc(q.e)+'</div><div class="row"><button class="btn" data-a="nextq">'+(study.q<N-1?'Next question':'See result')+'</button>'+(q.k?'<button class="btn ghost small" data-a="badq">Report a bad question</button>':'')+'</div>':'')
+     +(study.picked!==null?'<div class="notice" role="status"><strong>'+(study.picked===q.a?'Correct. ':'Not quite. ')+'</strong>'+esc(q.e)+(q.src==='ai'&&q.evidence?'<br><span class="foot">From your material: “'+esc(q.evidence)+'”</span>':'')+'</div><div class="row"><button class="btn" data-a="nextq">'+(study.q<N-1?'Next question':'See result')+'</button>'+(q.k?'<span class="foot">Report:</span><button class="btn ghost small" data-a="badq" data-why="unclear">Unclear</button><button class="btn ghost small" data-a="badq" data-why="wrong">Wrong answer</button><button class="btn ghost small" data-a="badq" data-why="offtopic">Not relevant</button>':'')+'</div>':'')
      +(srcLine?'<p class="foot">Source: '+esc(srcLine)+'</p>':'')
-     +(q.k?'<p class="foot">'+(q.src==='ai'?'Written by an AI from your files. It can be wrong: check it against the material.':'Made on your device from your files.')+'</p>':'')+(SYNC.aiMsg&&study.q===0?'<p class="foot">'+esc(SYNC.aiMsg)+'</p>':'')
+     +(q.k?'<p class="foot">'+(q.src==='ai'?'Written by an AI from your files, then checked by rules and a second review. It can still be wrong: check it against the material.':'Made on your device from a definition in your files.')+'</p>':'')+(SYNC.aiMsg&&study.q===0?'<p class="foot">'+esc(SYNC.aiMsg)+'</p>':'')
      +(study.notes.length&&study.q===0?'<p class="foot">'+esc(study.notes.join(' '))+'</p>':'')+'</section>';
   } else if(study.step==='check'){
     var ps=['Explain “'+m.titles[u-1]+'” in one sentence without looking.','Name two terms from this unit that you could define to a friend.','Solve or sketch one exercise from the material.'],nq=noQuizText();
@@ -1651,10 +1698,11 @@ document.addEventListener('click',function(e){
   else if(a==='timer'){if(study.running)pauseTimer();else startTimer();render();var btn=$('#tbtn');if(btn)btn.focus();}
   else if(a==='treset'){pauseTimer();study.remaining=1500;render();}
   else if(a==='tocheck'){pauseTimer();goCheck();}
-  else if(a==='badq'){reportBad();render();}
+  else if(a==='badq'){reportBad(b.dataset.why);render();}
   else if(a==='pick'){var i=+b.dataset.i,qz=study.quiz||quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1]),q=qz[study.q],ok=i===q.a;study.picked=i;if(ok)study.score++;study.answers[study.q]={q:q,ok:ok,bad:false};if(q.k){var bk=bankGet(q.k);QC.recordAnswer(bk,q.id,ok);bankPut(q.k,bk);}render();var nb=document.querySelector('[data-a="nextq"]');if(nb)nb.focus();}
   else if(a==='nextq'){var qz2=study.quiz||quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1]);if(study.q<qz2.length-1){study.q++;study.picked=null;render(true);}else{finishQuiz();render(true);}}
   else if(a==='retryprep'){goCheck();}
+  else if(a==='togready'){ui.readyOpen=!ui.readyOpen;var ty=window.scrollY;render();window.scrollTo(0,ty);}
   else if(a==='finishself'){study.score=study.checks.filter(Boolean).length;finishQuiz();render(true);}
   else if(a==='retry'){var k=study.k;study=newStudy(k);study.step='check';goCheck();}
   else if(a==='adddl'){
@@ -1703,6 +1751,7 @@ document.addEventListener('change',function(e){
   else if(c==='shopmod'){ui.shopMod=t.value;render();}
   else if(c==='pin'){var pk=t.dataset.k;if(t.checked)state.pin[pk]=true;else delete state.pin[pk];save();render();toast(t.checked?'Pinned. This light stays on and pays no rent.':'Unpinned. The light follows the normal rules again.');}
   else if(c==='aiopt'){state.aiOpt=t.checked;save();}
+  else if(c==='ilmap'){if(t.value)state.iliasCourseMap[t.dataset.k]=t.value;else delete state.iliasCourseMap[t.dataset.k];save();render();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
     var row=t.closest('[data-f]'),f=row&&fileById(row.dataset.f);if(!f)return;
@@ -1818,7 +1867,7 @@ function accountCard(){
      +(SYNC.newCode?'<div class="notice stack"><p style="margin:0"><strong>Your sync code. Save it now.</strong> It is the only way to open your progress on another device, and nobody can recover it for you.</p><p style="margin:0;font:700 1.25rem ui-monospace,Consolas,monospace;letter-spacing:.06em;word-break:break-all">'+esc(SYNC.newCode)+'</p><div class="row"><button class="btn small" data-a="sycopy">Copy code</button><button class="btn small ghost" data-a="sycodedl">Download as a file</button><button class="btn small ghost" data-a="sycodedone">I saved it</button></div></div>':'')
      +(SYNC.kind==='code'&&!SYNC.newCode&&codeStored()?(SYNC.showCode?'<p style="margin:0;font:700 1.1rem ui-monospace,Consolas,monospace;letter-spacing:.06em;word-break:break-all">'+esc(codeStored())+'</p><div class="row"><button class="btn small ghost" data-a="sycopy">Copy code</button><button class="btn small ghost" data-a="syhide">Hide</button></div>':'<div class="row"><button class="btn small ghost" data-a="syshow">Show my sync code</button></div>'):'')
      +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
-     +'<label class="check"><input type="checkbox" data-c="aiopt" '+(state.aiOpt?'checked':'')+'><div><div class="t">Let an AI write extra questions</div><div class="s">Short text excerpts of your files are sent to Cloudflare Workers AI to write questions. Files are never sent or stored. Off by default. Without it, Booklyn still makes questions on your device.</div></div></label>'
+     +'<label class="check"><input type="checkbox" data-c="aiopt" '+(state.aiOpt?'checked':'')+'><div><div class="t">Let an AI write extra questions</div><div class="s">Short text excerpts of your files (a few pages at a time) are sent to Cloudflare Workers AI. It reads the excerpt, writes questions and checks them before you see them. Files are never sent whole or stored. Off by default. Without it, Booklyn only asks about clear definitions it finds in your files, and says so when there is not enough material.</div></div></label>'
      +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+'>Sync now</button>'+(ui.confirm==='logout'?'<button class="btn small danger" data-a="sylogout2">Sign out and forget the code here</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="sylogout">Sign out</button>')+'</div>'
      +'<div class="row">'+(ui.confirm==='acct'?'<button class="btn small danger" data-a="sydel2">Yes, delete my cloud data</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="sydel1">Delete my cloud data…</button>')+'</div>';
   } else {
