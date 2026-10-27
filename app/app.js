@@ -1,6 +1,10 @@
 /* Booklyn. Keep your lights on.
    Your degree is a city. A semester is a district, a module is a building, a teaching unit is a floor.
    Files are stored on this device only (IndexedDB). Progress is stored in localStorage with a schema version. */
+import * as ST from './js/storage.js';
+import * as IM from './js/imports.js';
+import * as QC from './js/quiz-core.js';
+import * as BK from './js/backup.js';
 (function(){
 'use strict';
 
@@ -83,27 +87,39 @@ var QUIZ = {
  'bscm:6':[
   {q:'Which flow type may NOT connect elements in two different pools?',o:['Sequence flow','Message flow','Association'],a:0,e:'Sequence flows stay inside one pool. Pools talk to each other with message flows.'},
   {q:'A task needs 20 minutes of actual work but waits 40 minutes in a queue. How long does it take from arrival to completion?',o:['20 minutes','40 minutes','60 minutes'],a:2,e:'Elapsed time is processing time plus waiting time: 20 + 40 = 60.'},
-  {q:'How is an intermediate event drawn in BPMN?',o:['Thin single circle','Double-lined circle','Thick single circle'],a:1,e:'Start events are thin, intermediate events have a double line, end events are thick.'}],
+  {q:'How is an intermediate event drawn in BPMN?',o:['Thin single circle','Double-lined circle','Thick single circle'],a:1,e:'Start events are thin, intermediate events have a double line, end events are thick.'},
+  {q:'What does an exclusive (XOR) gateway do in BPMN?',o:['Starts all outgoing paths at once','Chooses exactly one outgoing path','Sends a message to another pool'],a:1,e:'XOR splits the flow into exactly one of its branches, depending on a condition.'},
+  {q:'Which element makes a process wait until a message arrives?',o:['A plain task','A message intermediate catching event','An end event'],a:1,e:'A catching message event pauses the flow until the message is received.'}],
  'stcsb:6':[
   {q:'In how many different orders can 3 distinct books stand on a shelf?',o:['3','6','9'],a:1,e:'3! = 3 × 2 × 1 = 6.'},
   {q:'Which expression is Bayes’ theorem?',o:['P(A|B) = P(B|A)·P(A) / P(B)','P(A|B) = P(A)·P(B)','P(A|B) = P(B|A) + P(A)'],a:0,e:'Bayes turns P(B|A) into P(A|B) by weighting with the prior P(A) and dividing by P(B).'},
-  {q:'A fair coin is tossed 3 times. What is P(exactly 2 heads)?',o:['0.25','0.375','0.5'],a:1,e:'Binomial: C(3,2) · 0.5² · 0.5¹ = 3 · 0.125 = 0.375.'}],
+  {q:'A fair coin is tossed 3 times. What is P(exactly 2 heads)?',o:['0.25','0.375','0.5'],a:1,e:'Binomial: C(3,2) · 0.5² · 0.5¹ = 3 · 0.125 = 0.375.'},
+  {q:'For two mutually exclusive events A and B, what is P(A or B)?',o:['P(A) · P(B)','P(A) + P(B)','P(A) − P(B)'],a:1,e:'Events that cannot happen together simply add their probabilities.'},
+  {q:'A fair die is rolled once. What is the probability of an even number?',o:['1/6','1/3','1/2'],a:2,e:'Three of the six outcomes (2, 4, 6) are even: 3/6 = 1/2.'}],
  'cnb:6':[
   {q:'How many bits does an IPv4 address have?',o:['32','48','128'],a:0,e:'IPv4 uses 32 bits, IPv6 uses 128 bits.'},
   {q:'Which subnet mask matches a /24 prefix?',o:['255.255.0.0','255.255.255.0','255.255.255.128'],a:1,e:'/24 means 24 network bits: three full octets of 255.'},
-  {q:'How many usable host addresses does a /24 network have?',o:['256','255','254'],a:2,e:'256 addresses minus the network and broadcast addresses leaves 254.'}],
+  {q:'How many usable host addresses does a /24 network have?',o:['256','255','254'],a:2,e:'256 addresses minus the network and broadcast addresses leaves 254.'},
+  {q:'Which protocol finds the MAC address that belongs to an IPv4 address on the local network?',o:['DNS','ARP','DHCP'],a:1,e:'ARP asks the local network who has a given IP address and learns the MAC address from the answer.'},
+  {q:'At which OSI layer does a router mainly work?',o:['Layer 2 (data link)','Layer 3 (network)','Layer 4 (transport)'],a:1,e:'Routers forward packets by IP address, which is layer 3.'}],
  'ifa:2':[
   {q:'A company pays rent in cash. Which entry is correct?',o:['Debit Rent expense, credit Cash','Debit Cash, credit Rent expense','Debit Rent expense, credit Revenue'],a:0,e:'The expense increases (debit) and cash decreases (credit).'},
   {q:'Which equation must always balance?',o:['Assets = Liabilities + Equity','Assets = Revenue − Expenses','Equity = Assets + Liabilities'],a:0,e:'Everything the company owns is financed by debt or by owners.'},
-  {q:'On which side of a T-account is an increase in a liability recorded?',o:['Debit (left)','Credit (right)','Either, depending on the day'],a:1,e:'Liabilities, equity and revenue increase on the credit side.'}],
+  {q:'On which side of a T-account is an increase in a liability recorded?',o:['Debit (left)','Credit (right)','Either, depending on the day'],a:1,e:'Liabilities, equity and revenue increase on the credit side.'},
+  {q:'A customer pays an open invoice of 500 in cash. Which entry is correct?',o:['Debit Cash, credit Accounts receivable','Debit Accounts receivable, credit Cash','Debit Cash, credit Revenue'],a:0,e:'Cash goes up (debit) and the receivable shrinks (credit). The revenue was booked earlier, with the invoice.'},
+  {q:'Which account normally has a debit balance?',o:['Accounts payable','Equipment (an asset)','Share capital'],a:1,e:'Assets increase on the debit side. Liabilities and equity increase on the credit side.'}],
  'profu:4':[
   {q:'Which loop fits best when you know the number of repetitions in advance?',o:['A for loop','An if statement','A while loop that never changes its condition'],a:0,e:'A for loop counts for you. That is its job.'},
   {q:'In most languages, what does 7 % 3 evaluate to?',o:['2','1','2.33'],a:1,e:'% is the remainder after integer division: 7 = 2·3 + 1.'},
-  {q:'What happens if a while loop’s condition never becomes false?',o:['It stops after 10 rounds','It runs forever (infinite loop)','The program skips it'],a:1,e:'Make sure something inside the loop eventually changes the condition.'}],
+  {q:'What happens if a while loop’s condition never becomes false?',o:['It stops after 10 rounds','It runs forever (infinite loop)','The program skips it'],a:1,e:'Make sure something inside the loop eventually changes the condition.'},
+  {q:'In Java, what does 10 / 4 give when both numbers are int?',o:['2.5','2','3'],a:1,e:'Integer division drops the remainder: 10 / 4 = 2.'},
+  {q:'What is the index of the first element of an array in Java?',o:['1','0','-1'],a:1,e:'Arrays start counting at 0.'}],
  'iae:6':[
   {q:'Which indicator is lagging, so it turns after the economy turns?',o:['Purchasing Managers’ Index','Unemployment rate','Stock market index'],a:1,e:'PMI and stock prices lead. Unemployment follows with a delay.'},
   {q:'Effective GDP is above potential GDP. What is the output gap?',o:['Positive: the economy runs hot','Negative: there is slack','Zero by definition'],a:0,e:'Effective minus potential: a positive gap often comes with rising inflation.'},
-  {q:'Inflation is high and rising. What would a central bank typically do?',o:['Raise policy rates','Cut policy rates','Buy more bonds to push yields down'],a:0,e:'Higher rates make credit dearer and cool demand.'}],
+  {q:'Inflation is high and rising. What would a central bank typically do?',o:['Raise policy rates','Cut policy rates','Buy more bonds to push yields down'],a:0,e:'Higher rates make credit dearer and cool demand.'},
+  {q:'What does the inflation rate measure?',o:['The change in the general price level','The size of the national debt','The share of people without a job'],a:0,e:'Inflation is the rate at which the general price level rises.'},
+  {q:'When the price of a bond rises, what happens to its yield?',o:['It falls','It rises','It stays the same'],a:0,e:'Price and yield move in opposite directions.'}],
  'itprb:4':[
   {q:'What is the main purpose of a low-fidelity prototype?',o:['To impress with polish','To test ideas early and cheaply','To replace the final product'],a:1,e:'Cheap and rough means you can change direction before building the real thing.'},
   {q:'In ideation, what should come first?',o:['Pick the single best idea','Generate many ideas without judging','Write the documentation'],a:1,e:'Diverge first, converge later.'},
@@ -141,7 +157,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{}};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 /* Untrusted data (backup files, the cloud copy) is cleaned before it is used: ids are checked because they end up in the page, text is trimmed, odd keys are dropped. */
@@ -158,11 +174,12 @@ function scrub(v,d){
 function clean(s){
   s=scrub(s,0);if(!s||typeof s!=='object'||Array.isArray(s))throw new Error('shape');
   fill(s);
-  ['lit','seen','notes','tasksDone','lvl','pin','deco','paid','iliasKnown','iliasDismissed','iliasHash','iliasImported','scenery','sceneOwn'].forEach(function(k){if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))s[k]={};});
+  ['lit','seen','notes','tasksDone','lvl','pin','deco','paid','iliasKnown','iliasDismissed','iliasHash','iliasImported','scenery','sceneOwn','how'].forEach(function(k){if(!s[k]||typeof s[k]!=='object'||Array.isArray(s[k]))s[k]={};});
   if(!Array.isArray(s.sems)||!Array.isArray(s.deadlines)||!Array.isArray(s.lastImport))throw new Error('lists');
   s.name=String(s.name||'').slice(0,80);
   ['coins','shields','rentAt','lastBackup','snoozeBackup','iliasLast'].forEach(function(k){s[k]=Math.max(0,+s[k]||0);});
   s.lastImport=s.lastImport.map(String).slice(0,500);
+  Object.keys(s.how).forEach(function(k){if(s.how[k]!=='quiz'&&s.how[k]!=='self')delete s.how[k];});
   var used={};
   s.sems.forEach(function(sem){
     if(!sem||typeof sem!=='object'||!ID_OK.test(String(sem.id))||!Array.isArray(sem.modules))throw new Error('sem');
@@ -226,30 +243,10 @@ function save(){
 state=load();
 
 /* ================= file storage (IndexedDB) ================= */
-var FILES=[], dbp, filesOK=true;
-function idb(){
-  if(dbp) return dbp;
-  dbp=new Promise(function(res,rej){
-    if(!window.indexedDB){rej(new Error('no indexedDB'));return;}
-    var r=indexedDB.open('booklyn',1);
-    r.onupgradeneeded=function(){var d=r.result;d.createObjectStore('meta',{keyPath:'id'});d.createObjectStore('blobs');};
-    r.onsuccess=function(){res(r.result);}; r.onerror=function(){rej(r.error);};
-  });
-  return dbp;
-}
-function run(stores,mode,fn){
-  return idb().then(function(d){return new Promise(function(res,rej){
-    var t=d.transaction(stores,mode),out;
-    try{out=fn(t);}catch(e){rej(e);return;}
-    t.oncomplete=function(){res(out&&out.result!==undefined?out.result:undefined);};
-    t.onerror=function(){rej(t.error);}; t.onabort=function(){rej(t.error||new Error('aborted'));};
-  });});
-}
-function dbAll(){return run(['meta'],'readonly',function(t){return t.objectStore('meta').getAll();});}
-function dbPut(m){return run(['meta'],'readwrite',function(t){t.objectStore('meta').put(m);});}
-function dbAdd(m,b){return run(['meta','blobs'],'readwrite',function(t){t.objectStore('meta').put(m);t.objectStore('blobs').put(b,m.id);});}
-function dbBlob(id){return run(['blobs'],'readonly',function(t){return t.objectStore('blobs').get(id);});}
-function dbDel(id){return run(['meta','blobs'],'readwrite',function(t){t.objectStore('meta').delete(id);t.objectStore('blobs').delete(id);});}
+var FILES=[], filesOK=true;
+/* The storage code lives in js/storage.js. Every write resolves only when the browser confirmed it. */
+var dbAll=ST.dbAll, dbPut=ST.dbPut, dbBlob=ST.dbBlob, dbDel=ST.dbDel;
+var fileStore={add:ST.dbAdd,putMany:ST.dbPutMany,delMany:ST.dbDelMany};
 async function sha(file){
   try{
     var b=await file.arrayBuffer(), h=await crypto.subtle.digest('SHA-256',b);
@@ -364,31 +361,37 @@ async function addFiles(list,preset,skipDups){
   var sem=curSem(); if(!sem){toast('Set up a semester first.');return;}
   var arr=Array.prototype.slice.call(list); if(!arr.length) return;
   try{if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();}catch(e){}
-  var added=0,dups=0,failed=0,ids=[],hashes=[];
-  for(var i=0;i<arr.length;i++){
-    var f=arr[i];
-    toast('Adding '+(i+1)+' of '+arr.length+'…',true);
-    var h=await sha(f), dup=h?FILES.filter(function(x){return x.hash===h;})[0]:null;if(h)hashes.push(h);
-    var rec={id:uid(),name:f.name,path:f.webkitRelativePath||'',size:f.size,type:f.type,mtime:f.lastModified,hash:h,addedAt:Date.now(),sem:sem.id,dup:null};
-    if(dup){dups++;continue;}
-    if(preset){
-      if(dup){dups++;continue;}
-      rec.status='imported';rec.mod=preset.mod;rec.unit=preset.unit;rec.include=true;rec.confirmed=true;rec.flag=false;rec.why='';
-    } else {
-      var s=suggest(rec.path||rec.name,sem);
-      var m=s.mod?M(s.mod):null;
-      rec.status='pending';rec.mod=s.mod;rec.unit=s.unit||(m?clamp(weekNo(sem),1,m.units):1);
-      rec.dup=dup?dup.id:null;rec.flag=!s.sure||!!dup;rec.include=!dup;rec.confirmed=false;
-      rec.why=dup?('Same content as “'+dup.name+'”'):s.why;
+  /* A file is listed only after the browser confirmed it stored it (see js/imports.js). */
+  var res=await IM.ingest(arr,{
+    files:FILES,store:fileStore,hashOf:sha,skipDuplicates:skipDups!==false,
+    isQuota:ST.isQuota,explain:ST.explainStorageError,
+    onProgress:function(i,n){toast('Adding '+(i+1)+' of '+n+'…',true);},
+    build:function(f,h,dup){
+      var rec={id:uid(),name:f.name,path:f.webkitRelativePath||'',size:f.size,type:f.type,mtime:f.lastModified,hash:h,addedAt:Date.now(),sem:sem.id,dup:null};
+      if(preset){
+        rec.status='imported';rec.mod=preset.mod;rec.unit=preset.unit;rec.include=true;rec.confirmed=true;rec.flag=false;rec.why='';
+      } else {
+        var sg=suggest(rec.path||rec.name,sem),m=sg.mod?M(sg.mod):null;
+        rec.status='pending';rec.mod=sg.mod;rec.unit=sg.unit||(m?clamp(weekNo(sem),1,m.units):1);
+        rec.dup=dup?dup.id:null;rec.flag=!sg.sure||!!dup;rec.include=!dup;rec.confirmed=false;
+        rec.why=dup?('Same content as “'+dup.name+'”'):sg.why;
+      }
+      return rec;
     }
-    try{await dbAdd(rec,f);FILES.push(rec);ids.push(rec.id);added++;}
-    catch(e){failed++; if(e&&e.name==='QuotaExceededError'){toast('Not enough storage left on this device.');break;}}
-  }
+  });
   $('#toast').classList.remove('show');
-  var msg=added+' file'+(added===1?'':'s')+' added'+(dups?', '+dups+' duplicate'+(dups>1?'s':'')+' skipped':'')+(failed?', '+failed+' failed':'')+'.';
+  /* files that could not be saved stay in a retry list; retrying cannot create duplicates */
+  if(res.failed.length){
+    var prev=ui.failed?ui.failed.items:[];
+    res.failed.forEach(function(x){x.preset=preset||null;});
+    ui.failed={items:prev.concat(res.failed)};
+  }
+  var added=res.added.length,failed=res.failed.length;
+  var msg=added+' file'+(added===1?'':'s')+' added'+(res.dups?', '+res.dups+' duplicate'+(res.dups>1?'s':'')+' skipped':'')+(failed?', '+failed+' could not be saved':'')+'.';
+  if(failed&&res.failed.some(function(x){return x.quota;}))msg+=' The storage on this device is full.';
   if(!preset&&added&&route().name!=='port'){go('#/port');}
   render(); toast(msg);
-  return {added:added,dups:dups,failed:failed,hashes:hashes};
+  return {added:added,dups:res.dups,failed:failed,hashes:res.hashes};
 }
 async function openFile(id){
   var rec=FILES.filter(function(f){return f.id===id;})[0]; if(!rec) return;
@@ -777,7 +780,9 @@ async function iliasCrawl(){
   }
   function addCourse(f){
     var info=f.info;
-    if(info.type==='news'){if(byKey.news)return;byKey.news=1;courses.push({key:'news',name:'ILIAS news',queue:[{url:f.href,depth:IL_LIM.depth}],taken:0,limit:3,pages:0,news:true});return;}
+    if(info.type==='news'){if(byKey.news)return;byKey.news=1;courses.push({key:'news',name:'ILIAS news',queue:[{url:f.href,depth:IL_LIM.depth},
+  {q:'What is a persona used for?',o:['To describe a typical user and keep design decisions focused on them','To list the technical requirements','To track the project budget'],a:0,e:'A persona makes the target user concrete so the team designs for real needs.'},
+  {q:'A test participant struggles with your prototype. What should the moderator do first?',o:['Explain quickly how it works','Stay quiet and observe','End the session'],a:1,e:'The struggle is the data. Observe and take notes before helping.'}],taken:0,limit:3,pages:0,news:true});return;}
     if(info.type==='cat')return;
     var key=info.type+'_'+info.id,alt='ref_'+info.id;
     if(byKey[key]||byKey[alt]||courses.length>=IL_LIM.courses)return;
@@ -863,7 +868,7 @@ async function importIlias(key,batch){
         state.iliasImported[key]=Date.now();if(added.hashes&&added.hashes[0])state.iliasHash[key]=added.hashes[0];
         delete state.iliasDismissed[key];save();out=added.added?'added':'dup';
       }
-      if(!batch)ui.ilias.status=out==='added'?'File added to the Port for review.':out==='dup'?'This content is already in Booklyn, so nothing was duplicated.':'Could not add the file.';
+      if(!batch)ui.ilias.status=out==='added'?'File added to the Port for review.':out==='dup'?'This content is already in Booklyn, so nothing was duplicated.':(added&&added.failed?'Could not save the file on this device. It stays on ILIAS, and you can retry it from the Port.':'Could not add the file.');
     }catch(error){if(!batch)ui.ilias.status='Could not read the downloaded file.';}
   }
   if(!batch){ui.ilias.busy=false;render();}
@@ -975,6 +980,13 @@ function vPort(){
   var list=pending();
   var h='<header class="stack"><p class="eyebrow">Learning Port</p><h1 tabindex="-1" id="h1">Add and sort files</h1><p class="lede">Any file type and any size. Booklyn suggests a module and week from the file name. You decide. Files marked “Check this” stay here until you confirm them.</p></header>';
   h+='<section class="drop" data-drop><h2>Drop files here</h2><p class="lede">or choose them from your computer or phone</p><div class="row" style="justify-content:center"><button class="btn" data-a="pickfiles">Choose files</button><button class="btn ghost" data-a="pickfolder">Choose a folder</button></div></section>';
+  if(ui.failed&&ui.failed.items.length){
+    var fl=ui.failed.items;
+    h+='<section class="card stack" role="alert"><h3>'+fl.length+' file'+(fl.length===1?'':'s')+' could not be saved</h3><ul class="list">'
+      +fl.slice(0,8).map(function(x){return '<li class="foot"><strong>'+esc(x.name)+'</strong> · '+esc(x.reason)+'</li>';}).join('')+(fl.length>8?'<li class="foot">and '+(fl.length-8)+' more.</li>':'')+'</ul>'
+      +'<p class="lede">Nothing was added twice, and files that did save are already in the list. Free some space or try again: only these files are retried.</p>'
+      +'<div class="row"><button class="btn small" data-a="retryfailed">Try these again</button><button class="btn small ghost" data-a="dismissfailed">Dismiss</button></div></section>';
+  }
   var lastChk=state.iliasLast?new Date(state.iliasLast).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   if(!isMobileDevice()||iliasBridge)h+='<section class="card stack"><div class="row" style="justify-content:space-between"><div><p class="eyebrow">HSLU ILIAS</p><h2>Find new files</h2></div><a class="btn ghost small" href="https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show" target="_blank" rel="noopener noreferrer">Open ILIAS ↗</a></div>'
     +'<p class="lede">Booklyn looks for file links on your ILIAS dashboard and linked courses and lists the ones it can read: PDF, Word (.docx), PowerPoint (.pptx) and text files. Videos, audio, images and zips are skipped. Files you already have are recognised by their content, so nothing is added twice. Nothing is downloaded until you press “Add to Port”. Sign in to ILIAS in this browser first.</p>'
@@ -995,7 +1007,7 @@ function vPort(){
   if(dupN)h+='<section class="card stack"><h3>'+dupN+' duplicate'+(dupN===1?'':'s')+' waiting</h3><p class="lede">These files have exactly the same content as a file Booklyn already has. Removing them here only clears the extra copy from the Port.</p><div class="row"><button class="btn small" data-a="rmdups">Remove '+dupN+' duplicate'+(dupN===1?'':'s')+'</button></div></section>';
   var ok=list.filter(eligible).length, held=list.filter(function(f){return f.include&&!eligible(f);}).length;
   h+='<ul class="list">'+list.map(pendingRow).join('')+'</ul>';
-  h+='<div class="actionbar"><div><strong>'+ok+' ready to import</strong><div class="foot">'+(held?held+' need a check first.':'Nothing is held back.')+'</div></div><button class="btn" data-a="import" '+(ok?'':'disabled')+'>Import '+ok+' file'+(ok===1?'':'s')+'</button></div>';
+  h+='<div class="actionbar"><div><strong>'+ok+' ready to import</strong><div class="foot">'+(held?held+' need a check first.':'Nothing is held back.')+'</div></div><button class="btn" data-a="import" '+(ok&&!ui.busyImport?'':'disabled')+'>'+(ui.busyImport?'Importing…':'Import '+ok+' file'+(ok===1?'':'s'))+'</button></div>';
   return h;
 }
 
@@ -1061,20 +1073,20 @@ function mmss(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60
 function quizFor(m,u){var s=semOf(m.id);return s&&s.demo?QUIZ[m.code.toLowerCase()+':'+u]:null;}
 
 /* ================= questions from your own files ================= */
-var STOPW={};('the and for are but not you all can had her was one our out has have this that with from they been were will would there their what about which when your said each she how its who did get may him his than then them these some into only other over such more most very just also like make time even back after use two way could first where those being both under while should because between through during before another does doing against without within along might must much many any own same too off here again once further few nor per via etc eg ie '+
- 'der die das und ist ein eine einer eines einem einen nicht mit von zu den dem des sich auf für als auch sie sind wird werden wurde wurden kann können oder aber wenn dass dies diese dieser dieses diesem diesen bei nach aus über unter noch nur wie was wer wo hat haben sein seine ihre ihr zum zur vom im am um bis durch gegen ohne dann denn doch schon sehr mehr alle alles andere anderen einen jede jeder jedes man wir ihr ich du er es '+
- 'el la los las un una unos unas de del al y en que es por con para como más pero sus este esta estos estas ese esa son fue ser está están hay muy también todo todos cada otro otra entre sobre sin desde hasta cuando donde porque').split(' ').forEach(function(w){if(w)STOPW[w]=1;});
 function loadScript(src){return new Promise(function(res,rej){var el=document.createElement('script');el.src=src;el.onload=res;el.onerror=function(){rej(new Error('script'));};document.head.appendChild(el);});}
+var TEXT_CAP=600000, PDF_PAGES=300;
 async function pdfText(blob){
   if(!window.pdfjsLib){await loadScript('vendor/pdf.min.js');}
   window.pdfjsLib.GlobalWorkerOptions.workerSrc='vendor/pdf.worker.min.js';
-  var doc=await window.pdfjsLib.getDocument({data:await blob.arrayBuffer(),isEvalSupported:false,enableXfa:false}).promise,out=[],n=Math.min(doc.numPages,80);
+  var doc=await window.pdfjsLib.getDocument({data:await blob.arrayBuffer(),isEvalSupported:false,enableXfa:false}).promise,out=[],total=doc.numPages,n=Math.min(total,PDF_PAGES),cut=total>n,len=0;
   for(var p=1;p<=n;p++){
     var pg=await doc.getPage(p),tc=await pg.getTextContent(),line='',last=null;
     tc.items.forEach(function(it){if(last!==null&&Math.abs(it.transform[5]-last)>3)line+='\n';line+=it.str+' ';last=it.transform[5];});
-    out.push(line);if(out.join('\n').length>70000)break;
+    out.push(line);len+=line.length;
+    if(len>TEXT_CAP){cut=p<total;break;}
   }
-  return out.join('\n\n');
+  /* pages are separated by a form feed so questions can say which page they came from */
+  return {text:out.join('\f'),cut:cut};
 }
 async function inflateRaw(d){var ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(d);w.close();return new Uint8Array(await new Response(ds.readable).arrayBuffer());}
 async function unzipSome(buf,want){
@@ -1097,118 +1109,110 @@ function xmlText(xml,tag){
 async function officeText(blob,name){
   var pptx=/\.pptx$/.test(name),files=await unzipSome(await blob.arrayBuffer(),function(n){return pptx?/^ppt\/slides\/slide\d+\.xml$/.test(n):n==='word/document.xml';});
   var keys=Object.keys(files).sort(function(a,b){return (parseInt(a.replace(/\D/g,''),10)||0)-(parseInt(b.replace(/\D/g,''),10)||0);});
-  return keys.map(function(k){return xmlText(new TextDecoder().decode(files[k]),pptx?'a':'w');}).join('\n\n');
+  return keys.map(function(k){return xmlText(new TextDecoder().decode(files[k]),pptx?'a':'w');}).join(pptx?'\f':'\n\n');
 }
+function pageLabelOf(rec){var n=String(rec.name||'').toLowerCase();return /\.pdf$/.test(n)?'p.':/\.pptx$/.test(n)?'slide':'';}
 async function fileText(rec){
-  if(rec.text!==undefined)return rec.text;
-  var blob=await dbBlob(rec.id),name=String(rec.name||'').toLowerCase(),t='';
+  /* textV 2 = complete text with page marks; older cached text was cut at 70 000 characters */
+  if(rec.text!==undefined&&rec.textV===2)return rec.text;
+  var blob=await dbBlob(rec.id),name=String(rec.name||'').toLowerCase(),t='',cut=false;
   if(!blob)return '';
   try{
     if(/\.(txt|md|csv|tex|html?|py|java|js|json|sql)$/.test(name))t=await blob.text();
-    else if(/\.pdf$/.test(name))t=await pdfText(blob);
+    else if(/\.pdf$/.test(name)){var pr=await pdfText(blob);t=pr.text;cut=pr.cut;}
     else if(/\.(docx|pptx)$/.test(name))t=await officeText(blob,name);
   }catch(e){t='';}
-  t=t.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim().slice(0,70000);
-  rec.text=t;try{await dbPut(rec);}catch(e){}
+  t=t.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+  if(t.length>TEXT_CAP){t=t.slice(0,TEXT_CAP);cut=true;}
+  rec.text=t;rec.textV=2;rec.textCut=cut;
+  try{await dbPut(rec);}catch(e){}
   return t;
 }
 function bankKey(k){return 'booklyn:bank:'+k;}
-function bankGet(k){try{var b=JSON.parse(localStorage.getItem(bankKey(k))||'null');if(b&&b.q)return b;}catch(e){}return {q:[],used:[]};}
+function bankGet(k){var b=null;try{b=JSON.parse(localStorage.getItem(bankKey(k))||'null');}catch(e){}return QC.upgradeBank(b);}
 function bankPut(k,b){try{localStorage.setItem(bankKey(k),JSON.stringify(b));}catch(e){}}
-function shuffled(arr,seed){var a=arr.slice(),h=seed>>>0||1;for(var i=a.length-1;i>0;i--){h=(h*1103515245+12345)>>>0;var j=h%(i+1),t=a[i];a[i]=a[j];a[j]=t;}return a;}
-function localQuestions(text,max){
-  var clean=text.replace(/\s+/g,' '),words=clean.match(/[A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ][A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ\-]{4,}/g)||[],freq={};
-  words.forEach(function(w){var l=w.toLowerCase();if(STOPW[l]||l.length>22)return;freq[l]=(freq[l]||0)+1;});
-  var terms=Object.keys(freq).filter(function(w){return freq[w]>=2;}).sort(function(a,b){return freq[b]-freq[a]||(a<b?-1:1);}).slice(0,80);
-  if(terms.length<6)return [];
-  var tset={};terms.forEach(function(t,i){tset[t]=i;});
-  var sents=(clean.match(/[^.!?]{50,230}[.!?]/g)||[]).map(function(x){return x.trim();}).filter(function(x){
-    var w=x.split(' ').length,letters=(x.match(/[A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ]/g)||[]).length;
-    return w>=8&&w<=34&&letters/x.length>.72&&!/https?:|www\.|@|©/.test(x)&&/^[A-ZÄÖÜÁÉÍÓÚÑ]/.test(x);
-  });
-  var out=[],usedT={};
-  shuffled(sents,hashStr(clean.slice(0,200))).forEach(function(sent){
-    if(out.length>=max)return;
-    var toks=sent.match(/[A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ][A-Za-zÄÖÜäöüßÁÉÍÓÚÑáéíóúñ\-]{4,}/g)||[],cand=toks.filter(function(t,i){var l=t.toLowerCase();return tset[l]!==undefined&&sent.indexOf(t)>3&&!usedT[l];});
-    if(!cand.length)return;
-    cand.sort(function(a,b){return tset[b.toLowerCase()]-tset[a.toLowerCase()];});
-    var ans=cand[Math.min(cand.length-1,1)],al=ans.toLowerCase();
-    var re=new RegExp('\\b'+ans.replace(/[-\/\\^$*+?.()|[\]{}]/g,'\\$&')+'\\b','g');
-    if((sent.match(re)||[]).length!==1)return;
-    var dist=terms.filter(function(t){return t!==al&&sent.toLowerCase().indexOf(t)<0&&Math.abs(t.length-al.length)<=4;});
-    function sfx(w){return /ing$/.test(w)?'g':/ed$/.test(w)?'d':/ly$/.test(w)?'y':/s$/.test(w)?'s':'o';}
-    var same=dist.filter(function(t){return sfx(t)===sfx(al);});
-    if(same.length>=3)dist=same;
-    dist=shuffled(dist,hashStr(sent)).slice(0,3);
-    if(dist.length<3)return;
-    var cap=/^[A-ZÄÖÜÁÉÍÓÚÑ]/.test(ans);
-    var opts=dist.map(function(d){return cap?d.charAt(0).toUpperCase()+d.slice(1):d;});opts.push(ans);
-    var order=shuffled([0,1,2,3],hashStr(sent+'o')),o2=order.map(function(i){return opts[i];});
-    usedT[al]=1;
-    out.push({id:'l'+hashStr(sent),q:'Fill in the blank: “'+sent.replace(re,'_____')+'”',o:o2,a:o2.indexOf(ans),e:'From your file: “'+sent+'”',src:'local',asked:0});
-  });
-  return out;
-}
-function chunksOf(text,size){var parts=text.split(/\n\n+/),chunks=[],cur='';parts.forEach(function(p){if((cur+p).length>size&&cur.length>600){chunks.push(cur);cur='';}cur+=(cur?'\n\n':'')+p;});if(cur.length>300)chunks.push(cur);return chunks.map(function(c){return c.slice(0,size);});}
-async function aiMore(text,bank){
-  var chunks=chunksOf(text,3500);if(!chunks.length)return 0;
-  var free=chunks.map(function(c,i){return i;}).filter(function(i){return bank.used.indexOf(hashStr(chunks[i]))<0;});
-  var pick=free.length?free[Math.floor(Math.random()*free.length)]:Math.floor(Math.random()*chunks.length);
-  var r=await api('POST','/api/quiz',{text:chunks[pick],n:4});
+function allBanks(){var o={};try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key&&key.indexOf('booklyn:bank:')===0){var k=key.slice(13);try{o[k]=JSON.parse(localStorage.getItem(key));}catch(e){}}}}catch(e){}return o;}
+function clearBanks(){try{var del=[];for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(key&&key.indexOf('booklyn:bank:')===0)del.push(key);}del.forEach(function(k){localStorage.removeItem(k);});}catch(e){}}
+async function aiMore(items,bank){
+  /* items: [{rec, text}]. Every chunk of every file can be picked; chunks already used are avoided. */
+  var all=[];
+  items.forEach(function(it){QC.chunksOf(it.text.replace(/\f/g,'\n\n'),3500).forEach(function(c){all.push({rec:it.rec,text:c,h:hashStr(c)});});});
+  if(!all.length)return 0;
+  var free=all.filter(function(c){return bank.used.indexOf(c.h)<0;});
+  var pool=free.length?free:all,pick=pool[Math.floor(Math.random()*pool.length)];
+  var r=await api('POST','/api/quiz',{text:pick.text,n:4});
   if(!r.ok||!r.questions){
     if(r.status===429)SYNC.aiMsg='The daily AI limit is used up. Booklyn used questions made on your device instead.';
     else if(r.status===503)SYNC.aiMsg='The AI service is not set up yet. Booklyn used questions made on your device instead.';
     else if(r.status===401)SYNC.aiMsg='Sign in to use AI questions.';
     return 0;
   }
-  bank.used.push(hashStr(chunks[pick]));
-  var have={};bank.q.forEach(function(q){have[q.q]=1;});var n=0;
-  r.questions.forEach(function(q){if(have[q.q])return;bank.q.push({id:'a'+hashStr(q.q),q:q.q,o:q.o,a:q.a,e:q.e,src:'ai',asked:0});n++;});
-  return n;
+  bank.used.push(pick.h);
+  var made=r.questions.map(function(q){return {id:'a'+hashStr(q.q),q:q.q,o:q.o,a:q.a,e:q.e,src:'ai'};});
+  return QC.addQuestions(bank,made,QC.fileKey(pick.rec),pick.rec.name);
 }
+/* Result: {quiz:[5 questions], notes:[]} or {fail:'nofiles'|'notext'|'timeout'|'few'|'error', have:n} */
 async function prepareQuiz(m,u){
   var k=m.id+':'+u,recs=FILES.filter(function(f){return f.status==='imported'&&f.mod===m.id&&f.unit===u;});
-  if(!recs.length)return null;
-  var texts=await Promise.race([Promise.all(recs.map(fileText)),new Promise(function(res){setTimeout(function(){res([]);},25000);})]);
-  var text=texts.filter(Boolean).join('\n\n');
-  if(text.length<400)return null;
-  var bank=bankGet(k);
-  bank.q=bank.q.filter(function(q){return !q.bad;});
-  var hasLocal=bank.q.some(function(q){return q.src==='local';});
-  if(!hasLocal)localQuestions(text,14).forEach(function(q){if(!bank.q.some(function(x){return x.id===q.id;}))bank.q.push(q);});
+  if(!recs.length)return {fail:'nofiles'};
+  var texts=await Promise.race([Promise.all(recs.map(fileText)),new Promise(function(res){setTimeout(function(){res(null);},25000);})]);
+  if(!texts)return {fail:'timeout'};
+  var items=recs.map(function(r,i){return {rec:r,text:texts[i]||''};}).filter(function(x){return x.text.length>=150;});
+  if(!items.length)return {fail:'notext'};
+  var bank=bankGet(k),sy=QC.syncBank(bank,items.map(function(x){return x.rec;}));
+  /* only files that are new, or whose content changed, need new questions; questions of removed files were dropped above */
+  items.forEach(function(it){
+    var fk=QC.fileKey(it.rec);if(bank.done[fk])return;
+    QC.addQuestions(bank,QC.localQuestions(it.text,20,{pageLabel:pageLabelOf(it.rec)}),fk,it.rec.name);
+    bank.done[fk]=true;
+  });
   SYNC.aiMsg='';
-  var freshAi=bank.q.filter(function(q){return q.src==='ai'&&!q.asked;}).length;
-  if(state.aiOpt&&SYNC.me&&navigator.onLine!==false&&freshAi<3){try{await aiMore(text,bank);}catch(e){}}
-  var seed=Date.now()&0xffff;
-  function low(arr){return shuffled(arr,seed).sort(function(x,y){return (x.asked||0)-(y.asked||0);});}
-  var ais=low(bank.q.filter(function(q){return q.src==='ai';})),locs=low(bank.q.filter(function(q){return q.src==='local';}));
-  var pick=ais.filter(function(q){return !q.asked;}).slice(0,3);
-  locs.forEach(function(q){if(pick.length<3&&pick.indexOf(q)<0)pick.push(q);});
-  ais.forEach(function(q){if(pick.length<3&&pick.indexOf(q)<0)pick.push(q);});
-  if(pick.length<3){bankPut(k,bank);return null;}
-  pick.forEach(function(q){q.asked=(q.asked||0)+1;});
+  var freshAi=bank.q.filter(function(q){return q.src==='ai'&&!(bank.stats[q.id]&&bank.stats[q.id].asked);}).length;
+  if(state.aiOpt&&SYNC.me&&navigator.onLine!==false&&freshAi<3){try{await aiMore(items,bank);}catch(e){}}
+  var valid=bank.q.filter(QC.validQuestion).length,quiz=QC.selectQuiz(bank,QC.QUIZ_LEN,Date.now()&0xffff);
+  if(!quiz){bankPut(k,bank);return {fail:'few',have:valid};}
+  QC.markAsked(bank,quiz.map(function(q){return q.id;}));
   bankPut(k,bank);
-  return pick.map(function(q){return {id:q.id,q:q.q,o:q.o,a:q.a,e:q.e,src:q.src,k:k};});
+  var notes=recs.filter(function(r){return r.textCut;}).map(function(r){return 'Only the first part of “'+r.name+'” was read (it is very long).';});
+  return {quiz:quiz.map(function(q){q.k=k;return q;}),notes:notes};
 }
+function newStudy(k){return {k:k,step:'focus',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false,answers:[],refunded:false,fail:null,have:0,notes:[],quiz:null};}
 function goCheck(){
   var mm=M(study.k.split(':')[0]),uu=+study.k.split(':')[1];
   if(quizFor(mm,uu)){study.step='check';render(true);return;}
   var key=study.k;study.step='prep';render(true);
-  prepareQuiz(mm,uu).catch(function(){return null;}).then(function(qs){
+  prepareQuiz(mm,uu).catch(function(){return {fail:'error'};}).then(function(res){
     if(!study||study.k!==key)return;
-    study.quiz=qs;study.q=0;study.score=0;study.picked=null;study.step='check';render(true);
+    study.quiz=res.quiz||null;study.fail=res.fail||null;study.have=res.have||0;study.notes=res.notes||[];
+    study.q=0;study.score=0;study.picked=null;study.answers=[];study.refunded=false;study.step='check';render(true);
   });
 }
 function reportBad(){
-  var q=study&&study.quiz&&study.quiz[study.q];if(!q)return;
+  var q=study&&study.quiz&&study.quiz[study.q];if(!q||!q.k)return;
   var b=bankGet(q.k);b.q.forEach(function(x){if(x.id===q.id)x.bad=true;});bankPut(q.k,b);
-  study.picked=study.picked===null?-1:study.picked;toast('Thanks. That question will not come back.');
+  var a=study.answers[study.q],msg='Thanks. That question will not come back.';
+  if(a&&!a.bad){a.bad=true;if(!a.ok&&!study.refunded){study.refunded=true;study.score++;a.ok=true;msg+=' You get the point back for it.';}}
+  toast(msg);
+}
+function noQuizText(){
+  var f=study.fail;
+  if(f==='few')return 'Booklyn could only make '+study.have+' good question'+(study.have===1?'':'s')+' from the files in this unit. A quiz needs '+QC.QUIZ_LEN+', so it will not give you a shorter one. Add more material to the unit, or use the self-check below.';
+  if(f==='nofiles')return 'This unit has no imported files yet, so Booklyn has nothing to ask about. Import the slides or script first, or use the self-check below.';
+  if(f==='notext')return 'Booklyn could not read enough text in these files (scanned pages and pictures cannot be read). You can use the self-check below.';
+  if(f==='timeout')return 'Reading the files took too long. Booklyn keeps what it already read, so trying again is usually faster.';
+  if(f==='error')return 'Something went wrong while preparing the questions. You can try again or use the self-check below.';
+  return '';
 }
 
+function missedHTML(){
+  var miss=study.answers.filter(function(a){return a&&!a.ok&&!a.bad;});
+  if(!miss.length)return '';
+  return '<div class="stack"><h3>Review what you missed</h3><ul class="list">'+miss.map(function(a){var q=a.q;return '<li class="foot"><strong>'+esc(q.q)+'</strong><br>Right answer: '+esc(q.o[q.a])+'. '+esc(q.e)+'</li>';}).join('')+'</ul><p class="foot">These questions come back first next time.</p></div>';
+}
 function vStudy(r){
   var m=r.m,u=r.u,k=m.id+':'+u;
-  if(!study||study.k!==k) study={k:k,step:'focus',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false};
-  var quiz=study.quiz||quizFor(m,u);
+  if(!study||study.k!==k) study=newStudy(k);
+  var quiz=study.quiz||quizFor(m,u),N=quiz?quiz.length:0;
   var steps='<div class="steps" aria-hidden="true"><i class="on"></i><i class="'+(study.step!=='focus'?'on':'')+'"></i><i class="'+(study.step==='result'?'on':'')+'"></i></div>';
   var h='<button class="back" data-a="leave" data-to="#/m/'+m.id+'/'+u+'">← Leave block</button><header class="stack"><p class="eyebrow">'+esc(m.code)+' · Floor '+u+'</p><h1 tabindex="-1" id="h1">'+esc(m.titles[u-1])+'</h1>'+steps+'</header>';
   if(study.step==='focus'){
@@ -1219,19 +1223,26 @@ function vStudy(r){
   } else if(study.step==='prep'){
     h+='<section class="card stack" style="text-align:center"><p class="eyebrow">2 · Check</p><h2>Preparing your questions…</h2><p class="lede">Booklyn is reading your files for this unit. This can take a few seconds the first time.</p></section>';
   } else if(study.step==='check'&&quiz){
-    var q=quiz[study.q],L=['A','B','C','D'];
-    h+='<section class="card stack"><p class="eyebrow">2 · Check · Question '+(study.q+1)+' of 3</p><h2>'+esc(q.q)+'</h2><div class="stack">'
+    var q=quiz[study.q],L=['A','B','C','D','E'],srcLine=QC.sourceLine(q);
+    h+='<section class="card stack"><p class="eyebrow">2 · Quiz · Question '+(study.q+1)+' of '+N+'</p><div class="bar" aria-hidden="true"><i style="width:'+Math.round(study.q/N*100)+'%"></i></div>'
+     +'<p class="foot">Get '+QC.PASS_MIN+' of '+QC.QUIZ_LEN+' right ('+QC.PASS_PCT+' %) to turn the light on. Right so far: '+study.score+'.</p>'
+     +'<h2>'+esc(q.q)+'</h2><div class="stack">'
      +q.o.map(function(o,i){var cls=study.picked===null?'':(i===q.a?' right':(i===study.picked?' wrong':''));return '<button class="opt'+cls+'" data-a="pick" data-i="'+i+'" '+(study.picked!==null?'disabled':'')+'><span class="k">'+L[i]+'</span><span>'+esc(o)+'</span></button>';}).join('')+'</div>'
-     +(study.picked!==null?'<div class="notice" role="status"><strong>'+(study.picked===q.a?'Correct. ':'Not quite. ')+'</strong>'+esc(q.e)+'</div><div class="row"><button class="btn" data-a="nextq">'+(study.q<2?'Next question':'See result')+'</button>'+(q.k?'<button class="btn ghost small" data-a="badq">Report a bad question</button>':'')+'</div>':'')+(q.k?'<p class="foot">'+(q.src==='ai'?'Written by an AI from your files. It can be wrong: check it against the material.':'Made on your device from your files.')+'</p>':'')+(SYNC.aiMsg&&study.q===0?'<p class="foot">'+esc(SYNC.aiMsg)+'</p>':'')+'</section>';
+     +(study.picked!==null?'<div class="notice" role="status"><strong>'+(study.picked===q.a?'Correct. ':'Not quite. ')+'</strong>'+esc(q.e)+'</div><div class="row"><button class="btn" data-a="nextq">'+(study.q<N-1?'Next question':'See result')+'</button>'+(q.k?'<button class="btn ghost small" data-a="badq">Report a bad question</button>':'')+'</div>':'')
+     +(srcLine?'<p class="foot">Source: '+esc(srcLine)+'</p>':'')
+     +(q.k?'<p class="foot">'+(q.src==='ai'?'Written by an AI from your files. It can be wrong: check it against the material.':'Made on your device from your files.')+'</p>':'')+(SYNC.aiMsg&&study.q===0?'<p class="foot">'+esc(SYNC.aiMsg)+'</p>':'')
+     +(study.notes.length&&study.q===0?'<p class="foot">'+esc(study.notes.join(' '))+'</p>':'')+'</section>';
   } else if(study.step==='check'){
-    var ps=['Explain “'+m.titles[u-1]+'” in one sentence without looking.','Name two terms from this unit that you could define to a friend.','Solve or sketch one exercise from the material.'];
-    h+='<section class="card stack"><p class="eyebrow">2 · Self-check</p><h2>Tick what you can do without notes</h2><div class="stack">'
+    var ps=['Explain “'+m.titles[u-1]+'” in one sentence without looking.','Name two terms from this unit that you could define to a friend.','Solve or sketch one exercise from the material.'],nq=noQuizText();
+    if(nq)h+='<section class="card stack"><p class="eyebrow">2 · Quiz</p><h2>No quiz this time</h2><p class="lede">'+esc(nq)+'</p>'+(study.fail==='timeout'||study.fail==='error'?'<div class="row"><button class="btn" data-a="retryprep">Try again</button></div>':'')+'</section>';
+    h+='<section class="card stack"><p class="eyebrow">2 · Self-check (not a quiz)</p><h2>Tick what you can do without notes</h2><div class="stack">'
      +ps.map(function(p,i){return '<label class="check"><input type="checkbox" data-c="self" data-i="'+i+'" '+(study.checks[i]?'checked':'')+'><div class="t">'+esc(p)+'</div></label>';}).join('')+'</div>'
-     +'<p class="foot">Pass with at least 2 of 3. Be honest. This is only for you.</p><div class="row"><button class="btn" data-a="finishself" '+(study.checks.filter(Boolean).length>=2?'':'disabled')+'>Finish</button></div></section>';
+     +'<p class="foot">Tick at least 2 of 3. Be honest. This only marks the floor as “Reviewed”. It does not count as a passed quiz.</p><div class="row"><button class="btn" data-a="finishself" '+(study.checks.filter(Boolean).length>=2?'':'disabled')+'>Finish self-check</button></div></section>';
   } else {
+    var viaQuiz=!!quiz;
     h+=study.passed
-     ?'<section class="card stack" style="text-align:center"><div class="big">'+building(m,u)+'</div><h2>The light is on</h2><p class="lede" style="margin:0 auto">'+(quiz?study.score+' of 3 correct. ':'')+litCount(m)+' of '+m.units+' floors in '+esc(m.code)+' have their lights on.</p>'+rewardHTML()+'<div class="row" style="justify-content:center"><button class="btn" data-a="go" data-to="#/m/'+m.id+'">Back to '+esc(m.code)+'</button><button class="btn ghost" data-a="go" data-to="#/">Campus</button></div></section>'
-     :'<section class="card stack"><h2>'+study.score+' of 3. One more pass.</h2><p class="lede">You need 2 correct to turn the light on. Re-read the material, then try again.</p><div class="row"><button class="btn" data-a="retry">Try again</button><button class="btn ghost" data-a="go" data-to="#/m/'+m.id+'/'+u+'">Back to material</button></div></section>';
+     ?'<section class="card stack" style="text-align:center"><div class="big">'+building(m,u)+'</div><h2>The light is on</h2><p class="lede" style="margin:0 auto">'+(viaQuiz?'Quiz passed: '+study.score+' of '+N+' correct ('+QC.PASS_PCT+' % needed). ':'Reviewed by self-check, not by a quiz. ')+litCount(m)+' of '+m.units+' floors in '+esc(m.code)+' have their lights on.</p>'+rewardHTML()+(viaQuiz?missedHTML():'')+'<div class="row" style="justify-content:center"><button class="btn" data-a="go" data-to="#/m/'+m.id+'">Back to '+esc(m.code)+'</button><button class="btn ghost" data-a="go" data-to="#/">Campus</button></div></section>'
+     :'<section class="card stack"><h2>'+study.score+' of '+(N||QC.QUIZ_LEN)+'. One more pass.</h2><p class="lede">You need '+QC.PASS_MIN+' of '+QC.QUIZ_LEN+' correct ('+QC.PASS_PCT+' %) to turn the light on. Re-read the material, then try again.</p>'+missedHTML()+'<div class="row"><button class="btn" data-a="retry">Try again</button><button class="btn ghost" data-a="go" data-to="#/m/'+m.id+'/'+u+'">Back to material</button></div></section>';
   }
   return h;
 }
@@ -1310,7 +1321,7 @@ function vSettings(){
   if(sem) h+='<section class="card stack"><h3>'+esc(sem.name)+'</h3><div class="row"><button class="btn small ghost" data-a="finish">'+(sem.finished?'Reopen this semester':'Mark as finished')+'</button><button class="btn small ghost" data-a="newsem">＋ New semester</button></div>'
    +'<div class="row">'+(ui.confirm==='sem'?'<button class="btn small danger" data-a="rmsem2">Remove it and its files</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="rmsem1">Remove this semester…</button>')+'</div></section>';
   h+='<section class="card stack"><h3>Storage</h3><p class="lede" id="stor">Checking…</p><div class="row"><button class="btn small ghost" data-a="persist">Ask the browser to keep my files</button></div></section>';
-  h+='<section class="card stack"><h3>Back up your progress</h3><p class="lede">'+(state.lastBackup?'Last backup: '+new Date(state.lastBackup).toLocaleDateString('en-GB')+'. ':'No backup yet. ')+'Download a file with your semesters, lights, notes and deadlines. Keep it in a safe place such as your cloud drive. The imported files themselves are not included, so keep the originals.</p><textarea id="bk" aria-label="Backup text" spellcheck="false" placeholder="Press “Create backup text”"></textarea><div class="row"><button class="btn small" data-a="dlbackup">Download backup file</button><button class="btn small ghost" data-a="loadbackup">Restore from file</button><input type="file" id="bkfile" accept=".json,application/json" hidden><button class="btn small ghost" data-a="export">Create backup text</button><button class="btn small ghost" data-a="restore">Restore from text</button></div></section>';
+  h+=backupCardHTML();
   h+=accountCard();
   if(devOn())h+='<section class="card stack"><details id="devtools"'+(ui.devOpen?' open':'')+'><summary><h3 style="display:inline">Testing tools</h3></summary><p class="lede" style="margin:8px 0">For the project team. Hide these before the user tests.</p><div class="row"><button class="btn small" data-a="tcoins" data-n="1000">Add 1,000 coins</button><button class="btn small ghost" data-a="tcoins" data-n="-9999999">Set coins to 0</button></div><div class="row" style="margin-top:8px"><button class="btn small ghost" data-a="tage" data-n="8">Age all lights 8 days</button><button class="btn small ghost" data-a="tage" data-n="20">Age all lights 20 days</button><button class="btn small ghost" data-a="trent">Make 3 days of rent due</button></div></details></section>';
   h+='<section class="card stack"><h3>Reset everything</h3><p class="lede">Deletes all semesters, progress and imported files from this device.</p><div class="row">'+(ui.confirm==='all'?'<button class="btn small danger" data-a="reset2">Yes, delete everything</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="reset1">Reset…</button>')+'</div></section>';
@@ -1347,6 +1358,105 @@ async function storageInfo(){
     var n=FILES.filter(function(f){return f.status==='imported';}).reduce(function(a,f){return a+f.size;},0);
     el.textContent=FILES.filter(function(f){return f.status==='imported';}).length+' files, '+size(n)+' of your files. Browser storage used: '+size(e.usage||0)+' of about '+size(e.quota||0)+'. '+(p===true?'The browser has promised to keep your data.':p===false?'The browser may clear this data if the device runs low on space.':'');
   }catch(x){el.textContent='Storage information is not available in this browser.';}
+}
+
+
+/* ================= backups and restore (logic in js/backup.js) ================= */
+function saveErr(e){return 'Could not save that change. '+ST.explainStorageError(e)+' Nothing was changed.';}
+function b64(blob){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){var d=String(r.result);res(d.slice(d.indexOf(',')+1));};r.onerror=function(){rej(r.error);};r.readAsDataURL(blob);});}
+function unb64(str){var bin=atob(str),n=bin.length,u=new Uint8Array(n);for(var i=0;i<n;i++)u[i]=bin.charCodeAt(i);return u;}
+async function sha256Bytes(u8){var h=await crypto.subtle.digest('SHA-256',u8);return Array.prototype.map.call(new Uint8Array(h),function(x){return ('0'+x.toString(16)).slice(-2);}).join('');}
+function prepState(s2){
+  if(!s2||typeof s2.schema!=='number')throw new Error('shape');
+  if(s2.schema>SCHEMA){var e=new Error('newer');e.newer=true;throw e;}
+  while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg)throw new Error('migration');s2=mg(s2);}
+  return clean(s2);
+}
+function hideToast(){var t=$('#toast');if(t)t.classList.remove('show');}
+async function fullBackup(){
+  if(ui.bk&&ui.bk.busy)return;
+  ui.bk={busy:true};render();
+  try{
+    var out=await BK.buildFullBackup({state:state,banks:allBanks(),files:FILES},{readBlob:dbBlob,toBase64:b64,onProgress:function(i,n){toast('Packing file '+(i+1)+' of '+n+'…',true);}});
+    var blob=new Blob(out.parts,{type:'application/x-ndjson'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='booklyn-full-backup-'+new Date().toISOString().slice(0,10)+'.ndjson';document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},60000);
+    state.lastBackup=Date.now();save();ui.bk=null;hideToast();render();
+    toast('Full backup saved: '+out.files+' file'+(out.files===1?'':'s')+', '+size(out.bytes)+'.'+(out.missing.length?' '+out.missing.length+' file'+(out.missing.length===1?'':'s')+' could not be read and '+(out.missing.length===1?'is':'are')+' not in it.':' Keep it somewhere safe.'));
+  }catch(e){
+    ui.bk=null;hideToast();render();
+    toast('Could not create the full backup. '+(/memory|allocation|quota/i.test(String(e&&(e.name+' '+e.message)))?'There is not enough memory for this many files. Use the progress backup and keep your original files.':'Try again, or use the progress backup.'));
+  }
+}
+async function startRestore(blob){
+  if(ui.restore&&ui.restore.busy)return;
+  toast('Checking the backup…',true);
+  try{
+    var parsed=await BK.readBackup(blob,{prepareState:prepState,fromBase64:unb64,sha256:sha256Bytes,upgradeBank:QC.upgradeBank,validQuestion:QC.validQuestion,onProgress:function(pos,total){toast('Checking the backup… '+Math.round(pos/Math.max(1,total)*100)+' %',true);}});
+    hideToast();ui.restore={parsed:parsed,desc:BK.describeBackup(parsed),busy:false,error:''};render();
+    var el=$('#restorebox');if(el&&el.scrollIntoView)el.scrollIntoView({block:'center'});
+  }catch(e){
+    hideToast();ui.restore=null;render();
+    toast(e instanceof BK.BackupError?e.message:'That file could not be read. Nothing was changed.');
+  }
+}
+/* Everything is computed and checked first. The first thing written is the files (one transaction: all or nothing).
+   Only after that succeeded do the progress data and question sets change. */
+async function applyRestore(mode){
+  var R=ui.restore;if(!R||R.busy)return;
+  var p=R.parsed;R.busy=true;R.error='';render();
+  try{
+    var newState,banks={},items=p.files,full=p.kind==='full';
+    if(mode==='merge'){
+      newState=clean(BK.mergeStates(state,p.state).state);
+      var haveId={},haveHash={},semOk={};
+      FILES.forEach(function(f){haveId[f.id]=1;if(f.hash)haveHash[f.hash]=1;});
+      newState.sems.forEach(function(sm){semOk[sm.id]=1;});
+      items=items.filter(function(it){return !haveId[it.meta.id]&&!(it.meta.hash&&haveHash[it.meta.hash])&&semOk[it.meta.sem];});
+      Object.keys(p.banks).forEach(function(k){banks[k]=BK.mergeBanks(bankGet(k),p.banks[k]);});
+    } else {
+      newState=p.state;banks=p.banks;
+    }
+    if(items.length)await ST.dbAddMany(items.map(function(it){return {meta:it.meta,blob:it.blob};}));
+    var oldFiles=FILES;
+    if(mode==='replace'&&full)FILES=items.map(function(it){return it.meta;});
+    else FILES=FILES.concat(items.map(function(it){return it.meta;}));
+    state=newState;
+    if(mode==='replace')clearBanks();
+    Object.keys(banks).forEach(function(k){bankPut(k,banks[k]);});
+    state.lastImport=state.lastImport.filter(function(i){return !!fileById(i);});
+    save();
+    var warn='';
+    if(mode==='replace'&&full){
+      var keep={};items.forEach(function(it){keep[it.meta.id]=1;});
+      var rr=await IM.removeFiles(fileStore,oldFiles.filter(function(f){return !keep[f.id];}).map(function(f){return f.id;}));
+      if(!rr.ok)warn=' Some older files on this device could not be removed.';
+    }
+    ui.restore=null;render(true);
+    toast((mode==='merge'?'Merged: ':'Restored: ')+items.length+' file'+(items.length===1?'':'s')+' and your progress.'+warn);
+  }catch(e){
+    R.busy=false;R.error='Nothing was changed. '+(ST.isQuota(e)?'There is not enough storage left on this device for the files in this backup.':'The restore did not finish.');
+    render();
+  }
+}
+function backupCardHTML(){
+  var imported=FILES.length,bytes=FILES.reduce(function(a,f){return a+(f.size||0);},0),busy=ui.bk&&ui.bk.busy;
+  var h='<section class="card stack"><h3>Back up your data</h3><p class="lede">'+(state.lastBackup?'Last backup: '+new Date(state.lastBackup).toLocaleDateString('en-GB')+'. ':'No backup yet. ')+'Keep backup files somewhere safe, such as your cloud drive.</p>';
+  h+='<ul class="list">'+BK.DATA_MAP.map(function(d){return '<li class="foot"><strong>'+esc(d.what)+'</strong><br>'+(d.sync?'Synced with your account: yes':'Synced: no, this device only')+' · Progress backup: '+(d.light?'yes':'no')+' · Full backup: '+(d.full?'yes':'no')+'</li>';}).join('')+'</ul>';
+  h+='<div class="row"><button class="btn small" data-a="dlbackup">Download progress backup</button><button class="btn small" data-a="dlfull" '+(busy?'disabled':'')+'>'+(busy?'Packing…':'Download full backup')+'</button></div>';
+  h+='<p class="foot">The full backup adds your '+imported+' imported file'+(imported===1?'':'s')+' ('+size(bytes)+'), where each one belongs and your practice questions. It is a larger file and takes longer to create.</p>';
+  h+='<div class="row"><button class="btn small ghost" data-a="loadbackup">Restore from a backup file…</button><input type="file" id="bkfile" accept=".json,.ndjson,.txt,application/json" hidden></div>';
+  if(ui.restore){
+    var R=ui.restore,d=R.desc,full=d.kind==='full';
+    h+='<div class="notice" id="restorebox" role="region" aria-label="Restore this backup"><strong>'+(full?'Full backup':'Progress backup')+'</strong>'+(d.createdAt?' · made '+esc(new Date(d.createdAt).toLocaleDateString('en-GB')):'')+'<br>It contains '+d.semesters+' semester'+(d.semesters===1?'':'s')+', '+d.modules+' module'+(d.modules===1?'':'s')+', '+d.lights+' lit floor'+(d.lights===1?'':'s')+', '+d.deadlines+' deadline'+(d.deadlines===1?'':'s')+', '+d.coins+' coins'+(full?', '+d.files+' file'+(d.files===1?'':'s')+' and '+d.banks+' question set'+(d.banks===1?'':'s'):'')+'. The backup was checked and nothing has been changed yet.'
+      +(R.parsed.notes.length?'<br>'+esc(R.parsed.notes.slice(0,4).join(' ')):'')
+      +'<div class="stack" style="margin-top:10px"><div><strong>Merge</strong> adds what is missing on this device and keeps what you have. If both have the same item, this device wins. Coins take the higher number, and a light that is on in either place stays on.</div>'
+      +'<div><strong>Replace</strong> makes this device match the backup. Your current progress is overwritten'+(full?', and files that are not in the backup are removed from this device.':'. Files already on this device stay.')+'</div></div>'
+      +(R.error?'<p class="foot" role="alert"><strong>'+esc(R.error)+'</strong></p>':'')
+      +'<div class="row" style="margin-top:10px"><button class="btn small" data-a="rmerge" '+(R.busy?'disabled':'')+'>Merge</button><button class="btn small danger" data-a="rreplace" '+(R.busy?'disabled':'')+'>Replace</button><button class="btn small ghost" data-a="rcancel" '+(R.busy?'disabled':'')+'>Cancel</button></div>'+(R.busy?'<p class="foot" role="status">Restoring… do not close this page.</p>':'')+'</div>';
+  }
+  h+='<details><summary class="foot">Progress backup as text</summary><textarea id="bk" aria-label="Backup text" spellcheck="false" placeholder="Press “Create backup text”, or paste a backup here"></textarea><div class="row"><button class="btn small ghost" data-a="export">Create backup text</button><button class="btn small ghost" data-a="restore">Check pasted backup</button></div></details></section>';
+  return h;
 }
 
 /* ================= timer ================= */
@@ -1387,7 +1497,13 @@ function rewardHTML(){
   var r=study&&study.reward;if(!r||!r.coins)return '';
   return '<div class="reward"><i class="cdot"></i><b>+'+r.coins+' coins</b><span>'+esc(r.notes.join(' · '))+'</span></div>';
 }
-function finishQuiz(){study.step='result';study.passed=study.score>=2;if(study.passed)study.reward=setLit(study.k);}
+function finishQuiz(){
+  var qz=study.quiz||quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1]);
+  study.step='result';
+  /* a quiz passes with 4 of 5; the self-check is a separate, weaker path and is recorded as such */
+  study.passed=qz?QC.isPass(study.score,qz.length):study.score>=2;
+  if(study.passed){state.how[study.k]=qz?'quiz':'self';study.reward=setLit(study.k);}
+}
 function fileById(id){return FILES.filter(function(f){return f.id===id;})[0];}
 function demoSem(){
   var mods=DEMO.map(function(d){
@@ -1503,25 +1619,44 @@ document.addEventListener('click',function(e){
   else if(a==='pickfolder'){ui.preset=null;$('#fd').click();}
   else if(a==='pickhere'){ui.preset={mod:b.dataset.mod,unit:+b.dataset.unit};$('#fi').click();}
   else if(a==='samples'){sampleFiles();}
-  else if(a==='confirm'){var f=fileById(id);if(f){f.confirmed=true;dbPut(f);render();}}
+  else if(a==='confirm'){var f=fileById(id);if(f){IM.commitPatch(fileStore,[f],function(){return {confirmed:true};}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();});}}
   else if(a==='import'){
-    var n=[];pending().forEach(function(f){if(eligible(f)){f.status='imported';dbPut(f);n.push(f.id);}});
-    state.lastImport=n;save();render(true);toast(n.length+' file'+(n.length===1?'':'s')+' imported. Your floors are ready.');
+    if(ui.busyImport)return;
+    ui.busyImport=true;render();
+    /* the files are marked as imported only after the browser confirmed the write */
+    IM.commitPatch(fileStore,pending().filter(eligible),function(){return {status:'imported'};}).then(function(r){
+      ui.busyImport=false;
+      if(!r.ok){render();toast('Import failed. '+ST.explainStorageError(r.error)+' Your files are still waiting in the Port. Try again.');return;}
+      state.lastImport=r.changed;save();render(true);toast(r.changed.length+' file'+(r.changed.length===1?'':'s')+' imported. Your floors are ready.');
+    });
   }
-  else if(a==='undo'){state.lastImport.forEach(function(i){var f=fileById(i);if(f){f.status='pending';f.confirmed=true;dbPut(f);}});state.lastImport=[];save();render(true);toast('Import undone. The files are back in the Port.');}
+  else if(a==='undo'){
+    var back=state.lastImport.map(fileById).filter(Boolean);
+    IM.commitPatch(fileStore,back,function(){return {status:'pending',confirmed:true};}).then(function(r){
+      if(!r.ok){toast('Could not undo the import. '+ST.explainStorageError(r.error)+' Nothing was changed.');return;}
+      state.lastImport=[];save();render(true);toast('Import undone. The files are back in the Port.');
+    });
+  }
   else if(a==='open'){openFile(id);}
   else if(a==='del1'){ui.confirm=id;render();}
   else if(a==='del0'){ui.confirm=null;render();}
-  else if(a==='rmdups'){var gone=pending().filter(isDupRow);Promise.all(gone.map(function(f){return dbDel(f.id);})).then(function(){var ids={};gone.forEach(function(f){ids[f.id]=1;});FILES=FILES.filter(function(f){return !ids[f.id];});render();toast(gone.length+' duplicate'+(gone.length===1?'':'s')+' removed.');});}
-  else if(a==='del2'){dbDel(id).then(function(){FILES=FILES.filter(function(f){return f.id!==id;});ui.confirm=null;render();toast('File removed.');});}
+  else if(a==='rmdups'){var gone=pending().filter(isDupRow),gids=gone.map(function(f){return f.id;});IM.removeFiles(fileStore,gids).then(function(r){if(!r.ok){toast('Could not remove the duplicates. '+ST.explainStorageError(r.error));return;}var ids={};gids.forEach(function(i){ids[i]=1;});FILES=FILES.filter(function(f){return !ids[f.id];});render();toast(gone.length+' duplicate'+(gone.length===1?'':'s')+' removed.');});}
+  else if(a==='del2'){IM.removeFiles(fileStore,[id]).then(function(r){if(!r.ok){toast('Could not remove the file. '+ST.explainStorageError(r.error));return;}FILES=FILES.filter(function(f){return f.id!==id;});ui.confirm=null;render();toast('File removed.');});}
+  else if(a==='retryfailed'){
+    var fl=ui.failed?ui.failed.items:[];ui.failed=null;
+    var groups={};fl.forEach(function(x){var gk=JSON.stringify(x.preset);(groups[gk]=groups[gk]||{preset:x.preset,files:[]}).files.push(x.file);});
+    Object.keys(groups).reduce(function(pr,gk){return pr.then(function(){return addFiles(groups[gk].files,groups[gk].preset);});},Promise.resolve());
+  }
+  else if(a==='dismissfailed'){ui.failed=null;render();}
   else if(a==='timer'){if(study.running)pauseTimer();else startTimer();render();var btn=$('#tbtn');if(btn)btn.focus();}
   else if(a==='treset'){pauseTimer();study.remaining=1500;render();}
   else if(a==='tocheck'){pauseTimer();goCheck();}
   else if(a==='badq'){reportBad();render();}
-  else if(a==='pick'){var i=+b.dataset.i,q=(study.quiz||quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1]))[study.q];study.picked=i;if(i===q.a)study.score++;render();var nb=document.querySelector('[data-a="nextq"]');if(nb)nb.focus();}
-  else if(a==='nextq'){if(study.q<2){study.q++;study.picked=null;render(true);}else{finishQuiz();render(true);}}
+  else if(a==='pick'){var i=+b.dataset.i,qz=study.quiz||quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1]),q=qz[study.q],ok=i===q.a;study.picked=i;if(ok)study.score++;study.answers[study.q]={q:q,ok:ok,bad:false};if(q.k){var bk=bankGet(q.k);QC.recordAnswer(bk,q.id,ok);bankPut(q.k,bk);}render();var nb=document.querySelector('[data-a="nextq"]');if(nb)nb.focus();}
+  else if(a==='nextq'){var qz2=study.quiz||quizFor(M(study.k.split(':')[0]),+study.k.split(':')[1]);if(study.q<qz2.length-1){study.q++;study.picked=null;render(true);}else{finishQuiz();render(true);}}
+  else if(a==='retryprep'){goCheck();}
   else if(a==='finishself'){study.score=study.checks.filter(Boolean).length;finishQuiz();render(true);}
-  else if(a==='retry'){var k=study.k;study={k:k,step:'check',remaining:1500,end:null,running:false,q:0,score:0,picked:null,checks:[false,false,false],passed:false};goCheck();}
+  else if(a==='retry'){var k=study.k;study=newStudy(k);study.step='check';goCheck();}
   else if(a==='adddl'){
     var d=ui.dl;if(!d.title.trim()||!d.date){toast('Add a title and a date.');return;}
     state.deadlines.push({id:uid(),date:d.date,mod:d.mod,kind:d.kind,title:d.title.trim()});ui.dl=null;save();render();toast('Deadline added.');
@@ -1531,11 +1666,13 @@ document.addEventListener('click',function(e){
   else if(a==='finish'){var s=curSem();s.finished=!s.finished;save();render();}
   else if(a==='rmsem1'){ui.confirm='sem';render();}
   else if(a==='rmsem2'){
-    var sm=curSem(),gone=FILES.filter(function(f){return f.sem===sm.id;});
-    Promise.all(gone.map(function(f){return dbDel(f.id);})).then(function(){
+    var sm=curSem(),gone2=FILES.filter(function(f){return f.sem===sm.id;});
+    IM.removeFiles(fileStore,gone2.map(function(f){return f.id;})).then(function(r){
+      if(!r.ok){toast('Could not remove the files. '+ST.explainStorageError(r.error)+' Nothing was changed.');return;}
       FILES=FILES.filter(function(f){return f.sem!==sm.id;});
       var ids={};sm.modules.forEach(function(m){ids[m.id]=1;});
       Object.keys(state.lit).forEach(function(k){if(ids[k.split(':')[0]])delete state.lit[k];});
+      Object.keys(state.how).forEach(function(k){if(ids[k.split(':')[0]])delete state.how[k];});
       state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});
       state.sems=state.sems.filter(function(x){return x.id!==sm.id;});state.activeSem=state.sems.length?state.sems[0].id:null;
       ui.confirm=null;save();go('#/');toast('Semester removed.');
@@ -1544,28 +1681,19 @@ document.addEventListener('click',function(e){
   else if(a==='persist'){try{navigator.storage.persist().then(function(ok){toast(ok?'The browser will keep your data.':'The browser did not agree. Keep your originals.');storageInfo();});}catch(x){toast('Not available in this browser.');}}
   else if(a==='dlbackup'){if(dlBackup()){toast('Backup downloaded. Keep the file somewhere safe.');render();}else toast('Could not create the file. Use the backup text below.');}
   else if(a==='loadbackup'){var bf=$('#bkfile');if(bf)bf.click();}
+  else if(a==='dlfull'){fullBackup();}
   else if(a==='snoozebk'){state.snoozeBackup=Date.now()+3*864e5;save();render();}
-  else if(a==='export'){$('#bk').value=JSON.stringify(state);$('#bk').select();toast('Backup text created. Copy it now.');}
-  else if(a==='restore'){
-    try{var s2=JSON.parse($('#bk').value);if(!s2||typeof s2.schema!=='number')throw 0;
-      if(s2.schema>SCHEMA){toast('That backup is from a newer version.');return;}
-      while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg)throw 0;s2=mg(s2);}
-      state=clean(s2);save();render(true);toast('Progress restored.');
-    }catch(err){toast('That text is not a valid backup.');}
-  }
+  else if(a==='export'){$('#bk').value=BK.lightBackupText(state);$('#bk').select();toast('Backup text created. Copy it now.');}
+  else if(a==='restore'){var txt=$('#bk').value;if(!txt.trim()){toast('Paste the backup text first.');return;}startRestore(new Blob([txt]));}
+  else if(a==='rmerge'){applyRestore('merge');}
+  else if(a==='rreplace'){applyRestore('replace');}
+  else if(a==='rcancel'){ui.restore=null;render();}
   else if(a==='reset1'){ui.confirm='all';render();}
-  else if(a==='reset2'){
-    Promise.all(FILES.map(function(f){return dbDel(f.id);})).then(function(){FILES=[];var th=state.theme;state=blank();state.theme=th;ui.confirm=null;ui.setup=null;save();go('#/');toast('Everything was deleted.');});
-  }
+  else if(a==='reset2'){IM.removeFiles(fileStore,FILES.map(function(f){return f.id;})).then(function(r){if(!r.ok){toast('Could not delete the files. '+ST.explainStorageError(r.error)+' Nothing was changed.');return;}FILES=[];clearBanks();var th=state.theme;state=blank();state.theme=th;ui.confirm=null;ui.setup=null;ui.failed=null;ui.restore=null;save();go('#/');toast('Everything was deleted.');});}
 });
 document.addEventListener('change',function(e){
   var t=e.target,c=t.dataset.c;
-  if(t.id==='bkfile'){var bf=t.files&&t.files[0];if(!bf)return;var rd=new FileReader();
-    rd.onload=function(){try{var s2=JSON.parse(rd.result);if(!s2||typeof s2.schema!=='number')throw 0;
-      if(s2.schema>SCHEMA){toast('That backup is from a newer version.');return;}
-      while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg)throw 0;s2=mg(s2);}
-      state=clean(s2);save();render(true);toast('Progress restored.');}catch(err){toast('That file is not a valid backup.');}t.value='';};
-    rd.readAsText(bf);return;}
+  if(t.id==='bkfile'){var bf=t.files&&t.files[0];if(!bf)return;startRestore(bf);t.value='';return;}
   if(t.id==='fi'||t.id==='fd'){var files=t.files,p=ui.preset;ui.preset=null;addFiles(files,p).then(function(){t.value='';});return;}
   if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;return;}
   if(!c)return;
@@ -1578,10 +1706,12 @@ document.addEventListener('change',function(e){
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
     var row=t.closest('[data-f]'),f=row&&fileById(row.dataset.f);if(!f)return;
-    if(c==='inc'){f.include=t.checked;if(t.checked&&f.dup)f.confirmed=true;}
-    else if(c==='mod'){f.mod=t.value;var m=M(f.mod);if(m&&f.unit>m.units)f.unit=m.units;f.confirmed=true;}
-    else if(c==='unit'){f.unit=+t.value;f.confirmed=true;}
-    dbPut(f);var y=window.scrollY;render();window.scrollTo(0,y);
+    var patch={};
+    if(c==='inc'){patch.include=t.checked;if(t.checked&&f.dup)patch.confirmed=true;}
+    else if(c==='mod'){patch.mod=t.value;var m2=M(t.value);if(m2&&f.unit>m2.units)patch.unit=m2.units;patch.confirmed=true;}
+    else if(c==='unit'){patch.unit=+t.value;patch.confirmed=true;}
+    var y=window.scrollY;
+    IM.commitPatch(fileStore,[f],function(){return patch;}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();window.scrollTo(0,y);});
   }
 });
 document.addEventListener('input',function(e){
