@@ -667,12 +667,15 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo'}};
-var iliasBridge=false, iliasRequests={};
+var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.3.0';
+function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
+var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
+function isMobileDevice(){try{return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(window.matchMedia&&matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<900);}catch(e){return false;}}
 window.addEventListener('message',function(event){
   if(event.source!==window||event.origin!==location.origin||!event.data||event.data.source!=='booklyn-ilias-extension')return;
   var data=event.data;
-  if(data.type==='ready'){iliasBridge=true;if(route().name==='port')render();return;}
+  if(data.type==='ready'){iliasBridge=true;iliasVersion=String(data.version||'').slice(0,20);if(route().name==='port')render();return;}
   var request=iliasRequests[data.requestId];if(!request)return;
   clearTimeout(request.timer);delete iliasRequests[data.requestId];request.resolve(data.response||{ok:false,message:'No response from ILIAS.'});
 });
@@ -704,14 +707,17 @@ async function scanIlias(){
   ui.ilias.busy=false;ui.ilias.scanned=true;
   if(!result.ok){ui.ilias.status=result.message||'Could not check ILIAS.';render();return;}
   var discovered=0;
-  ui.ilias.items=(result.files||[]).filter(function(f){return f&&f.key&&f.name;}).map(function(file){
+  var rawFiles=(result.files||[]).filter(function(f){return f&&f.key&&f.name;});
+  ui.ilias.skipped=(result.skipped||[]).filter(function(f){return f&&f.key&&f.name;}).slice(0,200);
+  rawFiles=rawFiles.filter(function(f){if(UNREADABLE_RX.test(String(f.name))&&!READABLE_RX.test(String(f.name))){ui.ilias.skipped.push({key:f.key,name:f.name,ext:'',openUrl:f.openUrl||f.url,context:f.context});return false;}return true;});
+  ui.ilias.items=rawFiles.map(function(file){
     file.isNew=!state.iliasKnown[file.key];if(file.isNew)discovered++;
     state.iliasKnown[file.key]=Date.now();return file;
   });
   state.iliasLast=Date.now();save();
   var c=iliasCounts();
-  ui.ilias.status=ui.ilias.items.length+' files found on ILIAS · '+c.todo+' to add · '+c.in+' already in Booklyn · '+c.dis+' dismissed'+(discovered?' · '+discovered+' never seen before':'')+'.';
-  if(!ui.ilias.items.length)ui.ilias.status='No file links found on the scanned ILIAS pages.';
+  ui.ilias.status=ui.ilias.items.length+' readable files found on ILIAS · '+c.todo+' to add · '+c.in+' already in Booklyn · '+c.dis+' dismissed'+(ui.ilias.skipped.length?' · '+ui.ilias.skipped.length+' skipped (video, audio, images, zips, old Office formats)':'')+'.';
+  if(!ui.ilias.items.length)ui.ilias.status='No readable files found on the scanned ILIAS pages'+(ui.ilias.skipped.length?' ('+ui.ilias.skipped.length+' unreadable files were skipped).':'.');
   if(result.limited)ui.ilias.status+=' The scan stopped early (page or time limit), so some files may be missing.';
   ui.ilias.filter=c.todo?'todo':(c.in?'in':'all');
   render();
@@ -720,7 +726,7 @@ async function importIlias(key,batch){
   var file=ui.ilias.items.filter(function(item){return item.key===key;})[0];if(!file)return 'fail';
   if(!batch){ui.ilias.busy=true;ui.ilias.status='Downloading '+file.name+'…';render();}
   var result=await iliasRequest('download',{url:file.url,name:file.name}),out='fail';
-  if(!result.ok){if(!batch)ui.ilias.status=result.message||'Could not download this file.';}
+  if(!result.ok){if(result.skipped){out='skip';state.iliasDismissed[key]=Date.now();save();}if(!batch)ui.ilias.status=result.message||'Could not download this file.';}
   else{
     try{
       var binary=atob(result.base64),bytes=new Uint8Array(binary.length);
@@ -738,19 +744,24 @@ async function importIlias(key,batch){
 }
 async function importAllIlias(){
   var todo=ui.ilias.items.filter(function(f){return iliasCls(f)==='todo';});if(!todo.length)return;
-  ui.ilias.busy=true;var n={added:0,dup:0,fail:0};
+  ui.ilias.busy=true;var n={added:0,dup:0,fail:0,skip:0};
   for(var i=0;i<todo.length;i++){
     ui.ilias.status='Adding '+(i+1)+' of '+todo.length+': '+todo[i].name;render();
     var r=await importIlias(todo[i].key,true);n[r]++;
   }
   ui.ilias.busy=false;
-  ui.ilias.status=n.added+' added to the Port'+(n.dup?' · '+n.dup+' were identical to files you already have':'')+(n.fail?' · '+n.fail+' could not be downloaded (too big or not readable)':'')+'.';
+  ui.ilias.status=n.added+' added to the Port'+(n.dup?' · '+n.dup+' were identical to files you already have':'')+(n.skip?' · '+n.skip+' skipped because Booklyn cannot read them':'')+(n.fail?' · '+n.fail+' could not be downloaded (for example over 12 MB)':'')+'.';
   go('#/port');
 }
 function iliasListHTML(){
-  var c=iliasCounts(),f=ui.ilias.filter||'todo',LAB={todo:'To add',in:'Already in Booklyn',dis:'Dismissed',all:'All'},CNT={todo:c.todo,in:c.in,dis:c.dis,all:ui.ilias.items.length};
-  var h='<div class="row tight" role="group" aria-label="Filter ILIAS files">'+['todo','in','dis','all'].map(function(k){return '<button class="chip fchip" data-a="ilfilter" data-f="'+k+'" aria-pressed="'+(f===k)+'">'+LAB[k]+' · '+CNT[k]+'</button>';}).join('')+'</div>';
+  var c=iliasCounts(),f=ui.ilias.filter||'todo',LAB={todo:'To add',in:'Already in Booklyn',dis:'Dismissed',skip:'Not readable',all:'All readable'},CNT={todo:c.todo,in:c.in,dis:c.dis,skip:(ui.ilias.skipped||[]).length,all:ui.ilias.items.length};
+  var h='<div class="row tight" role="group" aria-label="Filter ILIAS files">'+['todo','in','dis','skip','all'].map(function(k){return '<button class="chip fchip" data-a="ilfilter" data-f="'+k+'" aria-pressed="'+(f===k)+'">'+LAB[k]+' · '+CNT[k]+'</button>';}).join('')+'</div>';
   if(c.todo)h+='<div class="row"><button class="btn small" data-a="iliasall" '+(ui.ilias.busy?'disabled':'')+'>Add all '+c.todo+' to the Port</button><span class="foot">Dismiss what you do not need first.</span></div>';
+  if(f==='skip'){
+    var sk=ui.ilias.skipped||[];
+    if(!sk.length)return h+'<p class="foot">Nothing was skipped.</p>';
+    return h+'<p class="foot">Booklyn cannot make questions from videos, audio, images, zips, spreadsheets or old Office files, so these are not offered for import.</p><ul class="list">'+sk.slice(0,150).map(function(file){return '<li class="item"><div class="grow"><div class="t">'+esc(file.name)+(file.ext?' <span class="chip">.'+esc(file.ext)+'</span>':'')+'</div><div class="s">'+esc(file.context||'ILIAS')+'</div></div><div class="row tight"><a class="btn ghost small" href="'+esc(safeUrl(file.openUrl||file.url))+'" target="_blank" rel="noopener noreferrer">Open ↗</a></div></li>';}).join('')+'</ul>';
+  }
   var rows=ui.ilias.items.filter(function(x){return f==='all'||iliasCls(x)===f;});
   if(!rows.length)return h+'<p class="foot">Nothing in this list.</p>';
   h+='<ul class="list">'+rows.slice(0,150).map(function(file){
@@ -831,9 +842,9 @@ function vPort(){
   var h='<header class="stack"><p class="eyebrow">Learning Port</p><h1 tabindex="-1" id="h1">Add and sort files</h1><p class="lede">Any file type and any size. Booklyn suggests a module and week from the file name. You decide. Files marked “Check this” stay here until you confirm them.</p></header>';
   h+='<section class="drop" data-drop><h2>Drop files here</h2><p class="lede">or choose them from your computer or phone</p><div class="row" style="justify-content:center"><button class="btn" data-a="pickfiles">Choose files</button><button class="btn ghost" data-a="pickfolder">Choose a folder</button></div></section>';
   var lastChk=state.iliasLast?new Date(state.iliasLast).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-  h+='<section class="card stack"><div class="row" style="justify-content:space-between"><div><p class="eyebrow">HSLU ILIAS</p><h2>Find new files</h2></div><a class="btn ghost small" href="https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show" target="_blank" rel="noopener noreferrer">Open ILIAS ↗</a></div>'
-    +'<p class="lede">Booklyn looks for file links on your ILIAS dashboard and linked courses. Every check lists everything it finds. Files you already have are recognised by their content, so nothing is added twice. Nothing is downloaded until you press “Add to Port”. Sign in to ILIAS in this browser first.</p>'
-    +'<div class="row"><button class="btn small" data-a="scanilias" '+(ui.ilias.busy?'disabled':'')+'>Check ILIAS again</button><span class="foot">'+(iliasBridge?'Connector ready':'Needs the Booklyn ILIAS Connector browser extension')+'</span></div>'
+  if(!isMobileDevice()||iliasBridge)h+='<section class="card stack"><div class="row" style="justify-content:space-between"><div><p class="eyebrow">HSLU ILIAS</p><h2>Find new files</h2></div><a class="btn ghost small" href="https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show" target="_blank" rel="noopener noreferrer">Open ILIAS ↗</a></div>'
+    +'<p class="lede">Booklyn looks for file links on your ILIAS dashboard and linked courses and lists the ones it can read: PDF, Word (.docx), PowerPoint (.pptx) and text files. Videos, audio, images and zips are skipped. Files you already have are recognised by their content, so nothing is added twice. Nothing is downloaded until you press “Add to Port”. Sign in to ILIAS in this browser first.</p>'
+    +'<div class="row"><button class="btn small" data-a="scanilias" '+(ui.ilias.busy?'disabled':'')+'>Check ILIAS again</button><span class="foot">'+(iliasBridge?'Connector ready'+(iliasVersion?' (v'+esc(iliasVersion)+')':'')+(verNum(iliasVersion)<verNum(CONNECTOR_LATEST)?' · <a href="/connector/#changelog" target="_blank" rel="noopener">Update available (v'+CONNECTOR_LATEST+')</a>':''):'Needs the Booklyn ILIAS Connector browser extension')+'</span></div>'
     +'<p class="foot">'+(lastChk?'Last checked: '+lastChk+'.':'Not checked yet.')+'</p>'
     +(!iliasBridge?'<p class="foot">Install the connector once on a computer with Edge or Chrome: <a href="/connector/" target="_blank" rel="noopener">download and install steps</a>. Then reload Booklyn. It does not work on phones; add files by hand there.</p>':'')
     +(ui.ilias.status?'<p class="foot" role="status">'+esc(ui.ilias.status)+'</p>':'')

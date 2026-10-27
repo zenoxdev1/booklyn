@@ -5,6 +5,23 @@
   const CONCURRENCY = 4;
   const TIME_BUDGET_MS = 60000;
   const MAX_FILE_BYTES = 12 * 1024 * 1024;
+  // Booklyn can read the text of these. Everything else (video, audio, images, zips, old Office files, spreadsheets) is skipped.
+  const READABLE = /^(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i;
+  const UNREADABLE = /^(mp4|m4v|mov|mkv|avi|webm|wmv|flv|mpe?g|mp3|m4a|aac|wav|ogg|oga|flac|wma|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|tgz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
+  const HINT = /(?<![a-z])(pdf|docx|pptx|doc|ppt|xlsx|xls|zip|rar|mp4|mov|mkv|avi|webm|mp3|m4a|wav|png|jpe?g|gif|txt|csv)(?![a-z])/i;
+
+  function extOf(name) {
+    const match = /\.([a-z0-9]{2,5})$/i.exec(String(name || '').trim());
+    return match ? match[1].toLowerCase() : '';
+  }
+  function kindOf(ext) { return READABLE.test(ext) ? 'doc' : UNREADABLE.test(ext) ? 'skip' : 'unknown'; }
+  function hintFor(anchor) {
+    const box = anchor.closest('.il-item, .il-std-item, .ilContainerListItem, li, tr, [class*="ListItem"]');
+    const text = (box && box.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text || text.length > 500) return '';
+    const match = HINT.exec(text);
+    return match ? match[1].toLowerCase() : '';
+  }
 
   function safeUrl(href, base) {
     try {
@@ -55,7 +72,10 @@
       if (isFile(url, name)) {
         if (!name || /^(download|herunterladen|open|öffnen)$/i.test(name)) continue;
         const key = fileKey(url, name);
-        if (!files.has(key)) files.set(key, { key, name, url: url.href, openUrl: url.href, context });
+        if (!files.has(key)) {
+          const ext = extOf(name) || hintFor(anchor);
+          files.set(key, { key, name, url: url.href, openUrl: url.href, context, ext, kind: kindOf(ext) });
+        }
       } else if (isContainer(url)) {
         folders.push(url.href);
       }
@@ -115,7 +135,10 @@
       }
     }
     if (login && !pages) return { ok: false, code: 'login', message: 'Sign in to ILIAS, then scan again.' };
-    return { ok: true, files: [...files.values()].slice(0, 300), pages, limited: timeUp || queue.length > 0 };
+    const all = [...files.values()];
+    const keep = all.filter(file => file.kind !== 'skip').slice(0, 300);
+    const skipped = all.filter(file => file.kind === 'skip').slice(0, 200).map(({ key, name, ext, openUrl, context }) => ({ key, name, ext, openUrl, context }));
+    return { ok: true, files: keep, skipped, pages, limited: timeUp || queue.length > 0 };
   }
 
   function filename(disposition, fallback) {
@@ -123,6 +146,16 @@
     let name = match ? match[1].trim() : fallback;
     try { name = decodeURIComponent(name); } catch (_) {}
     return String(name || 'ILIAS file').replace(/[\\/\x00-\x1f]/g, '_').slice(0, 180);
+  }
+
+  function unreadable(response, fallbackName) {
+    const name = filename(response.headers.get('content-disposition'), fallbackName);
+    const mime = (response.headers.get('content-type') || '').split(';')[0].toLowerCase();
+    const ext = extOf(name);
+    let skip = false;
+    if (ext) skip = kindOf(ext) === 'skip';
+    else skip = /^(video|audio|image)\//.test(mime) || /zip|rar|7z|msword|ms-powerpoint|ms-excel|spreadsheetml/.test(mime);
+    return skip ? { ok: false, skipped: true, message: 'Skipped: Booklyn cannot read ' + (ext ? '.' + ext : mime) + ' files.' } : null;
   }
 
   async function download(href, fallbackName) {
@@ -133,6 +166,8 @@
     if (!response.ok || /\/login\.php/i.test(response.url))
       return { ok: false, message: 'ILIAS needs a fresh login. Open ILIAS and try again.' };
     let mime = (response.headers.get('content-type') || '').split(';')[0];
+    const early = unreadable(response, fallbackName);
+    if (early) { try { response.body && response.body.cancel(); } catch (_) {} return early; }
     if (/text\/html/i.test(mime)) {
       const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
       const action = [...doc.querySelectorAll('[data-action]')].map(button => safeUrl(button.getAttribute('data-action'), response.url))
@@ -141,6 +176,8 @@
       response = await fetch(action.href, { credentials: 'include' });
       mime = (response.headers.get('content-type') || '').split(';')[0];
       if (!response.ok || /text\/html/i.test(mime)) return { ok: false, message: 'ILIAS did not return a downloadable file.' };
+      const late = unreadable(response, fallbackName);
+      if (late) { try { response.body && response.body.cancel(); } catch (_) {} return late; }
     }
     const length = Number(response.headers.get('content-length') || 0);
     if (length > MAX_FILE_BYTES) return { ok: false, message: 'This file is over 12 MB. Open it in ILIAS and add it manually.' };
