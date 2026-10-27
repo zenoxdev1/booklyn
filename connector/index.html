@@ -25,12 +25,12 @@
 <main id="main">
 <div class="doc">
 <h1>ILIAS connector</h1>
-<p class="meta">An optional browser extension for Edge and Chrome on a computer. Current version: 0.3.0 (beta).</p>
+<p class="meta">An optional browser extension for Edge and Chrome on a computer. Current version: 0.3.1 (beta).</p>
 <p>The connector looks for course files on the HSLU ILIAS pages you can open while signed in, and hands the ones you choose to Booklyn. It never asks for your password, and nothing is uploaded to Booklyn&rsquo;s servers: files go straight from ILIAS into your own browser storage.</p>
 
 <h2>What it picks up</h2>
 <p>Only files Booklyn can read to write questions: <strong>PDF, Word (.docx), PowerPoint (.pptx) and text files</strong>. Videos, audio, images, zips, spreadsheets and old Office files (.doc, .ppt) are skipped and never downloaded, because Booklyn cannot turn them into questions. Scanned PDFs without selectable text give no questions either.</p>
-<p>It does not find everything on ILIAS. It reads the dashboard, courses, folders, groups and news pages (up to 30 pages per check, two levels deep), so content inside learning modules, wikis, forums or video platforms may not appear. Press <em>Check ILIAS</em> again after opening a course, and add anything missing by hand.</p>
+<p>It does not find everything on ILIAS. It reads the dashboard, courses, folders, groups and news pages (up to 20 pages per course and 14 courses per check, three levels deep), so content inside learning modules, wikis, forums or video platforms may not appear. Press <em>Check ILIAS</em> again after opening a course, and add anything missing by hand.</p>
 
 <div class="callout"><p style="margin:0 0 10px"><strong>Step 1.</strong> Download the connector.</p><a class="btn" href="/ilias-connector.zip" download>Download ilias-connector.zip</a></div>
 
@@ -54,6 +54,8 @@
 </ul>
 
 <h2 id="changelog">Changelog</h2>
+<h3 style="font-size:1.1rem;margin:16px 0 4px">0.3.1 (beta) &middot; 27 Oct 2026</h3>
+<ul><li>Fixed: the scan could use up its page budget on one course and never reach the others. Every course now gets its own budget.</li><li>Starts from &ldquo;My courses and groups&rdquo; as well as the dashboard.</li><li>Files are labelled with their course, and Booklyn shows what each course gave.</li></ul>
 <h3 style="font-size:1.1rem;margin:16px 0 4px">0.3.0 (beta) &middot; 26 Oct 2026</h3>
 <ul>
 <li>Skips files Booklyn cannot read: video, audio, images, zips, spreadsheets and old Office files.</li>

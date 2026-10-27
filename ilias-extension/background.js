@@ -20,11 +20,15 @@ async function relay(request) {
     await chrome.tabs.update(tab.id, { active: true });
     return { ok: false, code: 'login', message: 'Sign in to ILIAS, then return to Booklyn and scan again.' };
   }
+  // A long scan must not let the service worker go to sleep.
+  const keepAlive = setInterval(() => { try { chrome.runtime.getPlatformInfo(() => {}); } catch (_) {} }, 20000);
   try {
     return await chrome.tabs.sendMessage(tab.id, request);
   } catch (error) {
     await chrome.tabs.update(tab.id, { active: true });
     return { ok: false, code: 'reload', message: 'Reload the ILIAS tab after installing the connector, then scan again.' };
+  } finally {
+    clearInterval(keepAlive);
   }
 }
 

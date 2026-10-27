@@ -668,7 +668,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
 var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
-var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.3.0';
+var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.3.1';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
 function isMobileDevice(){try{return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||(window.matchMedia&&matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<900);}catch(e){return false;}}
@@ -714,6 +714,7 @@ async function scanIlias(){
     file.isNew=!state.iliasKnown[file.key];if(file.isNew)discovered++;
     state.iliasKnown[file.key]=Date.now();return file;
   });
+  ui.ilias.courses=(result.courses||[]).slice(0,30).map(function(x){return {name:String(x.name||'').slice(0,80),pages:+x.pages||0,files:+x.files||0,skipped:+x.skipped||0,more:!!x.more};});
   state.iliasLast=Date.now();save();
   var c=iliasCounts();
   ui.ilias.status=ui.ilias.items.length+' readable files found on ILIAS · '+c.todo+' to add · '+c.in+' already in Booklyn · '+c.dis+' dismissed'+(ui.ilias.skipped.length?' · '+ui.ilias.skipped.length+' skipped (video, audio, images, zips, old Office formats)':'')+'.';
@@ -753,9 +754,15 @@ async function importAllIlias(){
   ui.ilias.status=n.added+' added to the Port'+(n.dup?' · '+n.dup+' were identical to files you already have':'')+(n.skip?' · '+n.skip+' skipped because Booklyn cannot read them':'')+(n.fail?' · '+n.fail+' could not be downloaded (for example over 12 MB)':'')+'.';
   go('#/port');
 }
+function iliasCoursesHTML(){
+  var cs=ui.ilias.courses||[];if(!cs.length)return '';
+  return '<details class="foot"><summary>'+cs.length+' courses scanned</summary><ul class="list">'+cs.map(function(x){
+    return '<li class="item"><div class="grow"><div class="t">'+esc(x.name||'Course')+'</div><div class="s">'+x.files+' readable file'+(x.files===1?'':'s')+(x.skipped?' · '+x.skipped+' skipped':'')+' · '+x.pages+' page'+(x.pages===1?'':'s')+' checked'+(x.more?' · more pages not checked':'')+(!x.files&&!x.skipped?' · nothing found here (the content may be in a learning module, wiki or video page)':'')+'</div></div></li>';
+  }).join('')+'</ul></details>';
+}
 function iliasListHTML(){
   var c=iliasCounts(),f=ui.ilias.filter||'todo',LAB={todo:'To add',in:'Already in Booklyn',dis:'Dismissed',skip:'Not readable',all:'All readable'},CNT={todo:c.todo,in:c.in,dis:c.dis,skip:(ui.ilias.skipped||[]).length,all:ui.ilias.items.length};
-  var h='<div class="row tight" role="group" aria-label="Filter ILIAS files">'+['todo','in','dis','skip','all'].map(function(k){return '<button class="chip fchip" data-a="ilfilter" data-f="'+k+'" aria-pressed="'+(f===k)+'">'+LAB[k]+' · '+CNT[k]+'</button>';}).join('')+'</div>';
+  var h=iliasCoursesHTML()+'<div class="row tight" role="group" aria-label="Filter ILIAS files">'+['todo','in','dis','skip','all'].map(function(k){return '<button class="chip fchip" data-a="ilfilter" data-f="'+k+'" aria-pressed="'+(f===k)+'">'+LAB[k]+' · '+CNT[k]+'</button>';}).join('')+'</div>';
   if(c.todo)h+='<div class="row"><button class="btn small" data-a="iliasall" '+(ui.ilias.busy?'disabled':'')+'>Add all '+c.todo+' to the Port</button><span class="foot">Dismiss what you do not need first.</span></div>';
   if(f==='skip'){
     var sk=ui.ilias.skipped||[];
@@ -848,7 +855,7 @@ function vPort(){
     +'<p class="foot">'+(lastChk?'Last checked: '+lastChk+'.':'Not checked yet.')+'</p>'
     +(!iliasBridge?'<p class="foot">Install the connector once on a computer with Edge or Chrome: <a href="/connector/" target="_blank" rel="noopener">download and install steps</a>. Then reload Booklyn. It does not work on phones; add files by hand there.</p>':'')
     +(ui.ilias.status?'<p class="foot" role="status">'+esc(ui.ilias.status)+'</p>':'')
-    +(ui.ilias.items.length?iliasListHTML():'')+'</section>';
+    +(ui.ilias.items.length?iliasListHTML():iliasCoursesHTML())+'</section>';
   if(state.lastImport.length&&!list.length){
     var by={};state.lastImport.forEach(function(id){var f=FILES.filter(function(x){return x.id===id;})[0];if(f&&f.status==='imported'){by[f.mod]=(by[f.mod]||0)+1;}});
     h+='<section class="card stack"><h3>Imported</h3><div class="row tight">'+Object.keys(by).map(function(k){var m=M(k);return m?'<button class="chip" data-a="go" data-to="#/m/'+m.id+'" style="border:0;cursor:pointer">'+esc(m.code)+' · '+by[k]+'</button>':'';}).join('')+'</div><div class="row"><button class="btn ghost small" data-a="undo">Undo this import</button></div></section>';

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 (beta) - 27 Oct 2026
+- Fixed: the scan could spend its whole page budget on one course and never reach the others. Every course now gets its own budget (20 pages each, up to 14 courses).
+- Starts from "My courses and groups" as well as the dashboard, and ignores menu and breadcrumb links.
+- Files are labelled with their course name, so Booklyn matches them to the right module.
+- Booklyn now shows how many files and pages each course gave.
+
 ## 0.3.0 (beta) - 26 Oct 2026
 - Skips files Booklyn cannot read (video, audio, images, zips, old Office files, spreadsheets). Only PDF, Word (.docx), PowerPoint (.pptx) and text files are listed.
 - Faster scan: four pages at a time, up to 30 pages, one minute limit.
