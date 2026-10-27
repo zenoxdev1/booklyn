@@ -233,7 +233,7 @@ function backupDue(){
   return !state.lastBackup||now-state.lastBackup>week;
 }
 var saveT;
-var SYNC={me:null,uid:'',kind:'',newCode:'',showCode:false,checked:false,na:false,base:0,last:0,dirty:false,known:'',busy:false,pushing:false,msg:'',link:'',conflict:null,timer:null,adopting:false};
+var SYNC={me:null,admin:false,uid:'',kind:'',newCode:'',showCode:false,checked:false,na:false,base:0,last:0,dirty:false,known:'',busy:false,pushing:false,msg:'',link:'',conflict:null,timer:null,adopting:false};
 try{var _sm=JSON.parse(localStorage.getItem('booklyn:sync')||'{}');SYNC.base=_sm.base||0;SYNC.last=_sm.last||0;SYNC.known=_sm.uid||_sm.email||'';SYNC.dirty=!!_sm.dirty;}catch(e){}
 function syncMeta(){try{localStorage.setItem('booklyn:sync',JSON.stringify({base:SYNC.base,last:SYNC.last,uid:SYNC.uid||SYNC.known||'',dirty:SYNC.dirty}));}catch(e){}}
 function save(){
@@ -1303,11 +1303,11 @@ function vShop(){
   var h='<header class="stack"><p class="eyebrow">Shop</p><h1 tabindex="-1" id="h1">Decorate your city</h1><p class="lede">Earn coins by lighting floors, and from the rent your guests pay each day. Everything here is for looks, except the shield.</p><div class="coinline"><i class="cdot"></i><b>'+co+' coins</b><span>Rent right now: +'+rentPerDay()+' a day</span></div></header>';
   h+='<label class="f">Place items at<select data-c="shopmod">'+mods.map(function(x){return '<option value="'+x.id+'"'+(x.id===sm.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>';
   h+='<div id="shopcity">'+cityBox(cityMods(sem).filter(function(x){return x.id===sm.id;}),{interactive:false,legend:false,label:'Your building'})+'</div>';
-  function own(k,t,desc,price){return shopItem(t,desc,price,d[k]?'<span class="foot">Owned</span>':bb(k,'Buy',co<price));}
-  function roof(k,t,desc,price){var on=roofOf(d)===k;return shopItem(t,desc,price,on?'<span class="foot">On the roof</span>':bb(k,roofOf(d)?'Swap':'Buy',co<price));}
+  function own(k,t,desc,price){return shopItem(t,desc,price,d[k]?'<span class="foot">Owned</span>':bb(k,'Buy',!canPay(price)));}
+  function roof(k,t,desc,price){var on=roofOf(d)===k;return shopItem(t,desc,price,on?'<span class="foot">On the roof</span>':bb(k,roofOf(d)?'Swap':'Buy',!canPay(price)));}
   var c=esc(sm.code),sk=sceneKey();
   h+='<section class="stack"><h3>Around '+c+'</h3>'
-   +shopItem('Tree','Plant a tree next to '+c+' ('+(d.tree||0)+' of 3).',PRICE.tree,bb('tree','Plant',co<PRICE.tree||(d.tree||0)>=3))
+   +shopItem('Tree','Plant a tree next to '+c+' ('+(d.tree||0)+' of 3).',PRICE.tree,bb('tree','Plant',!canPay(PRICE.tree)||(d.tree||0)>=3))
    +own('lamp','Street lamps','Two glowing lamps in front of '+c+'.',PRICE.lamp)
    +own('pool','Swimming pool','A pool in the garden of '+c+'.',PRICE.pool)
    +own('fountain','Fountain','A small fountain at the front door.',PRICE.fountain)
@@ -1319,11 +1319,11 @@ function vShop(){
    +roof('helipad','Helipad','A landing pad for important guests.',PRICE.helipad)
    +roof('solar','Solar panels','Two rows of panels catching the moonlight.',PRICE.solar)
    +'<h3>Colour</h3>'
-   +shopItem('Paint','Repaint '+c+' in another colour.',PRICE.paint,'<div class="swatches">'+[20,45,95,165,215,270,330].map(function(hu){return '<button class="sw'+(d.hue===hu?' on':'')+'" style="background:hsl('+hu+' 45% 48%)" data-a="buy" data-item="paint" data-hue="'+hu+'" aria-label="Paint in colour '+hu+'" '+(co<PRICE.paint?'disabled':'')+'></button>';}).join('')+(d.hue!=null?'<button class="btn small ghost" data-a="buy" data-item="unpaint">Original</button>':'')+'</div>')
+   +shopItem('Paint','Repaint '+c+' in another colour.',PRICE.paint,'<div class="swatches">'+[20,45,95,165,215,270,330].map(function(hu){return '<button class="sw'+(d.hue===hu?' on':'')+'" style="background:hsl('+hu+' 45% 48%)" data-a="buy" data-item="paint" data-hue="'+hu+'" aria-label="Paint in colour '+hu+'" '+(!canPay(PRICE.paint)?'disabled':'')+'></button>';}).join('')+(d.hue!=null?'<button class="btn small ghost" data-a="buy" data-item="unpaint">Original</button>':'')+'</div>')
    +'<h3>Scenery for the whole district</h3><p class="foot">Buy a look once, then switch between the ones you own for free.</p>'
-   +Object.keys(SCENES).map(function(k){var owned=k==='park'||state.sceneOwn[k];return shopItem(SCENES[k],k==='park'?'The default look.':'Changes the ground, the trees and the mood of the district.',owned?0:PRICE.scene,sk===k?'<span class="foot">In use</span>':'<button class="btn small" data-a="buy" data-item="scene" data-scene="'+k+'" '+(!owned&&co<PRICE.scene?'disabled':'')+'>'+(owned?'Use':'Buy')+'</button>');}).join('')
+   +Object.keys(SCENES).map(function(k){var owned=k==='park'||state.sceneOwn[k];return shopItem(SCENES[k],k==='park'?'The default look.':'Changes the ground, the trees and the mood of the district.',owned?0:PRICE.scene,sk===k?'<span class="foot">In use</span>':'<button class="btn small" data-a="buy" data-item="scene" data-scene="'+k+'" '+(!owned&&!canPay(PRICE.scene)?'disabled':'')+'>'+(owned?'Use':'Buy')+'</button>');}).join('')
    +'<h3>Useful</h3>'
-   +shopItem('Shield','Saves one fading light, any floor, without a check. You can hold 2 ('+state.shields+' now).',PRICE.shield,bb('shield','Buy',co<PRICE.shield||state.shields>=2))
+   +shopItem('Shield','Saves one fading light, any floor, without a check. You can hold 2 ('+state.shields+' now).',PRICE.shield,bb('shield','Buy',!canPay(PRICE.shield)||state.shields>=2))
    +'</section>'
    +'<section class="card stack"><h3>How coins work</h3><p class="lede">First light on a floor +10. Saving a fading light +5. A week lit in every module +15. A finished building +50. Each lit floor pays 1 coin of rent a day (up to 25), stored for 3 days at most. Floors you keep on for good pay no rent.</p></section>'+foot();
   return h;
@@ -1370,7 +1370,7 @@ function vSettings(){
   h+='<section class="card stack"><h3>Storage</h3><p class="lede" id="stor">Checking…</p><div class="row"><button class="btn small ghost" data-a="persist">Ask the browser to keep my files</button></div></section>';
   h+=backupCardHTML();
   h+=accountCard();
-  if(devOn())h+='<section class="card stack"><details id="devtools"'+(ui.devOpen?' open':'')+'><summary><h3 style="display:inline">Testing tools</h3></summary><p class="lede" style="margin:8px 0">For the project team. Hide these before the user tests.</p><div class="row"><button class="btn small" data-a="tcoins" data-n="1000">Add 1,000 coins</button><button class="btn small ghost" data-a="tcoins" data-n="-9999999">Set coins to 0</button></div><div class="row" style="margin-top:8px"><button class="btn small ghost" data-a="tage" data-n="8">Age all lights 8 days</button><button class="btn small ghost" data-a="tage" data-n="20">Age all lights 20 days</button><button class="btn small ghost" data-a="trent">Make 3 days of rent due</button></div></details></section>';
+  if(devOn()){var adm=isAdminNow();h+='<section class="card stack"><details id="devtools"'+(ui.devOpen||adm?' open':'')+'><summary><h3 style="display:inline">'+(adm?'Admin tools':'Testing tools')+'</h3></summary><p class="lede" style="margin:8px 0">'+(adm?'This account is an admin. Only you see these tools; other accounts cannot turn them on.'+(SYNC.uid?' Account id: <code>'+esc(String(SYNC.uid))+'</code>':''):'For the project team. Hide these before the user tests.')+'</p>'+(adm?'<label class="check"><input type="checkbox" data-c="unl" '+(unlOn()?'checked':'')+'><div><div class="t">Unlimited coins</div><div class="s">Everything in the shop is free and your balance never goes down.</div></div></label>'+'<div class="row" style="margin:8px 0"><label class="f" style="flex:1">Set coins to<input type="number" id="admcoins" min="0" max="99999999" step="1" value="'+state.coins+'" inputmode="numeric"></label><button class="btn small" data-a="tcoinsset">Set</button></div>':'')+'<div class="row"><button class="btn small" data-a="tcoins" data-n="1000">Add 1,000 coins</button>'+(adm?'<button class="btn small" data-a="tcoins" data-n="100000">Add 100,000</button>':'')+'<button class="btn small ghost" data-a="tcoins" data-n="-9999999">Set coins to 0</button></div><div class="row" style="margin-top:8px"><button class="btn small ghost" data-a="tage" data-n="8">Age all lights 8 days</button><button class="btn small ghost" data-a="tage" data-n="20">Age all lights 20 days</button><button class="btn small ghost" data-a="trent">Make 3 days of rent due</button></div></details></section>';}
   h+='<section class="card stack"><h3>Reset everything</h3><p class="lede">Deletes all semesters, progress and imported files from this device.</p><div class="row">'+(ui.confirm==='all'?'<button class="btn small danger" data-a="reset2">Yes, delete everything</button><button class="btn small ghost" data-a="del0">Cancel</button>':'<button class="btn small ghost" data-a="reset1">Reset…</button>')+'</div></section>';
   h+='<section class="stack"><h3>About</h3><p class="foot">Booklyn · saved-data schema '+SCHEMA+'. Older data is migrated automatically and backed up first. Data from a newer version is never overwritten.</p></section>'+foot();
   return h;
@@ -1585,11 +1585,11 @@ document.addEventListener('click',function(e){
     if(it==='scene'){
       var sk2=b.dataset.scene,sem2=curSem();if(!sem2||!SCENES[sk2])return;
       if(sk2==='park'||state.sceneOwn[sk2]){state.scenery[sem2.id]=sk2;save();render();return;}
-      if(state.coins<PRICE.scene){toast('Not enough coins yet.');return;}
-      state.coins-=PRICE.scene;state.sceneOwn[sk2]=true;state.scenery[sem2.id]=sk2;save();render();toast('Your district has a new look.');return;
+      if(!canPay(PRICE.scene)){toast('Not enough coins yet.');return;}
+      pay(PRICE.scene);state.sceneOwn[sk2]=true;state.scenery[sem2.id]=sk2;save();render();toast('Your district has a new look.');return;
     }
     var cost=PRICE[it];if(!cost)return;
-    if(state.coins<cost){toast('Not enough coins yet.');return;}
+    if(!canPay(cost)){toast('Not enough coins yet.');return;}
     if(it==='shield'){if(state.shields>=2){toast('You can hold 2 shields.');return;}state.shields++;}
     else{
       if(!sm2)return;dd=state.deco[sm2.id]=state.deco[sm2.id]||{};
@@ -1598,10 +1598,11 @@ document.addEventListener('click',function(e){
       else if(['garden','roofpool','helipad','solar'].indexOf(it)>=0){if(roofOf(dd)===it)return;dd.roof=it;delete dd.garden;}
       else if(it==='paint'){dd.hue=+b.dataset.hue;}
     }
-    state.coins-=cost;save();render();toast('Bought. It is already in your city.');
+    pay(cost);save();render();toast('Bought. It is already in your city.');
   }
   else if(a==='shield'){var sk=b.dataset.k,sli=litInfo(sk);if(state.shields>0&&sli&&sli.state==='fading'){state.shields--;state.lit[sk]=Date.now();save();render();toast('Shield used. The light is back to full.');}}
-  else if(a==='tcoins'){state.coins=Math.max(0,state.coins+(+b.dataset.n||0));save();render();toast('Coins: '+state.coins);}
+  else if(a==='tcoinsset'){if(!isAdminNow())return;var inp=document.getElementById('admcoins'),nv=Math.floor(+(inp&&inp.value));if(!isFinite(nv)||nv<0||nv>99999999){toast('Enter a number from 0 to 99,999,999.');return;}state.coins=nv;save();render();toast('Coins: '+state.coins);}
+  else if(a==='tcoins'){if(!devOn())return;state.coins=Math.max(0,state.coins+(+b.dataset.n||0));save();render();toast('Coins: '+state.coins);}
   else if(a==='tage'){Object.keys(state.lit).forEach(function(k){state.lit[k]=litTs(k)-(+b.dataset.n||0)*864e5;});save();render();toast('Lights aged. Open Campus to see them fade.');}
   else if(a==='trent'){state.rentAt=Date.now()-3*864e5;save();toast('Open Campus to collect the rent.');}
   else if(a==='creset'){ui.cityT={x:0,y:0,k:1};applyCity();}
@@ -1751,6 +1752,7 @@ document.addEventListener('change',function(e){
   else if(c==='shopmod'){ui.shopMod=t.value;render();}
   else if(c==='pin'){var pk=t.dataset.k;if(t.checked)state.pin[pk]=true;else delete state.pin[pk];save();render();toast(t.checked?'Pinned. This light stays on and pays no rent.':'Unpinned. The light follows the normal rules again.');}
   else if(c==='aiopt'){state.aiOpt=t.checked;save();}
+  else if(c==='unl'){if(!isAdminNow())return;try{if(t.checked)localStorage.setItem('booklyn:unl','1');else localStorage.removeItem('booklyn:unl');}catch(e){}if(t.checked&&state.coins<999999){state.coins=999999;save();}render();toast(t.checked?'Unlimited coins on.':'Unlimited coins off.');}
   else if(c==='ilmap'){if(t.value)state.iliasCourseMap[t.dataset.k]=t.value;else delete state.iliasCourseMap[t.dataset.k];save();render();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
@@ -1786,8 +1788,16 @@ function api(method,path,body,keep){
 }
 function codeStored(){try{return localStorage.getItem('booklyn:synccode')||'';}catch(e){return '';}}
 function codeStore(c){try{if(c)localStorage.setItem('booklyn:synccode',c);else localStorage.removeItem('booklyn:synccode');}catch(e){}}
-function setAccount(r){SYNC.kind=r.kind||'email';SYNC.me=r.kind==='code'?'Sync code':(r.email||'');SYNC.uid=r.uid||'';}
-function devOn(){try{return localStorage.getItem('booklyn:dev')==='1';}catch(e){return false;}}
+function setAccount(r){SYNC.kind=r.kind||'email';SYNC.me=r.kind==='code'?'Sync code':(r.email||'');SYNC.uid=r.uid||'';SYNC.admin=!!r.admin;if(r.admin===undefined)adminCheck();}
+/* Admin is decided by the server (ADMIN_EMAILS / ADMIN_UIDS in Cloudflare). Asking /api/me is the only way to learn it. */
+function adminCheck(){api('GET','/api/me').then(function(m){var a=!!(m&&m.ok&&m.admin);if(a!==SYNC.admin){SYNC.admin=a;render();}});}
+function isAdminNow(){return !!(SYNC.me&&SYNC.admin);}
+function localDev(){var h=location.hostname;return h==='localhost'||h==='127.0.0.1'||h==='[::1]'||/\.localhost$/.test(h);}
+function unlOn(){if(!isAdminNow())return false;try{return localStorage.getItem('booklyn:unl')==='1';}catch(e){return false;}}
+function canPay(c){return unlOn()||state.coins>=c;}
+function pay(c){if(!unlOn())state.coins-=c;}
+/* Testing tools: for admin accounts, or on a local development address. A ?dev=1 link on the public site does nothing. */
+function devOn(){if(isAdminNow())return true;try{return localDev()&&localStorage.getItem('booklyn:dev')==='1';}catch(e){return false;}}
 function syncRender(){
   if(route().name!=='settings'&&!SYNC.conflict)return;
   var ae=document.activeElement;if(ae&&ae.id==='syemail')return;

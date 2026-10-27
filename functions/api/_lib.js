@@ -57,6 +57,17 @@ export async function currentUser(env, request) {
   return row || null;
 }
 
+// Admin accounts are named in Cloudflare Pages settings, never in the app:
+//   ADMIN_EMAILS = comma-separated sign-in emails (case ignored), ADMIN_UIDS = comma-separated account ids.
+// Nothing the browser sends can make an account an admin.
+export function isAdmin(env, user) {
+  if (!env || !user) return false;
+  const list = (s) => String(s || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const email = String(user.email || '').toLowerCase();
+  if (email && !email.startsWith('code:') && list(env.ADMIN_EMAILS).includes(email)) return true;
+  return list(env.ADMIN_UIDS).includes(String(user.id));
+}
+
 export function validEmail(email) {
   return typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
 }

@@ -67,6 +67,15 @@ The scan knows which ILIAS course every file comes from. The module is taken fro
 
 Booklyn works without any backend. For sync accounts and AI questions see `docs/accounts-setup.md`: a D1 database bound as `DB` (run `db/schema.sql`), optional Resend variables for email sign-in, and an optional Workers AI binding for `/api/quiz`. Deploy by pushing to `main`; Cloudflare Pages builds `functions/` automatically.
 
+## Admin account (unlimited coins)
+
+Admins are declared only in Cloudflare Pages → Settings → Environment variables (Production), never in the app:
+
+- `ADMIN_EMAILS`: comma-separated email addresses (case-insensitive). Does not match sync-code accounts.
+- `ADMIN_UIDS`: comma-separated account ids, for accounts created with a sync code.
+
+After redeploying, sign in with that account: Settings → "Admin tools" lets you switch on unlimited coins, set an exact balance or add coins. The server tells the app who is an admin through `/api/me`; nothing in the browser can grant it. On the public site `?dev=1` does nothing; it only works on `localhost`.
+
 ## Deploy to Cloudflare Pages
 
 Connected to the GitHub repository: every push to `main` deploys. Manual option: `npx wrangler pages deploy . --project-name booklyn` after `wrangler login`.
