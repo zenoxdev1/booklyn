@@ -720,7 +720,7 @@ function ilIsFile(u,name){
 /* A real course / folder / group link. Calendar, member, settings and tool links are NOT containers. */
 function ilContainer(u){
   var q=u.searchParams,t=q.get('target')||'',c=(q.get('cmdClass')||'').toLowerCase(),b=(q.get('baseClass')||'').toLowerCase(),m=(q.get('cmd')||'').toLowerCase(),ref=q.get('ref_id')||'';
-  var x=/^(crs|fold|grp|cat)_(\d+)$/i.exec(t)||/\/go\/(crs|fold|grp|cat)\/(\d+)\/?$/i.exec(u.pathname);
+  var x=/^(crs|fold|grp|cat)_(\d+)$/i.exec(t)||/\/(?:go|goto\.php)\/(crs|fold|grp|cat)\/(\d+)\/?$/i.exec(u.pathname)||/goto_[^_\/]+_(crs|fold|grp|cat)_(\d+)\.html$/i.exec(u.pathname);
   if(x)return {type:x[1].toLowerCase(),id:x[2]};
   var okCmd=/^(|view|render|frameset)$/.test(m);
   x=/^ilobj(course|folder|group|category)gui$/.exec(c);
@@ -744,7 +744,7 @@ function ilHint(a){
 }
 function ilTitle(doc){return ((doc.querySelector('h1')&&doc.querySelector('h1').textContent)||doc.title||'').replace(/\s+/g,' ').trim().slice(0,120);}
 function ilShort(h){try{var u=new URL(h);var keep=[];u.searchParams.forEach(function(v,k){if(!/^(sess|token|auth|phpsessid|client_id)/i.test(k))keep.push(k+'='+v);});return u.pathname.replace('/ilias/','')+(keep.length?'?'+keep.join('&'):'');}catch(e){return String(h).slice(0,80);}}
-function ilCollect(doc,pageUrl,files,found,ctx,courseName){
+function ilCollect(doc,pageUrl,files,found,ctx,courseName,dump){
   var anchors=doc.querySelectorAll('a[href]'),n=0;
   for(var i=0;i<anchors.length;i++){
     var a=anchors[i];if(a.closest(IL_CHROME))continue;
@@ -754,7 +754,7 @@ function ilCollect(doc,pageUrl,files,found,ctx,courseName){
       if(!name||/^(download|herunterladen|open|öffnen)$/i.test(name))continue;
       var key=ilFileKey(u,name);
       if(!files.has(key)){var ext=ilExt(name)||ilHint(a);files.set(key,{key:key,name:name,url:u.href,openUrl:u.href,context:ctx,course:courseName,ext:ext,kind:ilKind(ext)});}
-    }else{var info=ilContainer(u);if(info)found.push({href:u.href,name:name,info:info});}
+    }else{var info=ilContainer(u);if(info)found.push({href:u.href,name:name,info:info});else if(dump&&name&&dump.length<70)dump.push(ilShort(u.href)+' "'+name.slice(0,40)+'"');}
   }
   var btns=doc.querySelectorAll('[data-action]');
   for(var j=0;j<btns.length;j++){
@@ -787,8 +787,8 @@ async function iliasCrawl(){
   async function seeds(list){
     var got=await Promise.all(list.map(async function(h){var u=ilUrl(h);if(!u||visited[u.href])return null;visited[u.href]=1;var p=await getPage(u.href);return p?{h:u.href,p:p}:null;}));
     got.forEach(function(g){
-      if(!g)return;pages++;var found=[],n=ilCollect(g.p.doc,g.p.url,files,found,ilTitle(g.p.doc)||'ILIAS','');
-      note('SEED '+ilShort(g.h)+' -> '+ilShort(g.p.url)+' | "'+ilTitle(g.p.doc)+'" | links:'+n+' | containers: '+(found.slice(0,40).map(function(f){return f.info.type+'_'+f.info.id+' "'+f.name.slice(0,40)+'"';}).join(', ')||'none'));
+      if(!g)return;pages++;var found=[],dump=[],n=ilCollect(g.p.doc,g.p.url,files,found,ilTitle(g.p.doc)||'ILIAS','',dump);
+      note('SEED '+ilShort(g.h)+' -> '+ilShort(g.p.url)+' | "'+ilTitle(g.p.doc)+'" | links:'+n+' | containers: '+(found.filter(function(f){return f.info.type!=='news';}).slice(0,40).map(function(f){return f.info.type+'_'+f.info.id+' "'+f.name.slice(0,40)+'"';}).join(', ')||'none')+(found.some(function(f){return f.info.type==='news';})?' (+news links)':'')+'\n    other links: '+(dump.join(' ; ')||'none'));
       found.forEach(addCourse);
     });
     progress();
