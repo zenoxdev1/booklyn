@@ -248,12 +248,20 @@ export function sectionChunks(text, size, label) {
 /* ---------- questions about definitions (made on the device, no AI) ----------
    Only sentences that state a clear definition ("X is …", "X refers to …", "X ist …") are used.
    The wrong options are the definitions or terms of other concepts from the same material, so they look plausible. */
-var PRON = /^(it|this|that|these|those|there|we|you|they|he|she|which|what|here|one|each|also|however)\b/i;
+var PRON = /^(it|this|that|these|those|there|we|you|they|he|she|which|what|here|one|each|also|however|for|in|on|at|by|of|to|with|from|as|if|so|then|thus|es|dies|dieses|diese|dieser|diesen|das|hier|dort|wir|sie|er|man|auch|jedoch|für|mit|bei|von|zu|zum|zur|im|in|am|an|auf|aus|nach|um|wenn|wie|wo|was|welche|welcher|nur|dann|also|aber|oder|und|dabei|damit|dafür|daher|deshalb|zudem|ausserdem|außerdem|beispiel|beispiele|bsp|ziel|frage|aufgabe|hinweis)(?=\s|$)/i;
 var DEF_PATTERNS = [
   /^((?:The |A |An )?[A-Z][A-Za-z0-9\-\/ ]{2,40}?) (?:is|are) (?:defined as |called |known as |described as )?((?:a|an|the|any|when|where|used|made|one) .{20,170}?)\.$/,
   /^((?:The |A |An )?[A-Z][A-Za-z0-9\-\/ ]{2,40}?) (?:means|refers to|describes|denotes|stands for) (.{20,170}?)\.$/,
-  /^((?:Der |Die |Das |Ein |Eine )?[A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9\-\/ ]{2,40}?) (?:ist|sind|bezeichnet|beschreibt|bedeutet) (?:ein |eine |der |die |das |wenn |wo )?(.{20,170}?)\.$/
+  /^((?:Der |Die |Das |Ein |Eine )?[A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9\-\/ ]{2,40}?) (?:ist|sind) (?:definiert als |genannt )?((?:ein|eine|einer|eines|der|die|das|jede|jeder|jedes|wenn|wo|dann|alle) .{20,170}?)\.$/,
+  /^((?:Der |Die |Das |Ein |Eine )?[A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9\-\/ ]{2,40}?) (?:bezeichnet|beschreibt|bedeutet|meint) (.{20,170}?)\.$/
 ];
+/* true when the material is mostly German (so the question wording can match it) */
+export function isGerman(text) {
+  var s = ' ' + String(text || '').slice(0, 20000).toLowerCase().replace(/[^a-zäöüß]+/g, ' ') + ' ';
+  var de = (s.match(/ (der|die|das|und|ist|nicht|mit|von|für|wird|werden|ein|eine|auf|bei|sind|zu|als) /g) || []).length;
+  var en = (s.match(/ (the|and|is|of|to|in|that|with|for|are|as|on|by|an|this) /g) || []).length;
+  return de > en * 1.2 && de >= 8;
+}
 export function extractDefinitions(text) {
   var pages = String(text).split('\f'), paged = pages.length > 1, defs = [], seen = {};
   pages.forEach(function (pg, pi) {
@@ -265,7 +273,7 @@ export function extractDefinitions(text) {
         if (!m) continue;
         var term = m[1].replace(/^(The|A|An|Der|Die|Das|Ein|Eine) /, '').trim(), def = m[2].trim();
         if (PRON.test(term) || term.split(' ').length > 4 || term.length < 3) return;
-        if (/\d{3,}|http|\(see |\bfig\b/i.test(def) || def.split(' ').length < 4) return;
+        if (/\d{3,}|http|\(see |\bfig\b|[:;]|\d\s*°|=/i.test(def) || def.split(' ').length < 4) return;
         if (def.toLowerCase().indexOf(term.toLowerCase()) >= 0) return;
         var key = term.toLowerCase();
         if (seen[key]) return;
@@ -280,7 +288,7 @@ export function extractDefinitions(text) {
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 export function definitionQuestions(text, max, opts) {
   opts = opts || {};
-  var defs = extractDefinitions(text), out = [];
+  var defs = extractDefinitions(text), out = [], de = opts.lang ? opts.lang === 'de' : isGerman(text);
   if (defs.length < 4) return [];
   defs.forEach(function (d, idx) {
     if (out.length >= max) return;
@@ -290,13 +298,13 @@ export function definitionQuestions(text, max, opts) {
     if (type === 0) {
       pool = shuffled(pool, hashStr(d.sent)).slice(0, 3);
       if (pool.length < 3) return;
-      qtext = 'Which statement describes “' + d.term + '” correctly?';
+      qtext = de ? 'Welche Aussage beschreibt «' + d.term + '» richtig?' : 'Which statement describes “' + d.term + '” correctly?';
       right = cap(d.def); wrongs = pool.map(function (x) { return cap(x.def); });
     } else {
       pool = pool.filter(function (x) { return Math.abs(x.term.split(' ').length - d.term.split(' ').length) <= 1; });
       pool = shuffled(pool, hashStr(d.sent)).slice(0, 3);
       if (pool.length < 3) return;
-      qtext = 'Which term is described here: “' + cap(d.def) + '”?';
+      qtext = de ? 'Welcher Begriff wird hier beschrieben: «' + cap(d.def) + '»?' : 'Which term is described here: “' + cap(d.def) + '”?';
       right = cap(d.term); wrongs = pool.map(function (x) { return cap(x.term); });
     }
     var optsArr = wrongs.concat([right]), order = shuffled([0, 1, 2, 3], hashStr(d.sent + 'o')), o2 = order.map(function (i) { return optsArr[i]; });

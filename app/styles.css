@@ -62,6 +62,7 @@ h1:focus{outline:none}
 /* generic */
 .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .lede{color:var(--muted);max-width:60ch}
+.stack[style*="text-align:center"] > .lede,.card[style*="text-align:center"] > .lede{margin-inline:auto;text-wrap:balance}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
 .card.accent{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 .card.accent .eyebrow,.card.accent .lede{color:inherit;opacity:.85}

@@ -73,3 +73,37 @@ test('old question banks lose cloze questions but keep AI ones and the answer hi
 test('source line prefers the AI section reference', () => {
   assert.equal(Q.sourceLine({ file: 'w3.pdf', ref: 'p. 4–5' }), 'w3.pdf, p. 4–5');
 });
+
+/* ---- regression: a bad German question seen in the app ("Celsius" / "Für Kausalität" / "Hier") ---- */
+const DE_BAD = [
+  'Celsius ist intervallskaliert: 20 °C sind 10 Grad mehr als 10 °C, aber nicht die doppelte thermodynamische Temperatur.',
+  'Für Kausalität ist ein kontrolliertes Experiment mit Zufallszuteilung nötig, um Störfaktoren auszuschliessen.',
+  'Hier ist ein Beispiel für eine Stichprobe aus einer grösseren Grundgesamtheit von Studierenden.',
+  'Numerische Variablen sind Merkmale mit Zahlenwerten, bei denen Abstände und Rechnen sinnvoll sind.',
+].join(' ');
+const DE_GOOD = [
+  'Der Median ist der mittlere Wert einer sortierten Datenreihe, der die Daten in zwei gleich grosse Hälften teilt.',
+  'Die Varianz ist ein Mass für die durchschnittliche quadratische Abweichung der Werte vom Mittelwert.',
+  'Ein Ausreisser ist ein Datenpunkt, der deutlich weiter vom Rest der Daten entfernt liegt als alle anderen.',
+  'Die Stichprobe ist eine Auswahl von Elementen aus der Grundgesamtheit, die untersucht werden soll.',
+  'Der Modus bezeichnet den Wert, der in einer Datenreihe am häufigsten vorkommt und damit typisch ist.',
+].join(' ');
+
+test('adjective statements, fragments and example sentences are not treated as definitions', () => {
+  const terms = Q.extractDefinitions(DE_BAD).map((d) => d.term);
+  assert.ok(!terms.includes('Celsius'), 'Celsius ist intervallskaliert: … is a classification, not a definition');
+  assert.ok(!terms.includes('Hier'));
+  assert.ok(!terms.some((t) => /^F(ü|u)r\b/.test(t)));
+});
+
+test('German material gets German question wording and clean options', () => {
+  assert.equal(Q.isGerman(DE_GOOD), true);
+  assert.equal(Q.isGerman(DOC), false);
+  const qs = Q.definitionQuestions(DE_BAD + ' ' + DE_GOOD, 6);
+  assert.ok(qs.length >= 2, 'got ' + qs.length);
+  qs.forEach((q) => {
+    assert.match(q.q, /^Welche/);
+    q.o.forEach((o) => assert.ok(!/^(Hier|F(ü|u)r|Celsius)\b/.test(o), 'bad option: ' + o));
+    assert.equal(Q.qualityIssue(q), '');
+  });
+});
