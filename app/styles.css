@@ -365,3 +365,40 @@ details summary{cursor:pointer}
 @media (prefers-reduced-motion:reduce){.cityv .w-fading{animation:none}}
 
 .rail .brand img{vertical-align:-8px;margin-right:9px;border-radius:8px}
+
+/* island, bridge and port */
+.cityv .sea-t{fill:#1f4b7a}.cityv .sea-l{fill:#173a63}.cityv .sea-r{fill:#112c4d}
+.cityv .wave{fill:none;stroke:#8fc2ee;stroke-opacity:.45;stroke-width:.9;stroke-linecap:round;animation:wv 5s ease-in-out infinite}
+@keyframes wv{0%,100%{stroke-opacity:.15}50%{stroke-opacity:.55}}
+.cityv .foam{fill:none;stroke:#d6ebff;stroke-opacity:.55;stroke-width:1.2;stroke-linejoin:round}
+.cityv .rim-t{fill:#a8956b}.cityv .rim-l{fill:#7c6c4c}.cityv .rim-r{fill:#5d513a}
+.cityv .br-t{fill:#6c5a44}.cityv .br-l{fill:#4b3e2f}.cityv .br-r{fill:#392f24}
+.cityv .bd-t{fill:#b89a6a}.cityv .bd-l{fill:#8a7048}.cityv .bd-r{fill:#6a5536}
+.cityv .rail{fill:none;stroke:#e9e2cf;stroke-width:.9;stroke-linecap:round}
+.cityv .plank{fill:none;stroke:#7a6140;stroke-width:.6;stroke-opacity:.8}
+.cityv .pd-t{fill:#8c93a8}.cityv .pd-l{fill:#5e6580}.cityv .pd-r{fill:#444a62}
+.cityv .pmark{fill:none;stroke:#ffd166;stroke-width:1.1;stroke-dasharray:4 3;stroke-opacity:.85}
+.cityv .wh-t{fill:#9aa3c0}.cityv .wh-l{fill:#6d7599}.cityv .wh-r{fill:#4f5679}.cityv .wh-w{fill:#ffd166}
+.cityv .ct1-t{fill:#e0705a}.cityv .ct1-l{fill:#b4503e}.cityv .ct1-r{fill:#8c3e30}
+.cityv .ct2-t{fill:#5aa0d6}.cityv .ct2-l{fill:#3f7eb0}.cityv .ct2-r{fill:#2f6089}
+.cityv .ct3-t{fill:#e5c15a}.cityv .ct3-l{fill:#b99a3f}.cityv .ct3-r{fill:#8f762e}
+.cityv .hl-t{fill:#5b4a3e}.cityv .hl-l{fill:#c0453f}.cityv .hl-r{fill:#8f322f}
+.cityv .cb-t{fill:#eceff7}.cityv .cb-l{fill:#c7cde0}.cityv .cb-r{fill:#9ea6c2}.cityv .cb-w{fill:#ffd166}
+.cityv .cr-t{fill:#f2b84b}.cityv .cr-l{fill:#d99a2f}.cityv .cr-r{fill:#b07a22}
+.cityv .crb{fill:none;stroke:#f2b84b;stroke-width:2.4;stroke-linecap:round}
+.cityv .crs{fill:none;stroke:#d99a2f;stroke-width:.9}
+.cityv .crc{fill:none;stroke:#cfd6ea;stroke-width:.8}
+.cityv .lampg{fill:#ffd166;filter:url(#cglow)}
+.cityv .ship{animation:bob 4.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(1.6px)}}
+.cityv.sc-snow .sea-t{fill:#38557f}.cityv.sc-snow .rim-t{fill:#cdd8f2}.cityv.sc-snow .foam{stroke:#fff}
+.cityv.sc-desert .sea-t{fill:#1f7b86}.cityv.sc-desert .sea-l{fill:#175f68}.cityv.sc-desert .sea-r{fill:#10484f}.cityv.sc-desert .rim-t{fill:#d6b27a}
+.cityv.sc-autumn .sea-t{fill:#2b4468}.cityv.sc-autumn .rim-t{fill:#9b7a52}
+.cityv.sc-blossom .sea-t{fill:#2f5f7f}
+@media (prefers-reduced-motion:reduce){.cityv .wave,.cityv .ship{animation:none!important}}
+
+/* language selector */
+.langf{display:block;max-width:220px;margin:14px 0 0}
+.langf select{width:100%}
+/* longer translations: keep the hint clear of the legend */
+html:not([lang="en"]) .chint{bottom:46px}

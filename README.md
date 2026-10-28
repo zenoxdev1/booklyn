@@ -32,6 +32,12 @@ The app has no build step. `app.js` is loaded as an ES module (`<script type="mo
 
 Then open http://localhost:3000/app/ (the port is printed). Opening the files directly from disk does not work: modules and file storage need http.
 
+## Languages
+
+The app is available in English, German, Spanish and French. The language is picked from the browser on the first visit and can be changed in Settings (or on the welcome screen); the choice is kept in `localStorage['booklyn:lang']`.
+
+English text in `app/app.js` is the source and also the dictionary key. Wrap every visible string with `_t('...')` (plurals: `_pl(n, 'one', 'many')`, placeholders: `_tf('{n} files', {n: 3})`), then add the German, Spanish and French versions to `app/js/i18n-dict.js`. `tests/unit/i18n.test.mjs` checks that every key exists in all languages and keeps its placeholders. Demo content and the legal pages stay in English.
+
 ## Tests
 
     node --test tests/unit/*.test.mjs                 # fast, no installs

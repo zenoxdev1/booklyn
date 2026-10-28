@@ -1,3 +1,4 @@
+import { _t } from './i18n.js';
 /* Booklyn imports: the logic that decides when a file counts as "added" or "imported".
    Rule: nothing is shown as done until the browser confirmed the write.
    The storage layer is passed in (store), so these functions can be tested without a browser. */
@@ -36,7 +37,7 @@ export async function ingest(list, o) {
   var added = [], failed = [], hashes = [], dups = 0, i, stop = false;
   for (i = 0; i < list.length; i++) {
     var f = list[i];
-    if (stop) { failed.push({ file: f, name: f.name, reason: 'Skipped because the storage is full.', quota: true }); continue; }
+    if (stop) { failed.push({ file: f, name: f.name, reason: _t("Skipped because the storage is full."), quota: true }); continue; }
     if (o.onProgress) o.onProgress(i, list.length);
     var h = null;
     try { h = await o.hashOf(f); } catch (e) { h = null; }
@@ -50,7 +51,7 @@ export async function ingest(list, o) {
       added.push(rec);
     } catch (e) {
       var q = o.isQuota ? o.isQuota(e) : false;
-      failed.push({ file: f, name: f.name, reason: o.explain ? o.explain(e) : 'Could not be saved.', quota: q });
+      failed.push({ file: f, name: f.name, reason: o.explain ? o.explain(e) : _t("Could not be saved."), quota: q });
       if (q) stop = true;
     }
   }

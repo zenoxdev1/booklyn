@@ -1,3 +1,4 @@
+import { _t } from './i18n.js';
 /* Booklyn backups.
    Light backup: one JSON object with your progress (semesters, lights, notes, deadlines, coins, city). No files.
    Full backup: a text file with one JSON object per line: header, progress, question banks, then each imported
@@ -15,10 +16,10 @@ BackupError.prototype = Object.create(Error.prototype);
 
 /* What is saved where. Shown in Settings so nobody has to guess. */
 export var DATA_MAP = [
-  { what: 'Semesters, modules, lights, notes, deadlines, coins, city and decorations', sync: true, light: true, full: true },
-  { what: 'Imported files (slides, scripts, notes) and where each one belongs', sync: false, light: false, full: true },
-  { what: 'Practice questions and which ones you got wrong', sync: false, light: false, full: true },
-  { what: 'Sign-in and sync settings of this device', sync: false, light: false, full: false }
+  { what: _t("Semesters, modules, lights, notes, deadlines, coins, city and decorations"), sync: true, light: true, full: true },
+  { what: _t("Imported files (slides, scripts, notes) and where each one belongs"), sync: false, light: false, full: true },
+  { what: _t("Practice questions and which ones you got wrong"), sync: false, light: false, full: true },
+  { what: _t("Sign-in and sync settings of this device"), sync: false, light: false, full: false }
 ];
 
 /* ---------- light backup ---------- */
@@ -72,12 +73,12 @@ async function* readLines(blob, onBytes) {
   if (buf.trim()) yield buf;
 }
 function parseLine(line, what) {
-  try { return JSON.parse(line); } catch (e) { throw new BackupError('The backup file is damaged (' + what + ' cannot be read). Nothing was changed.'); }
+  try { return JSON.parse(line); } catch (e) { throw new BackupError(_t("The backup file is damaged (") + what + _t(" cannot be read). Nothing was changed.")); }
 }
 
 function cleanMeta(raw, stateSemIds) {
-  if (!raw || typeof raw !== 'object') throw new BackupError('A file entry in the backup is not valid. Nothing was changed.');
-  if (!ID_OK.test(String(raw.id))) throw new BackupError('A file in the backup has an invalid id. Nothing was changed.');
+  if (!raw || typeof raw !== 'object') throw new BackupError(_t("A file entry in the backup is not valid. Nothing was changed."));
+  if (!ID_OK.test(String(raw.id))) throw new BackupError(_t("A file in the backup has an invalid id. Nothing was changed."));
   var m = { id: String(raw.id) };
   m.name = String(raw.name || 'file').slice(0, 300);
   m.path = String(raw.path || '').slice(0, 600);
@@ -109,72 +110,72 @@ export async function readBackup(blob, deps) {
     count++;
     if (first) {
       first = false;
-      if (line.length > 40 * 1024 * 1024) throw new BackupError('That file is not a Booklyn backup.');
+      if (line.length > 40 * 1024 * 1024) throw new BackupError(_t("That file is not a Booklyn backup."));
       var obj;
       try { obj = JSON.parse(line); }
       catch (e) {
         /* an old or hand-edited light backup may be spread over several lines */
-        if (blob.size > 20 * 1024 * 1024) throw new BackupError('That file is not a Booklyn backup. Nothing was changed.');
-        try { obj = JSON.parse(await blob.text()); } catch (e2) { throw new BackupError('That file is not a valid Booklyn backup. Nothing was changed.'); }
-        if (!obj || obj.kind === BACKUP_KIND || typeof obj.schema !== 'number') throw new BackupError('That file is not a valid Booklyn backup. Nothing was changed.');
-        try { state = deps.prepareState(obj); } catch (e3) { throw new BackupError('That file is not a valid Booklyn backup. Nothing was changed.'); }
+        if (blob.size > 20 * 1024 * 1024) throw new BackupError(_t("That file is not a Booklyn backup. Nothing was changed."));
+        try { obj = JSON.parse(await blob.text()); } catch (e2) { throw new BackupError(_t("That file is not a valid Booklyn backup. Nothing was changed.")); }
+        if (!obj || obj.kind === BACKUP_KIND || typeof obj.schema !== 'number') throw new BackupError(_t("That file is not a valid Booklyn backup. Nothing was changed."));
+        try { state = deps.prepareState(obj); } catch (e3) { throw new BackupError(_t("That file is not a valid Booklyn backup. Nothing was changed.")); }
         kind = 'light'; break;
       }
       if (obj && obj.kind === BACKUP_KIND) {
-        if (obj.format > BACKUP_FORMAT) throw new BackupError('That backup was made by a newer version of Booklyn. Update the app first. Nothing was changed.');
+        if (obj.format > BACKUP_FORMAT) throw new BackupError(_t("That backup was made by a newer version of Booklyn. Update the app first. Nothing was changed."));
         kind = 'full'; header = obj; continue;
       }
       if (obj && typeof obj === 'object' && typeof obj.schema === 'number') {
         kind = 'light';
         try { state = deps.prepareState(obj); }
-        catch (e) { throw new BackupError(e && e.newer ? 'That backup is from a newer version of Booklyn. Nothing was changed.' : 'That file is not a valid Booklyn backup. Nothing was changed.'); }
+        catch (e) { throw new BackupError(e && e.newer ? _t("That backup is from a newer version of Booklyn. Nothing was changed.") : _t("That file is not a valid Booklyn backup. Nothing was changed.")); }
         continue;
       }
-      throw new BackupError('That file is not a Booklyn backup. Nothing was changed.');
+      throw new BackupError(_t("That file is not a Booklyn backup. Nothing was changed."));
     }
-    if (kind === 'light') { throw new BackupError('That file is not a valid Booklyn backup. Nothing was changed.'); }
+    if (kind === 'light') { throw new BackupError(_t("That file is not a valid Booklyn backup. Nothing was changed.")); }
     var rec = parseLine(line, 'line ' + count);
-    if (!rec || typeof rec !== 'object') throw new BackupError('The backup file is damaged. Nothing was changed.');
-    if (end) throw new BackupError('The backup file has extra data after its end. Nothing was changed.');
+    if (!rec || typeof rec !== 'object') throw new BackupError(_t("The backup file is damaged. Nothing was changed."));
+    if (end) throw new BackupError(_t("The backup file has extra data after its end. Nothing was changed."));
     if (rec.t === 'state') {
       try { state = deps.prepareState(rec.state); }
-      catch (e) { throw new BackupError(e && e.newer ? 'That backup is from a newer version of Booklyn. Nothing was changed.' : 'The progress inside the backup is not valid. Nothing was changed.'); }
+      catch (e) { throw new BackupError(e && e.newer ? _t("That backup is from a newer version of Booklyn. Nothing was changed.") : _t("The progress inside the backup is not valid. Nothing was changed.")); }
     } else if (rec.t === 'bank') {
-      if (!BANK_KEY.test(String(rec.key))) { notes.push('One question set was skipped (invalid name).'); continue; }
+      if (!BANK_KEY.test(String(rec.key))) { notes.push(_t("One question set was skipped (invalid name).")); continue; }
       var b = deps.upgradeBank(rec.bank);
       var before = b.q.length;
       b.q = b.q.filter(function (q) { return deps.validQuestion(q); }).slice(0, 2000);
-      if (b.q.length < before) notes.push(before - b.q.length + ' incomplete question(s) were skipped.');
+      if (b.q.length < before) notes.push(before - b.q.length + _t(" incomplete question(s) were skipped."));
       banks[rec.key] = b;
     } else if (rec.t === 'file') {
       var meta = cleanMeta(rec.meta);
-      if (ids[meta.id]) throw new BackupError('The backup lists the same file twice. Nothing was changed.');
+      if (ids[meta.id]) throw new BackupError(_t("The backup lists the same file twice. Nothing was changed."));
       ids[meta.id] = 1;
       var bytes;
-      try { bytes = deps.fromBase64(String(rec.data || '')); } catch (e) { throw new BackupError('The file “' + meta.name + '” in the backup is damaged. Nothing was changed.'); }
-      if (meta.size && bytes.length !== meta.size) throw new BackupError('The file “' + meta.name + '” in the backup is incomplete. Nothing was changed.');
+      try { bytes = deps.fromBase64(String(rec.data || '')); } catch (e) { throw new BackupError(_t("The file “") + meta.name + _t("” in the backup is damaged. Nothing was changed.")); }
+      if (meta.size && bytes.length !== meta.size) throw new BackupError(_t("The file “") + meta.name + _t("” in the backup is incomplete. Nothing was changed."));
       if (meta.hash && deps.sha256) {
         var h = await deps.sha256(bytes);
-        if (h !== meta.hash) throw new BackupError('The file “' + meta.name + '” in the backup does not match its checksum. Nothing was changed.');
+        if (h !== meta.hash) throw new BackupError(_t("The file “") + meta.name + _t("” in the backup does not match its checksum. Nothing was changed."));
       }
       meta.size = bytes.length;
       files.push({ meta: meta, blob: new Blob([bytes], { type: meta.type || 'application/octet-stream' }) });
     } else if (rec.t === 'end') {
       end = rec;
     } else {
-      throw new BackupError('The backup contains something this version does not understand. Nothing was changed.');
+      throw new BackupError(_t("The backup contains something this version does not understand. Nothing was changed."));
     }
   }
-  if (!kind) throw new BackupError('That file is empty. Nothing was changed.');
-  if (!state) throw new BackupError('The backup has no progress data. Nothing was changed.');
+  if (!kind) throw new BackupError(_t("That file is empty. Nothing was changed."));
+  if (!state) throw new BackupError(_t("The backup has no progress data. Nothing was changed."));
   if (kind === 'full') {
-    if (!end) throw new BackupError('The backup file is cut off (it was probably not fully copied). Nothing was changed.');
-    if (end.files !== files.length || end.banks !== Object.keys(banks).length) throw new BackupError('The backup file is incomplete. Nothing was changed.');
-    if (end.missing && end.missing.length) notes.push(end.missing.length + ' file(s) could not be saved when the backup was made: ' + end.missing.slice(0, 3).join(', ') + (end.missing.length > 3 ? '…' : '') + '.');
+    if (!end) throw new BackupError(_t("The backup file is cut off (it was probably not fully copied). Nothing was changed."));
+    if (end.files !== files.length || end.banks !== Object.keys(banks).length) throw new BackupError(_t("The backup file is incomplete. Nothing was changed."));
+    if (end.missing && end.missing.length) notes.push(end.missing.length + _t(" file(s) could not be saved when the backup was made: ") + end.missing.slice(0, 3).join(', ') + (end.missing.length > 3 ? '…' : '') + '.');
   }
   /* files pointing at a semester the backup does not contain cannot be placed */
   var semIds = {}; state.sems.forEach(function (s) { semIds[s.id] = 1; });
-  files = files.filter(function (f) { if (semIds[f.meta.sem]) return true; notes.push('“' + f.meta.name + '” was skipped (its semester is not in the backup).'); return false; });
+  files = files.filter(function (f) { if (semIds[f.meta.sem]) return true; notes.push('“' + f.meta.name + _t("” was skipped (its semester is not in the backup).")); return false; });
   return { kind: kind, state: state, banks: banks, files: files, createdAt: header ? header.createdAt : '', notes: notes };
 }
 

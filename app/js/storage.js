@@ -1,3 +1,4 @@
+import { _t } from './i18n.js';
 /* Booklyn storage: IndexedDB access for imported files (stores "meta" and "blobs").
    Every write helper resolves only after the transaction has completed, so a caller that
    awaits it knows the data is really on disk. Multi-record helpers use ONE transaction:
@@ -58,9 +59,9 @@ export function dbDel(id) { return run(['meta', 'blobs'], 'readwrite', function 
 /* Turns a storage error into a short sentence a student can act on. */
 export function explainStorageError(e) {
   var n = e && e.name;
-  if (n === 'QuotaExceededError') return 'Not enough storage left on this device.';
-  if (n === 'InvalidStateError' || n === 'SecurityError') return 'This browser blocked file storage (private mode?).';
-  if (n === 'NotFoundError') return 'The file could not be read. Pick it again.';
-  return 'The browser could not save this file.';
+  if (n === 'QuotaExceededError') return _t("Not enough storage left on this device.");
+  if (n === 'InvalidStateError' || n === 'SecurityError') return _t("This browser blocked file storage (private mode?).");
+  if (n === 'NotFoundError') return _t("The file could not be read. Pick it again.");
+  return _t("The browser could not save this file.");
 }
 export function isQuota(e) { return !!e && e.name === 'QuotaExceededError'; }
