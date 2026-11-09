@@ -16,6 +16,7 @@ Unofficial student project, not affiliated with HSLU. Files stay on the device (
       js/backup.js      progress backup, full backup, checked restore, merge rules
       js/search.js      search across modules, floors, files and notes
       js/today.js       "Study today": picks one task and groups reviews
+      js/questions.js   lesson questions: order, reminders, merge
       vendor/, fonts/, icons
     functions/api/      Cloudflare Pages Functions: sync, sign-in, optional AI questions
       quiz.js           the /api/quiz endpoint (limits, auth)

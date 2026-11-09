@@ -421,3 +421,13 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .item.today{flex-wrap:wrap}
 .item.today .grow{flex:1 1 150px;min-width:0;overflow-wrap:anywhere}
 .todayacts{margin-left:auto;align-items:center}
+/* lesson questions */
+.qrow{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;list-style:none}
+.qrow>input[type=checkbox]{width:22px;height:22px;margin-top:10px;accent-color:var(--accent);flex:none}
+.qrow .grow{flex:1;min-width:0;display:grid;gap:6px}
+.qtext{font-weight:600;border-color:transparent!important;background:transparent!important;resize:none;min-height:44px;field-sizing:content;overflow:hidden}
+.qtext:hover,.qtext:focus{border-color:var(--line)!important;background:var(--surface2)!important}
+.qrow.done .qtext{text-decoration:line-through;opacity:.6}
+.qans summary{cursor:pointer;font-size:.85rem;color:var(--muted);font-weight:600}
+.qans textarea{min-height:70px;margin-top:6px}
+.card.qdue{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}

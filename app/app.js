@@ -7,6 +7,7 @@ import * as QC from './js/quiz-core.js';
 import * as BK from './js/backup.js';
 import * as SR from './js/search.js';
 import * as TD from './js/today.js';
+import * as QS from './js/questions.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -161,7 +162,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{},iliasCourseMap:{}};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{},iliasCourseMap:{},questions:[],qRemind:'daily',qNotify:false,qNotified:''};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 /* Untrusted data (backup files, the cloud copy) is cleaned before it is used: ids are checked because they end up in the page, text is trimmed, odd keys are dropped. */
@@ -203,6 +204,10 @@ function clean(s){
     var id=ID_OK.test(String(d.id))&&!dids[d.id]?String(d.id):uid();dids[id]=1;
     return {id:id,date:/^\d{4}-\d{2}-\d{2}$/.test(String(d.date))?d.date:'',mod:ID_OK.test(String(d.mod))?String(d.mod):'',kind:dk.indexOf(d.kind)>-1?d.kind:'Other',title:String(d.title||'').slice(0,200)};
   }).filter(function(d){return d.date;});
+  var qAlive={};s.sems.forEach(function(sem){sem.modules.forEach(function(m){qAlive[m.id]=1;});});
+  s.questions=QS.clean(s.questions,qAlive,MAXU);
+  if(QS.MODES.indexOf(s.qRemind)<0)s.qRemind='daily';
+  s.qNotify=!!s.qNotify;s.qNotified=/^\d{4}-\d{2}-\d{2}$/.test(String(s.qNotified))?s.qNotified:'';
   if(s.activeSem!==null&&!ID_OK.test(String(s.activeSem)))s.activeSem=null;
   s.theme=['system','light','dark'].indexOf(s.theme)>-1?s.theme:'system';
   return s;
@@ -404,12 +409,12 @@ async function addFiles(list,preset,skipDups,hint){
   render(); toast(msg);
   return {added:added,dups:res.dups,failed:failed,hashes:res.hashes};
 }
-async function openFile(id){
+async function openFile(id,page){
   var rec=FILES.filter(function(f){return f.id===id;})[0]; if(!rec) return;
   try{
     var b=await dbBlob(id); if(!b){toast(_t("This file is missing from storage."));return;}
     var url=URL.createObjectURL(b), w=null;
-    try{w=window.open(url,'_blank');}catch(e){}
+    try{w=window.open(url+(page>0&&/\.pdf$/i.test(rec.name)?'#page='+page:''),'_blank');}catch(e){}
     if(!w){var a=document.createElement('a');a.href=url;a.download=rec.name;document.body.appendChild(a);a.click();a.remove();}
     setTimeout(function(){URL.revokeObjectURL(url);},120000);
   }catch(e){toast(_t("Could not open this file."));}
@@ -744,7 +749,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var lastRendered=null, study=null, ui={tab:'units',q:'',qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -1046,6 +1051,7 @@ function route(){
   if(p[0]==='shop') return {name:'shop'};
   if(p[0]==='search') return {name:'search'};
   if(p[0]==='today') return {name:'today'};
+  if(p[0]==='questions') return {name:'questions'};
   if(p[0]==='setup') return {name:'setup'};
   if(p[0]==='m'){
     var m=M(p[1]); if(!m) return {name:'campus'};
@@ -1080,6 +1086,7 @@ function vCampus(){
   h+=cityBox(cityMods(sem),{interactive:true,build:bld,full:ui.cityFull,title:sem.name,coins:state.coins,rent:rentPerDay()});
   if(n) h+=("<section class=\"card accent stack\"><p class=\"eyebrow\">"+_t("Next up")+"</p><h2>")+esc(n.m.code)+' · '+esc(n.m.titles[n.u-1])+'</h2><p class="lede">'+esc(n.why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+("/study\">"+_t("Start block")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/m/")+n.m.id+'/'+n.u+("\">"+_t("Open unit")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/today\">"+_t("Study today")+"</button></div></section>");
   else if(!pending().length&&!FILES.some(function(f){return f.sem===sem.id;})&&!sem.demo) h+=("<section class=\"card stack\"><h3>"+_t("Add your first files")+"</h3><p class=\"lede\">"+_t("Drop your slides and scripts into the Port. Booklyn suggests where each one belongs.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"go\" data-to=\"#/port\">"+_t("Open the Port")+"</button></div></section>");
+  h+=qCardHTML(sem,3);
   if(p) h+='<section class="card row between"><div><h3>'+p+_pl(p,' file waiting in the Port',' files waiting in the Port')+("</h3><p class=\"lede\">"+_t("Review where they belong, then import.")+"</p></div><button class=\"btn\" data-a=\"go\" data-to=\"#/port\">"+_t("Review")+"</button></section>");
   if(ups.length) h+=("<section class=\"stack\"><div class=\"row between\"><h2>"+_t("Coming up")+"</h2><button class=\"link\" data-a=\"go\" data-to=\"#/deadlines\">"+_t("All deadlines")+"</button></div><ul class=\"list\">")
    +ups.map(function(d){var m=d.mod?M(d.mod):null;return '<li><div class="item"><span class="floor" style="--h:'+(m?m.h:0)+'">'+(m?esc(m.code.slice(0,2)):'•')+'</span><div class="grow"><div class="t">'+esc(d.title)+'</div><div class="s">'+(m?esc(m.code)+' · ':'')+fmt(d.date)+'</div></div><span class="chip">'+rel(d)+'</span></div></li>';}).join('')+'</ul></section>';
@@ -1190,6 +1197,7 @@ function vUnit(r){
   if(!ms.length) h+=("<section class=\"card stack\"><h3>"+_t("This floor is waiting for files")+"</h3><p class=\"lede\">"+_t("Add the material for this unit and the floor is ready for a study block.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"pickhere\" data-mod=\"")+m.id+'" data-unit="'+u+("\">"+_t("Add files here")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/port\">"+_t("Open the Port")+"</button></div></section>");
   else h+=("<section class=\"card stack\"><h2>"+_t("Study block")+"</h2><p class=\"lede\">"+_t("Focus for 25 minutes, then do a short check. Pass it and the light goes on.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"go\" data-to=\"#/m/")+m.id+'/'+u+("/study\">"+_t("Start block")+"</button></div></section>")
    +("<section class=\"stack\"><div class=\"row between\"><h2>"+_t("Material")+"</h2><button class=\"btn small ghost\" data-a=\"pickhere\" data-mod=\"")+m.id+'" data-unit="'+u+("\">"+_t("Add files here")+"</button></div><div class=\"stack\">")+ms.map(function(x){return matRow(m,u,x);}).join('')+'</div></section>';
+  h+=qUnitHTML(m,u);
   h+=("<section class=\"stack\"><label class=\"f\" for=\"utitle\">"+_t("Unit name")+"<input type=\"text\" id=\"utitle\" data-k=\"")+k+'" value="'+esc(m.titles[u-1])+'" maxlength="80"></label>'
    +("<label class=\"f\" for=\"note\">"+_t("Notes")+"<textarea id=\"note\" data-k=\"")+k+("\" placeholder=\""+_t("Terms you could not explain, questions for the lecturer…")+"\">")+esc(state.notes[k]||'')+("</textarea></label><p class=\"foot\">"+_t("Saved on this device while you type.")+"</p></section>");
   h+='<div class="row between">'+(u>1?'<button class="btn ghost small" data-a="go" data-to="#/m/'+m.id+'/'+(u-1)+("\">"+_t("← Week "))+(u-1)+'</button>':'<span></span>')+(u<m.units?'<button class="btn ghost small" data-a="go" data-to="#/m/'+m.id+'/'+(u+1)+("\">"+_t("Week "))+(u+1)+' →</button>':'')+'</div>';
@@ -1471,6 +1479,98 @@ function vSettings(){
 }
 
 /* ================= shell ================= */
+/* ================= lesson questions (logic in js/questions.js) ================= */
+function qToday(){return QS.isoDay(new Date());}
+function qMat(q){
+  if(!q.file)return null;var m=M(q.mod);if(!m)return null;
+  for(var u=1;u<=m.units;u++){var f=mats(m,u).filter(function(x){return x.id===q.file;})[0];if(f)return f;}
+  return null;
+}
+function qSrc(q){var f=qMat(q);return f?f.name+(q.page?' · '+(/\.pptx$/i.test(f.name)?_t("Slide "):_t("Page "))+q.page:''):'';}
+function qWhere(q,hideMod){var m=M(q.mod),w=[];if(!hideMod&&m)w.push(esc(m.code));w.push(q.unit?esc(_t("Week "))+q.unit:esc(_t("Whole module")));return w.join(' · ');}
+function qLessonChip(q){return q.due?'<span class="chip'+(q.due<qToday()&&!q.done?' s-fading':'')+'">'+esc(_t("Lesson "))+esc(fmt(q.due))+'</span>':'';}
+function qRowHTML(q,hideMod){
+  var src=qSrc(q),f=qMat(q);
+  return '<li class="qrow'+(q.done?' done':'')+'"><input type="checkbox" data-c="qdone" data-id="'+esc(q.id)+'" '+(q.done?'checked':'')+' aria-label="'+esc(_t("Done: ")+q.text)+'"><div class="grow">'
+    +'<textarea class="qtext" rows="1" data-q="text" data-c="qtext" data-id="'+esc(q.id)+'" maxlength="'+QS.MAX_TEXT+'" aria-label="'+esc(_t("Question"))+'">'+esc(q.text)+'</textarea>'
+    +'<div class="s">'+qWhere(q,hideMod)+' '+qLessonChip(q)+(src?' <span class="chip">'+esc(src)+'</span>':'')+'</div>'
+    +'<details class="qans"'+(q.answer?' open':'')+'><summary>'+_t("Answer")+'</summary><textarea data-q="answer" data-id="'+esc(q.id)+'" maxlength="'+QS.MAX_ANSWER+'" placeholder="'+esc(_t("Write the answer you got…"))+'">'+esc(q.answer)+'</textarea></details>'
+    +'<div class="row tight">'+(f&&f.blob?'<button class="btn small ghost" data-a="open" data-id="'+esc(f.id)+'" data-page="'+(q.page||0)+'">'+_t("Open file")+'</button>':'')
+    +(ui.qDel===q.id?'<button class="btn small danger" data-a="qdel2" data-id="'+esc(q.id)+'">'+_t("Remove for good")+'</button><button class="btn small ghost" data-a="qdel0">'+_t("Cancel")+'</button>':'<button class="btn small ghost" data-a="qdel1" data-id="'+esc(q.id)+'">'+_t("Remove")+'</button>')+'</div></div></li>';
+}
+function qFileOptions(m,unit){
+  var o='<option value="">'+_t("No file")+'</option>';
+  for(var u=1;u<=m.units;u++){if(unit&&u!==unit)continue;mats(m,u).forEach(function(x){o+='<option value="'+esc(x.id)+'">'+esc(_t("Week ")+u+' · '+x.name)+'</option>';});}
+  return o;
+}
+/* One form for both places: fixed = {mod,unit} on a floor page, nothing on the questions page. */
+function qFormHTML(fixed){
+  var m=fixed?M(fixed.mod):M(ui.qMod)||(curSem()&&curSem().modules[0]),unit=fixed?fixed.unit:ui.qUnit;
+  if(!m)return '';
+  var pick='';
+  if(!fixed){
+    pick='<div class="grid2"><label class="f">'+_t("Module")+'<select name="mod" data-c="qmod">'+state.sems.map(function(sm){return '<optgroup label="'+esc(sm.name)+'">'+sm.modules.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===m.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</optgroup>';}).join('')+'</select></label>'
+      +'<label class="f">'+_t("Week ").trim()+'<select name="unit" data-c="qunit"><option value="0">'+_t("Whole module")+'</option>'+m.titles.slice(0,m.units).map(function(t,i){return '<option value="'+(i+1)+'"'+(unit===i+1?' selected':'')+'>'+esc(_t("Week ")+(i+1)+' · '+t)+'</option>';}).join('')+'</select></label></div>';
+  }
+  var id=fixed?'qu':'qtext';
+  return '<form class="stack qform" data-form="qadd" data-focus="'+id+'"'+(fixed?' data-mod="'+esc(fixed.mod)+'" data-unit="'+fixed.unit+'"':'')+'>'+pick
+    +'<div class="row" style="align-items:flex-end"><label class="f grow" for="'+id+'">'+(fixed?_t("Add a question for this lesson"):_t("Your question"))+'<input type="text" id="'+id+'" name="text" maxlength="'+QS.MAX_TEXT+'" autocomplete="off" placeholder="'+esc(_t("Type a question and press Enter"))+'"></label><button class="btn" type="submit">'+_t("Add a question")+'</button></div>'
+    +'<details><summary class="foot" style="cursor:pointer">'+_t("Lesson date, file and page")+'</summary><div class="grid2" style="margin-top:8px"><label class="f">'+_t("Lesson date")+'<input type="date" name="due"></label>'
+    +'<label class="f">'+_t("File")+'<select name="file">'+qFileOptions(m,unit)+'</select></label><label class="f">'+_t("Page or slide")+'<input type="number" name="page" min="1" max="9999"></label></div></details></form>';
+}
+function qUnitHTML(m,u){
+  var list=QS.order(QS.open(state.questions.filter(function(q){return q.mod===m.id&&q.unit===u;})));
+  return '<section class="stack"><div class="row between"><h2>'+_t("Questions for the lesson")+'</h2><button class="btn small ghost" data-a="go" data-to="#/questions">'+_t("All questions")+'</button></div>'+qFormHTML({mod:m.id,unit:u})
+    +(list.length?'<ul class="list">'+list.map(function(q){return qRowHTML(q,true);}).join('')+'</ul>':'')+'</section>';
+}
+function qMiniHTML(q){
+  return '<li><div class="item today"><div class="grow"><div class="t">'+esc(q.text)+'</div><div class="s">'+qWhere(q,false)+'</div></div>'+qLessonChip(q)+'</div></li>';
+}
+/* A short list of what is still open: on Campus and in Study today. Highlighted when a reminder is due. */
+function qCardHTML(sem,limit){
+  var ids={};sem.modules.forEach(function(m){ids[m.id]=1;});
+  var mine=state.questions.filter(function(q){return ids[q.mod];}),op=QS.open(mine);
+  if(!op.length)return '';
+  var today=qToday(),nl=QS.nextLesson(mine,today),list=(nl.length?nl:QS.order(op)).slice(0,limit),due=QS.reminder(mine,state.qRemind,today).length>0;
+  return '<section class="card stack'+(due?' qdue':'')+'"><div class="row between"><div><p class="eyebrow">'+(due?_t("Reminder"):_t("Lesson questions"))+'</p><h3>'+op.length+_pl(op.length,' open question',' open questions')+'</h3></div><button class="btn small" data-a="go" data-to="#/questions">'+_t("Open questions")+'</button></div><ul class="list">'+list.map(qMiniHTML).join('')+'</ul></section>';
+}
+function vQuestions(){
+  var sem=curSem();if(!sem)return vWelcome();
+  if(!ui.qMod||!M(ui.qMod))ui.qMod=sem.modules[0]?sem.modules[0].id:'';
+  var all=state.questions.filter(function(q){return !ui.qFilter||q.mod===ui.qFilter;}),op=QS.open(all),nl=QS.nextLesson(all,qToday()),nlIds={};
+  nl.forEach(function(q){nlIds[q.id]=1;});
+  var rest=QS.order(op.filter(function(q){return !nlIds[q.id];})),dn=all.filter(function(q){return q.done;}).sort(function(a,b){return b.doneAt-a.doneAt;});
+  var perm=('Notification' in window)?Notification.permission:'none';
+  var h='<button class="back" data-a="go" data-to="#/">'+_t("← Campus")+'</button><header class="stack"><p class="eyebrow">'+_t("Lesson questions")+'</p><h1 tabindex="-1" id="h1">'+_t("Your questions")+'</h1><p class="lede">'+_t("Write down what you want to ask in class or look up later. Press Enter to add. Booklyn keeps them in front of you until you answer or complete them.")+'</p></header>';
+  h+='<section class="card stack">'+qFormHTML(null)+'</section>';
+  h+='<section class="card stack"><label class="f">'+_t("Remind me")+'<select data-c="qremind">'+[['daily',_t("Every day until answered")],['lesson',_t("The day before the lesson date")],['off',_t("No reminders")]].map(function(x){return '<option value="'+x[0]+'"'+(state.qRemind===x[0]?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></label>'
+    +(perm==='none'?'<p class="foot">'+_t("This browser cannot show notifications. Booklyn still shows your questions here.")+'</p>':perm==='denied'?'<p class="foot">'+_t("Notifications are blocked in this browser. Booklyn still shows your questions here.")+'</p>'
+      :'<label class="check"><input type="checkbox" data-c="qnotify" '+(state.qNotify&&perm==='granted'?'checked':'')+'><div class="t">'+_t("Also show a browser notification when I open Booklyn")+'</div></label>')
+    +'<p class="foot">'+_t("Reminders appear when you open Booklyn. Booklyn cannot send notifications while it is closed.")+'</p></section>';
+  if(state.sems.some(function(x){return x.modules.length>1;})||state.sems.length>1)h+='<label class="f">'+_t("Module")+'<select data-c="qfilter"><option value="">'+_t("All modules")+'</option>'+state.sems.map(function(sm){return '<optgroup label="'+esc(sm.name)+'">'+sm.modules.map(function(x){return '<option value="'+esc(x.id)+'"'+(ui.qFilter===x.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</optgroup>';}).join('')+'</select></label>';
+  if(!all.length)return h+'<p class="lede">'+_t("No questions yet. Write the first one above.")+'</p>';
+  if(nl.length)h+='<section class="stack"><h2>'+_t("For your next lesson")+'</h2><ul class="list">'+nl.map(function(q){return qRowHTML(q,false);}).join('')+'</ul></section>';
+  if(rest.length)h+='<section class="stack"><h2>'+(nl.length?_t("Other open questions"):_t("Open questions"))+'</h2><ul class="list">'+rest.map(function(q){return qRowHTML(q,false);}).join('')+'</ul></section>';
+  if(dn.length)h+='<details class="stack"><summary><strong>'+_t("Completed")+' · '+dn.length+'</strong></summary><ul class="list" style="margin-top:8px">'+dn.map(function(q){return qRowHTML(q,false);}).join('')+'</ul></details>';
+  return h;
+}
+function qNotifyToggle(on){
+  if(!on){state.qNotify=false;save();render();return;}
+  try{
+    if(Notification.permission==='granted'){state.qNotify=true;state.qNotified='';save();render();maybeNotify();return;}
+    Notification.requestPermission().then(function(p){state.qNotify=(p==='granted');state.qNotified='';save();render();if(p==='granted')maybeNotify();});
+  }catch(e){render();}
+}
+/* Once a day at most, and only while Booklyn is open: a browser notification for what the reminder setting says is due. */
+function maybeNotify(){
+  try{
+    if(readOnly||!state.qNotify||!('Notification' in window)||Notification.permission!=='granted')return;
+    var today=qToday();if(state.qNotified===today)return;
+    var due=QS.reminder(state.questions,state.qRemind,today);if(!due.length)return;
+    state.qNotified=today;save();
+    new Notification('Booklyn',{body:due.length+_pl(due.length,' open question',' open questions')+' · '+due[0].text.slice(0,80),icon:'icon-192.png',tag:'booklyn-questions'});
+  }catch(e){}
+}
 /* ================= study today (logic in js/today.js) ================= */
 function todayChip(st){var t={lit:_t("Quiz passed"),fading:_t("Due for review"),progress:_t("Reviewed, no quiz yet"),ready:_t("Not started")}[st];return t?'<span class="chip s-'+st+'">'+t+'</span>':'';}
 function todayFloors(sem){
@@ -1496,6 +1596,7 @@ function vToday(){
   if(!L)return h+'<section class="card stack"><h3>'+_t("Nothing to study yet")+'</h3><p class="lede">'+_t("Add files in the Port and Booklyn will plan your day.")+'</p><div class="row"><button class="btn" data-a="go" data-to="#/port">'+_t("Open the Port")+'</button></div></section>';
   var why=pl.why==='next'?(nx?nx.why:''):(pl.why==='urgent'||pl.why==='review')?_t("Due for review · ")+L.left+_pl(L.left,' day left',' days left'):pl.why==='pick'?(L.st==='fading'?_t("Due for review · ")+L.left+_pl(L.left,' day left',' days left'):_t("You chose this task.")):_t("The next dark floor in your district");
   h+='<section class="card accent stack"><p class="eyebrow">'+_t("Your task today")+'</p><h2>'+esc(L.m.code)+' · '+esc(L.m.titles[L.u-1])+'</h2><p class="lede">'+esc(why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+esc(L.m.id)+'/'+L.u+'/study">'+_t("Start block")+'</button><button class="btn ghost" data-a="go" data-to="#/m/'+esc(L.m.id)+'/'+L.u+'">'+_t("Open unit")+'</button>'+(ui.todayPick?'<button class="btn ghost" data-a="todayreset">'+_t("Back to the suggestion")+'</button>':'')+'</div></section>';
+  h+=qCardHTML(sem,5);
   var nd=semDeadlines(sem).filter(function(d){return !state.tasksDone[d.id]&&daysTo(d)>=0;}).sort(function(a,b){return pdate(a.date)-pdate(b.date);})[0];
   h+='<section class="card row between"><div><p class="eyebrow">'+_t("Next deadline")+'</p>'+(nd?'<h3>'+esc(nd.title)+'</h3><p class="lede">'+(nd.mod&&M(nd.mod)?esc(M(nd.mod).code)+' · ':'')+fmt(nd.date)+'</p>':'<p class="lede">'+_t("No upcoming deadlines.")+'</p>')+'</div>'+(nd?'<span class="chip">'+rel(nd)+'</span>':'')+'<button class="btn ghost small" data-a="go" data-to="#/deadlines">'+_t("All deadlines")+'</button></section>';
   if(pl.review.length)h+='<section class="stack"><h2>'+_t("Due for review")+'</h2><ul class="list">'+pl.review.slice(0,5).map(todayRow).join('')+'</ul></section>';
@@ -1538,7 +1639,7 @@ function resultsHTML(res,opt){
     if(r.page)where.push(esc((d.label==='p.'?_t("Page "):d.label==='slide'?_t("Slide "):'')+r.page));
     h+='<li class="item sres"><div class="grow"><div class="t"><span class="chip">'+KL[d.kind]+'</span> '+hl(d.title,res.toks)+'</div><div class="s">'+where.join(' · ')+'</div>'
       +(r.snip&&r.field==='body'?'<div class="snip">'+hl(r.snip,res.toks)+'</div>':'')+'</div><div class="row tight">'
-      +(d.fid?'<button class="btn small" data-a="open" data-id="'+esc(d.fid)+'">'+_t("Open")+'</button>':'')
+      +(d.fid?'<button class="btn small" data-a="open" data-id="'+esc(d.fid)+'" data-page="'+(r.page||0)+'">'+_t("Open")+'</button>':'')
       +'<button class="btn small ghost" data-a="go" data-to="#/m/'+esc(m.id)+(d.unit?'/'+d.unit:'')+'">'+(d.unit?_t("Go to floor"):_t("Go to module"))+'</button></div></li>';
   });
   return h+'</ul>';
@@ -1576,7 +1677,7 @@ function vSearch(){
 }
 function nav(cur){
   var items=[['campus',_t("Campus"),'#/','campus'],['port',_t("Port"),'#/port','port'],['search',_t("Search"),'#/search','search'],['deadlines',_t("Deadlines"),'#/deadlines','dead'],['shop',_t("Shop"),'#/shop','shop'],['settings',_t("Settings"),'#/settings','set']];
-  var on={module:'campus',unit:'campus',study:'campus',setup:'campus',today:'campus'}[cur]||cur,p=pending().length;
+  var on={module:'campus',unit:'campus',study:'campus',setup:'campus',today:'campus',questions:'campus'}[cur]||cur,p=pending().length;
   return items.map(function(i){return '<button class="navbtn" data-a="go" data-to="'+i[2]+'" '+(on===i[0]?'aria-current="page"':'')+'><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[i[3]]+'</svg><span>'+i[1]+'</span>'+(i[0]==='port'&&p?'<span class="badge" aria-label="'+_pl(p,' file waiting',' files waiting')+'">'+p+'</span>':'')+'</button>';}).join('');
 }
 function render(focus){
@@ -1587,7 +1688,7 @@ function render(focus){
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
-  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='setup'?vSetup():vSettings();
+  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
   $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'</nav><main class="main">'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
@@ -1887,7 +1988,10 @@ document.addEventListener('click',function(e){
       state.lastImport=[];save();render(true);toast(_t("Import undone. The files are back in the Port."));
     });
   }
-  else if(a==='open'){openFile(id);}
+  else if(a==='open'){openFile(id,+b.dataset.page||0);}
+  else if(a==='qdel1'){ui.qDel=id;render();}
+  else if(a==='qdel0'){ui.qDel=null;render();}
+  else if(a==='qdel2'){state.questions=state.questions.filter(function(q){return q.id!==id;});ui.qDel=null;save();render();}
   else if(a==='del1'){ui.confirm=id;render();}
   else if(a==='del0'){ui.confirm=null;render();}
   else if(a==='rmdups'){var gone=pending().filter(isDupRow),gids=gone.map(function(f){return f.id;});IM.removeFiles(fileStore,gids).then(function(r){if(!r.ok){toast(_t("Could not remove the duplicates. ")+ST.explainStorageError(r.error));return;}var ids={};gids.forEach(function(i){ids[i]=1;});FILES=FILES.filter(function(f){return !ids[f.id];});render();toast(gone.length+_pl(gone.length,' duplicate removed.',' duplicates removed.'));});}
@@ -1924,7 +2028,7 @@ document.addEventListener('click',function(e){
       var ids={};sm.modules.forEach(function(m){ids[m.id]=1;});
       Object.keys(state.lit).forEach(function(k){if(ids[k.split(':')[0]])delete state.lit[k];});
       Object.keys(state.how).forEach(function(k){if(ids[k.split(':')[0]])delete state.how[k];});
-      state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});
+      state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});state.questions=state.questions.filter(function(q){return !ids[q.mod];});
       state.sems=state.sems.filter(function(x){return x.id!==sm.id;});state.activeSem=state.sems.length?state.sems[0].id:null;
       ui.confirm=null;save();go('#/');toast(_t("Semester removed."));
     });
@@ -1957,6 +2061,13 @@ document.addEventListener('change',function(e){
   else if(c==='aiopt'){state.aiOpt=t.checked;save();}
   else if(c==='unl'){if(!isAdminNow())return;try{if(t.checked)localStorage.setItem('booklyn:unl','1');else localStorage.removeItem('booklyn:unl');}catch(e){}if(t.checked&&state.coins<999999){state.coins=999999;save();}render();toast(t.checked?_t("Unlimited coins on."):_t("Unlimited coins off."));}
   else if(c==='smod'){ui.smod=t.value;paintSearch();}
+  else if(c==='qmod'){ui.qMod=t.value;ui.qUnit=0;render();}
+  else if(c==='qunit'){ui.qUnit=+t.value||0;}
+  else if(c==='qfilter'){ui.qFilter=t.value;render();}
+  else if(c==='qremind'){if(QS.MODES.indexOf(t.value)>-1){state.qRemind=t.value;state.qNotified='';save();render();}}
+  else if(c==='qnotify'){qNotifyToggle(t.checked);}
+  else if(c==='qdone'){var dq=state.questions.filter(function(q){return q.id===t.dataset.id;})[0];if(dq){dq.done=t.checked;dq.doneAt=t.checked?Date.now():0;dq.upd=Date.now();save();render();}}
+  else if(c==='qtext'){var tq=state.questions.filter(function(q){return q.id===t.dataset.id;})[0];if(tq&&!t.value.trim()){t.value=t.defaultValue;tq.text=t.defaultValue;save();}}
   else if(c==='ilmap'){if(t.value)state.iliasCourseMap[t.dataset.k]=t.value;else delete state.iliasCourseMap[t.dataset.k];save();render();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
@@ -1969,6 +2080,17 @@ document.addEventListener('change',function(e){
     IM.commitPatch(fileStore,[f],function(){return patch;}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();window.scrollTo(0,y);});
   }
 });
+document.addEventListener('submit',function(e){
+  var f=e.target;if(!f||!f.dataset||f.dataset.form!=='qadd')return;e.preventDefault();
+  var fd=new FormData(f),text=String(fd.get('text')||'').trim(),mod=String(fd.get('mod')||f.dataset.mod||''),unit=+(fd.get('unit')!==null?fd.get('unit'):f.dataset.unit)||0,m=M(mod);
+  if(!text||!m)return;
+  if(state.questions.length>=QS.MAX_Q){toast(_t("You have reached the limit of 500 questions."));return;}
+  var q=QS.make(uid(),m.id,Math.min(unit,m.units),text,{file:String(fd.get('file')||''),page:+fd.get('page')||0,due:String(fd.get('due')||'')},Date.now());
+  if(!q)return;
+  state.questions.push(q);save();render();
+  var inp=document.getElementById(f.dataset.focus||'qtext');if(inp)inp.focus();
+  toast(_t("Question added."));
+});
 document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='ilmgr')ui.ilias.mgrOpen=t.open;},true);
 document.addEventListener('input',function(e){
   var t=e.target;
@@ -1977,6 +2099,7 @@ document.addEventListener('input',function(e){
   else if(t.id==='nm'){state.name=t.value;save();}
   else if(t.id==='q'){ui.q=t.value;var r=route();$('#matlist').innerHTML=fileList(r.m);if(t.value.trim())indexFiles();}
   else if(t.id==='sq'){ui.sq=t.value;paintSearch();}
+  else if(t.dataset.q==='text'||t.dataset.q==='answer'){var iq=state.questions.filter(function(q){return q.id===t.dataset.id;})[0];if(iq){if(t.dataset.q==='text')iq.text=t.value.replace(/\s*\n\s*/g,' ').slice(0,QS.MAX_TEXT);else iq.answer=t.value.slice(0,QS.MAX_ANSWER);iq.upd=Date.now();save();}}
   else if(t.dataset.sb){setPath(ui.setup,t.dataset.sb,t.type==='number'?t.value:t.value);if(/^mods\./.test(t.dataset.sb)){var sc=$('#setupcity');if(sc)sc.innerHTML=setupCityHTML();}}
   else if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;}
 });
@@ -2067,7 +2190,7 @@ async function codeEnter(code,isNew){
   if(SYNC.known&&SYNC.known!==SYNC.uid)SYNC.base=0;SYNC.known=SYNC.uid;syncMeta();
   await syncPull();render();
 }
-document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden'&&SYNC.me&&SYNC.dirty&&!SYNC.conflict)syncPush(true);});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')maybeNotify();if(document.visibilityState==='hidden'&&SYNC.me&&SYNC.dirty&&!SYNC.conflict)syncPush(true);});
 window.addEventListener('online',function(){if(SYNC.me&&SYNC.dirty)syncPush();});
 function accountCard(){
   var h=("<section class=\"card stack\" id=\"account\"><h3>"+_t("Account and sync")+"</h3>");
@@ -2103,5 +2226,6 @@ try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hos
 try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catch(e){}
 render(false);
 try{syncInit();}catch(e){}
+maybeNotify();
 dbAll().then(function(all){FILES=all||[];render(false);}).catch(function(){filesOK=false;render(false);});
 })();
