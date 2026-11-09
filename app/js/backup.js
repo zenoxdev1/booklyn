@@ -11,7 +11,7 @@ export var BACKUP_KIND = 'booklyn-full-backup';
 export var BACKUP_FORMAT = 1;
 var ID_OK = /^[A-Za-z0-9_-]{1,40}$/;
 var BANK_KEY = /^[A-Za-z0-9_-]{1,40}:\d{1,3}$/;
-var META_FIELDS = ['id', 'name', 'path', 'size', 'type', 'mtime', 'hash', 'addedAt', 'sem', 'dup', 'status', 'mod', 'unit', 'include', 'confirmed', 'flag', 'why'];
+var META_FIELDS = ['id', 'name', 'path', 'size', 'type', 'mtime', 'hash', 'addedAt', 'sem', 'dup', 'status', 'mod', 'unit', 'include', 'confirmed', 'flag', 'why', 'replaces', 'noVer'];
 
 export function BackupError(message) { this.name = 'BackupError'; this.message = message; }
 BackupError.prototype = Object.create(Error.prototype);
@@ -98,6 +98,8 @@ function cleanMeta(raw, stateSemIds) {
   m.confirmed = !!raw.confirmed;
   m.flag = !!raw.flag;
   m.why = String(raw.why || '').slice(0, 300);
+  if (raw.replaces && ID_OK.test(String(raw.replaces))) m.replaces = String(raw.replaces);
+  if (raw.noVer) m.noVer = true;
   return m;
 }
 

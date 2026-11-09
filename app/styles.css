@@ -432,3 +432,12 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .qans textarea{min-height:70px;margin-top:6px}
 .card.qdue{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .sntext{min-height:70px}
+/* language flags */
+.langbar{display:flex;gap:6px;flex-wrap:wrap}
+.langbtn{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:4px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-size:.8rem;font-weight:700;cursor:pointer}
+.langbtn svg{width:26px;height:17px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.2);flex:none;display:block}
+.langbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+.langtop{display:flex;justify-content:flex-end;margin-bottom:-6px}
+.langrail{display:none;margin-top:auto;padding:12px 4px 0}
+.langrail .langbar{display:grid;grid-template-columns:1fr 1fr}
+@media (min-width:900px){.langtop{display:none}.langrail{display:block}}

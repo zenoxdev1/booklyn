@@ -9,6 +9,7 @@ import * as SR from './js/search.js';
 import * as TD from './js/today.js';
 import * as QS from './js/questions.js';
 import * as SN from './js/snotes.js';
+import * as V from './js/versions.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -751,7 +752,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var lastRendered=null, study=null, ui={tab:'units',q:'',ver:{},verPick:{},snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -1066,6 +1067,17 @@ function route(){
 }
 
 /* ================= views ================= */
+/* Flags are drawn as inline SVG, so they look the same on every device (Windows does not draw flag emoji). */
+var FLAGS={
+ en:'<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false"><rect width="60" height="40" fill="#012169"/><path d="M0 0L60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0L60 40M60 0L0 40" stroke="#C8102E" stroke-width="3"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="13"/><path d="M30 0v40M0 20h60" stroke="#C8102E" stroke-width="7"/></svg>',
+ de:'<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false"><rect width="60" height="40" fill="#DD0000"/><rect width="60" height="13.4" fill="#000"/><rect y="26.6" width="60" height="13.4" fill="#FFCE00"/></svg>',
+ es:'<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false"><rect width="60" height="40" fill="#AA151B"/><rect y="10" width="60" height="20" fill="#F1BF00"/></svg>',
+ fr:'<svg viewBox="0 0 60 40" aria-hidden="true" focusable="false"><rect width="60" height="40" fill="#fff"/><rect width="20" height="40" fill="#0055A4"/><rect x="40" width="20" height="40" fill="#EF4135"/></svg>'
+};
+function langBar(){
+  return '<div class="langbar" role="group" aria-label="'+esc(_t('Language'))+'">'+LANGS.map(function(l){
+    return '<button type="button" class="langbtn" data-a="lang" data-l="'+l[0]+'" lang="'+l[0]+'" aria-pressed="'+(getLang()===l[0])+'" aria-label="'+esc(l[1])+'" title="'+esc(l[1])+'">'+(FLAGS[l[0]]||'')+'<span>'+l[0].toUpperCase()+'</span></button>';}).join('')+'</div>';
+}
 function langSel(){return '<label class="f langf">'+_t('Language')+'<select id="langsel" data-c="lang">'+LANGS.map(function(l){return '<option value="'+l[0]+'"'+(getLang()===l[0]?' selected':'')+'>'+l[1]+'</option>';}).join('')+'</select></label>';}
 function foot(){return langSel()+("<p class=\"disclaimer\">"+_t("Unofficial student project, not affiliated with HSLU. Your files stay on this device. Your progress stays here too unless you turn on sync. No ads, no tracking. ")+"<a href=\"/privacy/\">"+_t("Privacy")+"</a> · <a href=\"/terms/\">"+_t("Terms")+"</a> · <a href=\"/imprint/\">"+_t("Imprint")+"</a> · <a href=\"/\">"+_t("About Booklyn")+"</a></p>");}
 
@@ -1107,7 +1119,7 @@ function pendingRow(f){
    +'<label class="sr" for="u-'+f.id+("\">"+_t("Unit for "))+esc(f.name)+'</label><select id="u-'+f.id+'" data-c="unit">'
    +Array.apply(null,{length:N}).map(function(_,i){return '<option value="'+(i+1)+'"'+(i+1===f.unit?' selected':'')+(">"+_t("Week "))+(i+1)+'</option>';}).join('')+'</select></div>'
    +(held&&!f.dup&&f.mod?'<div><button class="btn small ghost" data-a="confirm" data-id="'+f.id+("\">"+_t("Looks right")+"</button></div>"):'')
-   +(held&&!f.dup&&!f.mod?("<p class=\"foot\">"+_t("Choose a module to continue.")+"</p>"):'')+'</div></li>';
+   +(held&&!f.dup&&!f.mod?("<p class=\"foot\">"+_t("Choose a module to continue.")+"</p>"):'')+verPendingHTML(f)+'</div></li>';
 }
 function eligible(f){return f.include&&f.mod&&f.unit&&(!f.flag||f.confirmed);}
 function isDupRow(f){return !!f.dup&&f.status==='pending'&&FILES.some(function(x){return x.id===f.dup;});}
@@ -1123,6 +1135,7 @@ function vPort(){
       +("<p class=\"lede\">"+_t("Nothing was added twice, and files that did save are already in the list. Free some space or try again: only these files are retried.")+"</p>")
       +("<div class=\"row\"><button class=\"btn small\" data-a=\"retryfailed\">"+_t("Try these again")+"</button><button class=\"btn small ghost\" data-a=\"dismissfailed\">"+_t("Dismiss")+"</button></div></section>");
   }
+  h+=verCardsHTML(null);
   var lastChk=state.iliasLast?new Date(state.iliasLast).toLocaleString(LOC(),{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   if(!isMobileDevice()||iliasBridge)h+=("<section class=\"card stack\"><div class=\"row\" style=\"justify-content:space-between\"><div><p class=\"eyebrow\">"+_t("HSLU ILIAS")+"</p><h2>"+_t("Find new files")+"</h2></div><a class=\"btn ghost small\" href=\"https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show\" target=\"_blank\" rel=\"noopener noreferrer\">"+_t("Open ILIAS ↗")+"</a></div>")
     +("<p class=\"lede\">"+_t("Booklyn lists the ILIAS files it can read: PDF, Word (.docx), PowerPoint (.pptx) and text files. Videos, audio, images and zips are skipped. Files you already have are recognised by their content, so nothing is added twice.")+"</p>")
@@ -1145,6 +1158,9 @@ function vPort(){
   if(check.length)h+='<ul class="list">'+check.map(pendingRow).join('')+'</ul>';
   if(ready.length){
     h+='<section class="card stack"><div class="row between"><div><h3>'+ready.length+_pl(ready.length,' ready file',' ready files')+("</h3><div class=\"foot\">"+_t("Booklyn is sure where these belong. Looking through them is optional: you can import straight away.")+"</div></div><button class=\"btn ghost small\" data-a=\"togready\" aria-expanded=\"")+(!!ui.readyOpen)+'">'+(ui.readyOpen?_t("Hide the list"):_t("Review the list"))+'</button></div>';
+    if(!ui.readyOpen){
+      ready.forEach(function(f){var vh=verPendingHTML(f);if(vh)h+='<div class="stack" data-f="'+f.id+'"><div class="t" style="font-weight:600;overflow-wrap:anywhere">'+esc(f.path||f.name)+'</div>'+vh+'</div>';});
+    }
     if(ui.readyOpen){
       var gs={};ready.forEach(function(f){(gs[f.mod]=gs[f.mod]||[]).push(f);});
       h+=Object.keys(gs).sort(function(a,b){var ma=M(a),mb=M(b);return String(ma&&ma.code).localeCompare(String(mb&&mb.code));}).map(function(k){
@@ -1201,6 +1217,7 @@ function vUnit(r){
   if(!ms.length) h+=("<section class=\"card stack\"><h3>"+_t("This floor is waiting for files")+"</h3><p class=\"lede\">"+_t("Add the material for this unit and the floor is ready for a study block.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"pickhere\" data-mod=\"")+m.id+'" data-unit="'+u+("\">"+_t("Add files here")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/port\">"+_t("Open the Port")+"</button></div></section>");
   else h+=("<section class=\"card stack\"><h2>"+_t("Study block")+"</h2><p class=\"lede\">"+_t("Focus for 25 minutes, then do a short check. Pass it and the light goes on.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"go\" data-to=\"#/m/")+m.id+'/'+u+("/study\">"+_t("Start block")+"</button></div></section>")
    +("<section class=\"stack\"><div class=\"row between\"><h2>"+_t("Material")+"</h2><button class=\"btn small ghost\" data-a=\"pickhere\" data-mod=\"")+m.id+'" data-unit="'+u+("\">"+_t("Add files here")+"</button></div><div class=\"stack\">")+ms.map(function(x){return matRow(m,u,x);}).join('')+'</div></section>';
+  h+=verCardsHTML(function(f){return f.mod===m.id&&f.unit===u;});
   h+=snUnitHTML(m,u);
   h+=qUnitHTML(m,u);
   h+=("<section class=\"stack\"><label class=\"f\" for=\"utitle\">"+_t("Unit name")+"<input type=\"text\" id=\"utitle\" data-k=\"")+k+'" value="'+esc(m.titles[u-1])+'" maxlength="80"></label>'
@@ -1484,6 +1501,81 @@ function vSettings(){
 }
 
 /* ================= shell ================= */
+/* ================= updated material (logic in js/versions.js) ================= */
+function verCand(f){return (f.dup||f.noVer||f.replaces)?null:V.findCandidate(f,FILES.filter(function(x){return x.status==='imported'&&x.sem===f.sem&&x.id!==f.id;}));}
+/* Reads both files once and compares them. Shows "comparing" until the result is ready. */
+function verEnsure(nw,old){
+  var k=nw.id+'>'+old.id,v=ui.ver[k];if(v)return v;
+  v=ui.ver[k]={busy:true,res:null,empty:false};
+  Promise.all([fileText(old),fileText(nw)]).then(function(t){
+    if(!String(t[0]||'').trim()||!String(t[1]||'').trim())v.empty=true;else v.res=V.comparePages(t[0],t[1]);
+  }).catch(function(){v.empty=true;}).then(function(){v.busy=false;var n=route().name;if(n==='port'||n==='unit')render();});
+  return v;
+}
+function verSummaryHTML(v,newName){
+  if(!v)return '';
+  if(v.busy)return '<p class="foot">'+_t("Comparing the two files…")+'</p>';
+  var r=v.res;
+  if(v.empty||!r)return '<p class="foot">'+_t("Booklyn cannot read the text of these files, so it cannot show what changed.")+'</p>';
+  if(r.kind==='text')return '<p class="foot">'+(r.identical?_t("The content is identical."):_t("The content changed. About ")+Math.round(r.similarity*100)+_t("% of the words are the same."))+'</p>';
+  var W=SN.kindOf(newName)==='slide'?_t("Slides "):_t("Pages "),parts=[_t("Unchanged: ")+(r.same+r.moved)];
+  if(r.changed.length)parts.push(_t("Changed: ")+W+V.listPages(r.changed.map(function(x){return x.new;})));
+  if(r.added.length)parts.push(_t("New: ")+W+V.listPages(r.added));
+  if(r.removed.length)parts.push(_t("Removed: ")+W+V.listPages(r.removed)+_t(" (in the old file)"));
+  return '<p class="foot">'+esc(parts.join(' · '))+'</p>';
+}
+function verWhere(f){var m=f.mod?M(f.mod):null;return m?' · '+esc(m.code)+(f.unit?' · '+esc(_t("Week "))+f.unit:''):'';}
+/* In the Port, under a file that has just been added. */
+function verPendingHTML(f){
+  var old=f.replaces&&fileById(f.replaces),cand=old?null:verCand(f);
+  if(!old&&!cand)return '';
+  var o=old||cand.file,v=ui.ver[f.id+'>'+o.id];
+  if(old)return '<div class="notice stack"><p style="margin:0"><strong>'+_t("Will replace ")+'“'+esc(o.name)+'”</strong>'+verWhere(o)+'</p><p class="foot">'+_t("The old version stays until you confirm the replacement after the import.")+'</p>'+verSummaryHTML(v,f.name)
+    +'<div class="row"><button class="btn small ghost" data-a="vercmp" data-id="'+esc(f.id)+'" data-old="'+esc(o.id)+'">'+_t("Compare")+'</button><button class="btn small ghost" data-a="verundo" data-id="'+esc(f.id)+'">'+_t("Keep both")+'</button></div></div>';
+  return '<div class="notice stack"><p style="margin:0"><strong>'+_t("Looks like a new version of ")+'“'+esc(o.name)+'”</strong>'+verWhere(o)+'</p>'+verSummaryHTML(v,f.name)
+    +'<div class="row"><button class="btn small" data-a="verreplace" data-id="'+esc(f.id)+'" data-old="'+esc(o.id)+'">'+_t("Replace the old one")+'</button><button class="btn small ghost" data-a="vercmp" data-id="'+esc(f.id)+'" data-old="'+esc(o.id)+'">'+_t("Compare")+'</button><button class="btn small ghost" data-a="verkeep" data-id="'+esc(f.id)+'">'+_t("Keep both")+'</button></div></div>';
+}
+function verStatusChip(m){
+  var t={file:_t("Whole file"),same:_t("Same page"),moved:_t("Moved"),changed:_t("Page changed, check it"),removed:_t("Page removed, check it"),check:_t("Cannot compare, check it")}[m.status]||'';
+  return '<span class="chip'+(m.sure?'':' s-fading')+'">'+esc(t)+'</span>';
+}
+/* After the import: compare, review the notes of the old version, then confirm. The old file stays until then. */
+function verCardHTML(nw){
+  var old=fileById(nw.replaces);if(!old||old.status!=='imported')return '';
+  var v=verEnsure(nw,old),notes=SN.forFile(state.snotes,old.id);
+  var h='<section class="card stack"><p class="eyebrow">'+_t("Updated material")+'</p><h3>'+esc(nw.name)+'</h3><p class="lede">'+_t("Replaces ")+'“'+esc(old.name)+'”'+verWhere(old)+'</p>'+verSummaryHTML(v,nw.name);
+  if(!v.busy&&notes.length){
+    var mapped=V.mapNotes(v.empty?null:v.res,notes),pick=ui.verPick[nw.id]||{};
+    h+='<h4 style="margin:4px 0">'+_t("Notes on the old version")+'</h4><ul class="list">'+notes.map(function(n){
+      var m=mapped[n.id],val=pick[n.id]!==undefined?pick[n.id]:(m.page||'');
+      return '<li class="qrow"><div class="grow"><div class="t">'+esc(n.text.length>160?n.text.slice(0,160)+'…':n.text)+'</div><div class="s">'+snChip(n,old.name)+' '+verStatusChip(m)+'</div>'
+        +(n.page?'<label class="f">'+_t("New location")+'<input type="number" min="1" max="9999" data-c="verpage" data-fid="'+esc(nw.id)+'" data-id="'+esc(n.id)+'" value="'+esc(val)+'"></label>':'')+'</div></li>';}).join('')+'</ul>';
+  }
+  return h+'<p class="foot">'+_t("The old version stays until you confirm. Its notes and review ticks move to the new version.")+'</p><div class="row"><button class="btn" data-a="verconfirm" data-id="'+esc(nw.id)+'" '+(v.busy?'disabled':'')+'>'+_t("Confirm replacement")+'</button><button class="btn ghost" data-a="verundo" data-id="'+esc(nw.id)+'">'+_t("Keep both")+'</button></div></section>';
+}
+function verCardsHTML(pred){
+  return FILES.filter(function(f){return f.status==='imported'&&f.replaces&&fileById(f.replaces)&&(!pred||pred(f));}).map(verCardHTML).join('');
+}
+async function verConfirm(id){
+  var nw=fileById(id),old=nw&&fileById(nw.replaces);if(!nw||!old)return;
+  var v=ui.ver[nw.id+'>'+old.id]||{},res=(v.busy||v.empty)?null:v.res,notes=SN.forFile(state.snotes,old.id),mapped=V.mapNotes(res,notes),pick=ui.verPick[nw.id]||{};
+  var r=await IM.commitPatch(fileStore,[nw],function(){return {replaces:''};});
+  if(!r.ok){toast(saveErr(r.error));return;}
+  notes.forEach(function(n){
+    var m=mapped[n.id];n.file=nw.id;n.upd=Date.now();
+    if(n.page){
+      if(pick[n.id]!==undefined){n.page=Math.max(0,Math.min(9999,Math.floor(+pick[n.id])||0));n.unsure=false;}
+      else{n.page=m.page;n.unsure=!m.sure;}
+    }else if(n.at)n.unsure=true;
+  });
+  if(state.seen[old.id])state.seen[nw.id]=true;
+  delete state.seen[old.id];
+  save();
+  var rr=await IM.removeFiles(fileStore,[old.id]);
+  if(rr.ok){FILES=FILES.filter(function(f){return f.id!==old.id;});toast(_t("Replaced. The old version was removed."));}
+  else toast(_t("Could not remove the old version. Both files are still here."));
+  render();
+}
 /* ================= source notes (logic in js/snotes.js) ================= */
 function snLoc(n,name){var k=SN.kindOf(name);if(n.page)return (k==='slide'?_t("Slide "):_t("Page "))+n.page;if(n.at)return SN.fmtAt(n.at);return '';}
 function snChip(n,name){var l=snLoc(n,name);return l?'<span class="chip">'+esc(l)+'</span>':'';}
@@ -1728,7 +1820,7 @@ function render(focus){
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
   else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='file'?vFile(r):r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
-  $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'</nav><main class="main">'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
+  $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'<div class="langrail">'+langBar()+'</div></nav><main class="main"><div class="langtop">'+langBar()+'</div>'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
   if(focus){var h1=$('#h1');if(h1)h1.focus({preventScroll:true});window.scrollTo(0,0);}
   if(r.name==='search'){var sqi=$('#sq');if(sqi&&focus&&!ui.sq)sqi.focus({preventScroll:true});indexFiles();}
@@ -1915,6 +2007,7 @@ document.addEventListener('click',function(e){
   var b=e.target.closest('[data-a]');if(!b||b.disabled)return;
   var a=b.dataset.a,id=b.dataset.id;
   if(a==='go'){go(b.dataset.to);}
+  else if(a==='lang'){setLang(b.dataset.l);render(false);}
   else if(a==='czoom'){var cv=ui.cityVB;if(cv){ui.cityT=zoomAt({x:ui.cityT.x,y:ui.cityT.y,k:ui.cityT.k},[cv[0]+cv[2]/2,cv[1]+cv[3]/2],ui.cityT.k*(+b.dataset.d>0?1.4:1/1.4));applyCity();}}
   else if(a==='buy'){
     var it=b.dataset.item,sm2=M(ui.shopMod),dd;
@@ -2030,6 +2123,10 @@ document.addEventListener('click',function(e){
   else if(a==='sndel1'){ui.snDel=id;render();}
   else if(a==='sndel0'){ui.snDel=null;render();}
   else if(a==='sndel2'){state.snotes=state.snotes.filter(function(n){return n.id!==id;});ui.snDel=null;save();render();}
+  else if(a==='vercmp'){var vf=fileById(id),vo=fileById(b.dataset.old);if(vf&&vo){verEnsure(vf,vo);render();}}
+  else if(a==='verreplace'){var rf=fileById(id),ro=fileById(b.dataset.old);if(rf&&ro)IM.commitPatch(fileStore,[rf],function(){return {replaces:ro.id,mod:ro.mod,unit:ro.unit,include:true,confirmed:true};}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();});}
+  else if(a==='verkeep'||a==='verundo'){var kf=fileById(id);if(kf)IM.commitPatch(fileStore,[kf],function(){return a==='verundo'?{replaces:'',noVer:true}:{noVer:true};}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();});}
+  else if(a==='verconfirm'){verConfirm(id);}
   else if(a==='snok'){state.snotes.forEach(function(n){if(n.id===id){n.unsure=false;n.upd=Date.now();}});save();render();}
   else if(a==='qdel1'){ui.qDel=id;render();}
   else if(a==='qdel0'){ui.qDel=null;render();}
@@ -2103,6 +2200,7 @@ document.addEventListener('change',function(e){
   else if(c==='aiopt'){state.aiOpt=t.checked;save();}
   else if(c==='unl'){if(!isAdminNow())return;try{if(t.checked)localStorage.setItem('booklyn:unl','1');else localStorage.removeItem('booklyn:unl');}catch(e){}if(t.checked&&state.coins<999999){state.coins=999999;save();}render();toast(t.checked?_t("Unlimited coins on."):_t("Unlimited coins off."));}
   else if(c==='smod'){ui.smod=t.value;paintSearch();}
+  else if(c==='verpage'){var vp=ui.verPick[t.dataset.fid]=ui.verPick[t.dataset.fid]||{};vp[t.dataset.id]=t.value;}
   else if(c==='qmod'){ui.qMod=t.value;ui.qUnit=0;render();}
   else if(c==='qunit'){ui.qUnit=+t.value||0;}
   else if(c==='qfilter'){ui.qFilter=t.value;render();}
