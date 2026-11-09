@@ -158,8 +158,8 @@ with sync_playwright() as p:
     pg.goto(URL); pg.wait_for_timeout(500); pg.click('[data-a="demo"]'); pg.wait_for_timeout(800)
     pg.goto(URL + '#/'); pg.wait_for_timeout(200)
     mod = pg.evaluate("JSON.parse(localStorage.getItem('booklyn:state')).sems.find(s=>s.demo).modules.map(m=>m.id+':'+m.code)")
-    bscm = [m for m in mod if m.endswith('BSCM')][0].split(':')[0]
-    pg.goto(URL + '#/m/%s/6/study' % bscm); pg.wait_for_timeout(300); pg.click('[data-a="tocheck"]'); pg.wait_for_timeout(500)
+    bscm = [m for m in mod if m.endswith('MATH')][0].split(':')[0]
+    pg.goto(URL + '#/m/%s/4/study' % bscm); pg.wait_for_timeout(300); pg.click('[data-a="tocheck"]'); pg.wait_for_timeout(500)
     check('demo quiz has 5 questions', 'question 1 of 5' in pg.inner_text('body').lower(), pg.inner_text('body')[:200])
     c.close()
 

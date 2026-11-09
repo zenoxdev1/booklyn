@@ -437,7 +437,7 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .langbtn{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:4px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-size:.8rem;font-weight:700;cursor:pointer}
 .langbtn svg{width:26px;height:17px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.2);flex:none;display:block}
 .langbtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
-.langtop{display:flex;justify-content:flex-end;margin-bottom:-6px}
+.langtop{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:-6px}
 .langrail{display:none;margin-top:auto;padding:12px 4px 0}
 .langrail .langbar{display:grid;grid-template-columns:1fr 1fr}
 @media (min-width:900px){.langtop{display:none}.langrail{display:block}}
@@ -447,3 +447,9 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .goalpick{white-space:normal;text-align:left;height:auto;min-height:36px;overflow-wrap:anywhere}
 .goalpick[aria-pressed=true]{outline:2px solid var(--accent)}
 .qrow.goal .qtext{width:100%}
+
+.acctbtn{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:4px 14px 4px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font-size:.85rem;font-weight:700;cursor:pointer}
+.acctbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.acctbtn.on{border-color:var(--accent);background:var(--accent-soft)}
+.langrail .acctbtn{width:100%;justify-content:flex-start;margin-bottom:8px}
+@media (max-width:480px){.langtop .langbtn span{display:none}.langtop .langbtn{padding:4px 8px}.langtop .langbar{gap:5px;flex-wrap:nowrap}.langtop{flex-wrap:nowrap}}

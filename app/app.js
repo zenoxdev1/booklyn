@@ -28,115 +28,64 @@ var ALIASES = {
   ITPRB:'prototyping, teamwork, psychological safety, writing skills, documentation_h26'
 };
 
-/* demo semester: real module names and file names, illustrative week split */
+/* demo semester: three generic modules, a short week split, dates counted from today */
 var DEMO = [
- {code:'BSCM',name:'Business & Supply Chain Management',h:20,weeks:[
-  ['Introduction & Operations Management',['SW01 - Introduction and Operations Management.pdf']],
-  ['Digital Customer',['SW02 - Digital Customer.pdf']],
-  ['Business Models & Innovation',['SW03 - Business Models and Innovation Management.pdf']],
-  ['Digital Ecosystems & E3 Value',['SW04 - Digital Ecosystems, Platforms and E3 Value Modelling.pdf','E3 Value exercise.pdf']],
-  ['BPMN 1',['SW05 - BPMN 1.pdf']],
-  ['BPMN 2',['SW06 - BPMN 2.pdf']]]},
- {code:'CNB',name:'Computer Networks Basics',h:215,weeks:[
-  ['Modules 1–2 · Networking today, switch setup',['Module 1 - Networking Today.pdf','Module 2 - Basic Switch and End Device Configuration.pdf']],
-  ['Modules 3–4 · Protocols, physical layer',['Module 3 - Protocols and Models.pdf','Module 4 - Physical Layer.pdf']],
-  ['Modules 5–6 · Number systems, data link',['Module 5 - Number Systems.pdf','Module 6 - Data Link Layer.pdf']],
-  ['Modules 7–8 · Ethernet switching, network layer',['Module 7 - Ethernet Switching.pdf','Module 8 - Network Layer.pdf']],
-  ['Modules 9–10 · Address resolution, router setup',['Module 9 - Address Resolution.pdf','Module 10 - Basic Router Configuration.pdf']],
-  ['Modules 11–12 · IPv4 and IPv6 addressing',['Module 11 - IPv4 Addressing.pdf','Module 12 - IPv6 Addressing.pdf']]]},
- {code:'IAE',name:'International Affairs Economics',h:165,weeks:[
-  ['Course introduction',['IAE course introduction.pdf']],
-  ['Bond market fundamentals',['Bond Market Fundamentals.pdf']],
-  ['Present value exercises',['PV exercises.pdf']],
-  ['10-year Treasury yield spike',['Checkup 02 - 10-Year Treasury Yield Spike.pdf']],
-  ['Alphabet bond, house prices',['Checkup - Alphabet Bond, Wall Street Alarms, House Prices.pdf']],
-  ['GDP, potential & business cycle',['GDP Potential, Business Cycle and Country Analysis.pdf']]]},
- {code:'IFA',name:'International Financial Accounting',h:45,weeks:[
-  ['Introduction to accounting',['SW01 - Introduction to Accounting.pdf']],
-  ['Double-entry bookkeeping',['SW02 - Mike Morales Case.pdf']],
-  ['Accrual accounting concepts',['Accrual Accounting Concepts.pdf']],
-  ['Recording transactions & statements',['Recording Transactions and Financial Statements.pdf']],
-  ['Statement of cash flows',['Statement of Cash Flows.pdf']],
-  ['Weekly case studies',['Weekly Case Studies and Exercises.pdf']]]},
- {code:'PROFU',name:'Programming Fundamentals',h:270,weeks:[
-  ['Setup & first program',['Semester Course Week 01.pdf']],
-  ['Variables & data types',['Semester Course Week 02.pdf']],
-  ['Conditions',['Semester Course Week 03.pdf']],
-  ['Loops',['Semester Course Week 04.pdf','weekly_test_02.pdf']],
-  ['Functions',['Semester Course Week 05.pdf']],
-  ['Collections',['Semester Course Week 06.pdf','weekly_test_03.pdf']]]},
- {code:'STCSB',name:'Statistics for Computer Science Basics',h:330,weeks:[
-  ['Data types, collection, cleaning',['Week 1 - Introductions, Data Types, Data Collection, Data Cleaning.pdf']],
-  ['Organizing & visualizing data',['Week 2 - Organizing and Visualizing Data, Descriptive Measures.pdf']],
-  ['Central tendency, spread, correlation',['Week 3 - Central Tendency, Spread, Covariance and Correlation.pdf']],
-  ['Exercises & review',['Week 4 exercises.pdf']],
-  ['Probability',['Week 5 - Probability.pdf']],
-  ['Bayes, counting, discrete distributions',['Week 6 - Bayes, Counting Rules, Discrete Distributions.pdf','Mock Midterm HS26.docx']]]},
- {code:'ITPRB',name:'IT Projects Basics',h:95,weeks:[
-  ['Course introduction',['ITPRB course outline.pdf']],
-  ['Teamwork: science of team-building',['SW02 - Teamwork Skills - Science of Teambuilding.pdf']],
-  ['Teamwork: psychological safety',['SW03 - Teamwork Skills - Psychological Safety.pdf']],
-  ['Prototyping 1 · Ideation & research',['SW04 - Prototyping 1 - Ideation and Research.pdf']],
-  ['Idea development',['Project brief H26.pdf']],
-  ['Idea evaluation',['Idea evaluation canvas.pdf']]]}
+ {code:'MATH',name:'Mathematics Basics',h:215,kw:'algebra, equation, function, probability, statistics, math',weeks:[
+  ['Numbers and algebra',['Week 1 - Numbers and algebra.pdf']],
+  ['Functions and graphs',['Week 2 - Functions and graphs.pdf']],
+  ['Equations',['Week 3 - Equations.pdf','Equations exercises.pdf']],
+  ['Probability',['Week 4 - Probability.pdf']],
+  ['Statistics',['Week 5 - Statistics.pdf']],
+  ['Review',[]]]},
+ {code:'WRIT',name:'Academic Writing',h:20,kw:'writing, essay, argument, citation, sources, editing',weeks:[
+  ['Reading and note-taking',['Week 1 - Reading and note-taking.pdf']],
+  ['Structuring an argument',['Week 2 - Structuring an argument.pdf']],
+  ['Citing sources',['Week 3 - Citing sources.pdf','Citation style guide.pdf']],
+  ['Editing your text',['Week 4 - Editing your text.pdf']],
+  ['Presenting your work',[]],
+  ['Review',[]]]},
+ {code:'BIO',name:'Biology Basics',h:165,kw:'biology, cell, genetics, evolution, ecosystem, photosynthesis',weeks:[
+  ['Cells',['Week 1 - Cells.pdf']],
+  ['Genetics',['Week 2 - Genetics.pdf']],
+  ['Evolution',['Week 3 - Evolution.pdf']],
+  ['Ecosystems',['Week 4 - Ecosystems.pdf']],
+  ['Human body',[]],
+  ['Review',[]]]}
 ];
-var DEMO_LIT = {BSCM:[1,2,3,4,5],CNB:[1,2,3,4,5],IAE:[1,2,3,4,5],IFA:[1],PROFU:[1,2,3],STCSB:[1,2,3,4,5],ITPRB:[1,2,3]};
+var DEMO_LIT = {MATH:[1,2,3],WRIT:[1,2],BIO:[1]};
+/* [days from today, module code, kind, title] */
 var DEMO_DEADLINES = [
- {date:'2026-10-30',code:'ITPRB',kind:'Project',title:'Task 5 · Develop and select an idea'},
- {date:'2026-11-03',code:'STCSB',kind:'Exam',title:'Midterm · 90 minutes'},
- {date:'2026-11-04',code:'BSCM',kind:'Exam',title:'BPMN exam · 5 tasks, 50 min, open book (printed only)'},
- {date:'2026-11-04',code:'IFA',kind:'Assignment',title:'Cherry case'},
- {date:'2026-11-18',code:'IFA',kind:'Test',title:'BAS test'},
- {date:'2026-12-14',code:'ITPRB',kind:'Project',title:'Final presentation, documentation and prototype video'},
- {date:'2026-12-15',code:'CNB',kind:'Test',title:'Final test'}
+ [9,'MATH','Test','Midterm test'],
+ [16,'WRIT','Assignment','Essay draft'],
+ [27,'BIO','Project','Group poster'],
+ [41,'MATH','Exam','Final exam']
 ];
 var QUIZ = {
- 'bscm:6':[
-  {q:'Which flow type may NOT connect elements in two different pools?',o:['Sequence flow','Message flow','Association'],a:0,e:'Sequence flows stay inside one pool. Pools talk to each other with message flows.'},
-  {q:'A task needs 20 minutes of actual work but waits 40 minutes in a queue. How long does it take from arrival to completion?',o:['20 minutes','40 minutes','60 minutes'],a:2,e:'Elapsed time is processing time plus waiting time: 20 + 40 = 60.'},
-  {q:'How is an intermediate event drawn in BPMN?',o:['Thin single circle','Double-lined circle','Thick single circle'],a:1,e:'Start events are thin, intermediate events have a double line, end events are thick.'},
-  {q:'What does an exclusive (XOR) gateway do in BPMN?',o:['Starts all outgoing paths at once','Chooses exactly one outgoing path','Sends a message to another pool'],a:1,e:'XOR splits the flow into exactly one of its branches, depending on a condition.'},
-  {q:'Which element makes a process wait until a message arrives?',o:['A plain task','A message intermediate catching event','An end event'],a:1,e:'A catching message event pauses the flow until the message is received.'}],
- 'stcsb:6':[
+ 'math:4':[
+  {q:'A fair die is rolled once. What is the probability of an even number?',o:['1/6','1/3','1/2'],a:2,e:'Three of the six faces are even, so 3/6 = 1/2.'},
   {q:'In how many different orders can 3 distinct books stand on a shelf?',o:['3','6','9'],a:1,e:'3! = 3 × 2 × 1 = 6.'},
-  {q:'Which expression is Bayes’ theorem?',o:['P(A|B) = P(B|A)·P(A) / P(B)','P(A|B) = P(A)·P(B)','P(A|B) = P(B|A) + P(A)'],a:0,e:'Bayes turns P(B|A) into P(A|B) by weighting with the prior P(A) and dividing by P(B).'},
-  {q:'A fair coin is tossed 3 times. What is P(exactly 2 heads)?',o:['0.25','0.375','0.5'],a:1,e:'Binomial: C(3,2) · 0.5² · 0.5¹ = 3 · 0.125 = 0.375.'},
-  {q:'For two mutually exclusive events A and B, what is P(A or B)?',o:['P(A) · P(B)','P(A) + P(B)','P(A) − P(B)'],a:1,e:'Events that cannot happen together simply add their probabilities.'},
-  {q:'A fair die is rolled once. What is the probability of an even number?',o:['1/6','1/3','1/2'],a:2,e:'Three of the six outcomes (2, 4, 6) are even: 3/6 = 1/2.'}],
- 'cnb:6':[
-  {q:'How many bits does an IPv4 address have?',o:['32','48','128'],a:0,e:'IPv4 uses 32 bits, IPv6 uses 128 bits.'},
-  {q:'Which subnet mask matches a /24 prefix?',o:['255.255.0.0','255.255.255.0','255.255.255.128'],a:1,e:'/24 means 24 network bits: three full octets of 255.'},
-  {q:'How many usable host addresses does a /24 network have?',o:['256','255','254'],a:2,e:'256 addresses minus the network and broadcast addresses leaves 254.'},
-  {q:'Which protocol finds the MAC address that belongs to an IPv4 address on the local network?',o:['DNS','ARP','DHCP'],a:1,e:'ARP asks the local network who has a given IP address and learns the MAC address from the answer.'},
-  {q:'At which OSI layer does a router mainly work?',o:['Layer 2 (data link)','Layer 3 (network)','Layer 4 (transport)'],a:1,e:'Routers forward packets by IP address, which is layer 3.'}],
- 'ifa:2':[
-  {q:'A company pays rent in cash. Which entry is correct?',o:['Debit Rent expense, credit Cash','Debit Cash, credit Rent expense','Debit Rent expense, credit Revenue'],a:0,e:'The expense increases (debit) and cash decreases (credit).'},
-  {q:'Which equation must always balance?',o:['Assets = Liabilities + Equity','Assets = Revenue − Expenses','Equity = Assets + Liabilities'],a:0,e:'Everything the company owns is financed by debt or by owners.'},
-  {q:'On which side of a T-account is an increase in a liability recorded?',o:['Debit (left)','Credit (right)','Either, depending on the day'],a:1,e:'Liabilities, equity and revenue increase on the credit side.'},
-  {q:'A customer pays an open invoice of 500 in cash. Which entry is correct?',o:['Debit Cash, credit Accounts receivable','Debit Accounts receivable, credit Cash','Debit Cash, credit Revenue'],a:0,e:'Cash goes up (debit) and the receivable shrinks (credit). The revenue was booked earlier, with the invoice.'},
-  {q:'Which account normally has a debit balance?',o:['Accounts payable','Equipment (an asset)','Share capital'],a:1,e:'Assets increase on the debit side. Liabilities and equity increase on the credit side.'}],
- 'profu:4':[
-  {q:'Which loop fits best when you know the number of repetitions in advance?',o:['A for loop','An if statement','A while loop that never changes its condition'],a:0,e:'A for loop counts for you. That is its job.'},
-  {q:'In most languages, what does 7 % 3 evaluate to?',o:['2','1','2.33'],a:1,e:'% is the remainder after integer division: 7 = 2·3 + 1.'},
-  {q:'What happens if a while loop’s condition never becomes false?',o:['It stops after 10 rounds','It runs forever (infinite loop)','The program skips it'],a:1,e:'Make sure something inside the loop eventually changes the condition.'},
-  {q:'In Java, what does 10 / 4 give when both numbers are int?',o:['2.5','2','3'],a:1,e:'Integer division drops the remainder: 10 / 4 = 2.'},
-  {q:'What is the index of the first element of an array in Java?',o:['1','0','-1'],a:1,e:'Arrays start counting at 0.'}],
- 'iae:6':[
-  {q:'Which indicator is lagging, so it turns after the economy turns?',o:['Purchasing Managers’ Index','Unemployment rate','Stock market index'],a:1,e:'PMI and stock prices lead. Unemployment follows with a delay.'},
-  {q:'Effective GDP is above potential GDP. What is the output gap?',o:['Positive: the economy runs hot','Negative: there is slack','Zero by definition'],a:0,e:'Effective minus potential: a positive gap often comes with rising inflation.'},
-  {q:'Inflation is high and rising. What would a central bank typically do?',o:['Raise policy rates','Cut policy rates','Buy more bonds to push yields down'],a:0,e:'Higher rates make credit dearer and cool demand.'},
-  {q:'What does the inflation rate measure?',o:['The change in the general price level','The size of the national debt','The share of people without a job'],a:0,e:'Inflation is the rate at which the general price level rises.'},
-  {q:'When the price of a bond rises, what happens to its yield?',o:['It falls','It rises','It stays the same'],a:0,e:'Price and yield move in opposite directions.'}],
- 'itprb:4':[
-  {q:'What is the main purpose of a low-fidelity prototype?',o:['To impress with polish','To test ideas early and cheaply','To replace the final product'],a:1,e:'Cheap and rough means you can change direction before building the real thing.'},
-  {q:'In ideation, what should come first?',o:['Pick the single best idea','Generate many ideas without judging','Write the documentation'],a:1,e:'Diverge first, converge later.'},
-  {q:'Which of Nielsen’s heuristics says users should always know what the system is doing?',o:['Visibility of system status','Aesthetic and minimalist design','Help and documentation'],a:0,e:'Loading states, confirmations and progress indicators serve this heuristic.'}]
+  {q:'For two mutually exclusive events A and B, what is P(A or B)?',o:['P(A) · P(B)','P(A) + P(B)','P(A) − P(B)'],a:1,e:'Events that cannot happen together simply add up.'},
+  {q:'A fair coin is tossed twice. What is the probability of two heads?',o:['1/4','1/2','3/4'],a:0,e:'Each toss is independent: 1/2 · 1/2 = 1/4.'},
+  {q:'What is the probability of an event that is certain to happen?',o:['0','0.5','1'],a:2,e:'A certain event has probability 1.'}],
+ 'writ:3':[
+  {q:'Why do writers cite their sources?',o:['To make the text longer','To give credit and let readers check the claims','To avoid having an opinion'],a:1,e:'Citations give credit to the original authors and let readers verify what you say.'},
+  {q:'Which of these needs a citation?',o:['A well-known fact everyone agrees on','A statistic you found in a report','Your own opinion'],a:1,e:'Numbers and ideas that come from someone else need a source.'},
+  {q:'What is a paraphrase?',o:['A word-for-word copy in quotation marks','Your own wording of someone else’s idea, with a source','A summary without any source'],a:1,e:'A paraphrase is rewritten in your words and still needs a citation.'},
+  {q:'What should every entry in a reference list let the reader do?',o:['Find the source again','Skip the text','Guess the author'],a:0,e:'A reference list exists so readers can locate each source.'},
+  {q:'Which action is plagiarism?',o:['Quoting a source with a citation','Copying a paragraph without saying where it is from','Listing your sources at the end'],a:1,e:'Using someone’s words or ideas without credit is plagiarism.'}],
+ 'bio:2':[
+  {q:'What carries genetic information in a cell?',o:['DNA','Water','Fat'],a:0,e:'DNA stores the instructions that cells use.'},
+  {q:'How many copies of each chromosome does a typical human body cell have?',o:['1','2','4'],a:1,e:'Humans have two sets of chromosomes, one from each parent.'},
+  {q:'What is a gene?',o:['A section of DNA that carries instructions','A type of cell','A kind of protein only'],a:0,e:'Genes are stretches of DNA that code for products such as proteins.'},
+  {q:'Which pair of bases is found in DNA?',o:['A with T','A with G','C with T'],a:0,e:'Adenine pairs with thymine, and cytosine pairs with guanine.'},
+  {q:'What does a dominant allele do?',o:['Shows its trait even when only one copy is present','Disappears in the next generation','Always makes the organism bigger'],a:0,e:'A dominant allele shows in the trait even with a single copy.'}]
 };
 var ICON = {
  campus:'<path d="M4 21V8l6-4v17M10 21V11h10v10M3 21h18M7 11h.01M7 15h.01M14 15h2"/>',
  port:'<path d="M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5"/>',
  dead:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>',
  set:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/>',
+ acct:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
  shop:'<path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0"/>',
  search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'
 };
@@ -247,7 +196,7 @@ function backupDue(){
   return !state.lastBackup||now-state.lastBackup>week;
 }
 var saveT;
-var SYNC={me:null,admin:false,uid:'',kind:'',newCode:'',showCode:false,checked:false,na:false,base:0,last:0,dirty:false,known:'',busy:false,pushing:false,msg:'',link:'',conflict:null,timer:null,adopting:false};
+var SYNC={pks:null,pkBusy:false,me:null,admin:false,uid:'',kind:'',newCode:'',showCode:false,checked:false,na:false,base:0,last:0,dirty:false,known:'',busy:false,pushing:false,msg:'',link:'',conflict:null,timer:null,adopting:false};
 try{var _sm=JSON.parse(localStorage.getItem('booklyn:sync')||'{}');SYNC.base=_sm.base||0;SYNC.last=_sm.last||0;SYNC.known=_sm.uid||_sm.email||'';SYNC.dirty=!!_sm.dirty;}catch(e){}
 function syncMeta(){try{localStorage.setItem('booklyn:sync',JSON.stringify({base:SYNC.base,last:SYNC.last,uid:SYNC.uid||SYNC.known||'',dirty:SYNC.dirty}));}catch(e){}}
 function save(){
@@ -754,7 +703,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',gIdx:{},gMod:'',gUnit:0,goalOpen:'',goalDel:'',goalGaps:false,ver:{},verPick:{},snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var lastRendered=null, study=null, ui={pkDel:'',tab:'units',q:'',gIdx:{},gMod:'',gUnit:0,goalOpen:'',goalDel:'',goalGaps:false,ver:{},verPick:{},snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -1058,6 +1007,7 @@ function route(){
   if(p[0]==='today') return {name:'today'};
   if(p[0]==='questions') return {name:'questions'};
   if(p[0]==='goals') return {name:'goals'};
+  if(p[0]==='account') return {name:'account'};
   if(p[0]==='file'){var ff=fileById(p[1]);return ff?{name:'file',f:ff}:{name:'campus'};}
   if(p[0]==='setup') return {name:'setup'};
   if(p[0]==='m'){
@@ -1081,8 +1031,7 @@ function langBar(){
   return '<div class="langbar" role="group" aria-label="'+esc(_t('Language'))+'">'+LANGS.map(function(l){
     return '<button type="button" class="langbtn" data-a="lang" data-l="'+l[0]+'" lang="'+l[0]+'" aria-pressed="'+(getLang()===l[0])+'" aria-label="'+esc(l[1])+'" title="'+esc(l[1])+'">'+(FLAGS[l[0]]||'')+'<span>'+l[0].toUpperCase()+'</span></button>';}).join('')+'</div>';
 }
-function langSel(){return '<label class="f langf">'+_t('Language')+'<select id="langsel" data-c="lang">'+LANGS.map(function(l){return '<option value="'+l[0]+'"'+(getLang()===l[0]?' selected':'')+'>'+l[1]+'</option>';}).join('')+'</select></label>';}
-function foot(){return langSel()+("<p class=\"disclaimer\">"+_t("Unofficial student project, not affiliated with HSLU. Your files stay on this device. Your progress stays here too unless you turn on sync. No ads, no tracking. ")+"<a href=\"/privacy/\">"+_t("Privacy")+"</a> · <a href=\"/terms/\">"+_t("Terms")+"</a> · <a href=\"/imprint/\">"+_t("Imprint")+"</a> · <a href=\"/\">"+_t("About Booklyn")+"</a></p>");}
+function foot(){return ("<p class=\"disclaimer\">"+_t("Unofficial student project, not affiliated with HSLU. Your files stay on this device. Your progress stays here too unless you turn on sync. No ads, no tracking. ")+"<a href=\"/privacy/\">"+_t("Privacy")+"</a> · <a href=\"/terms/\">"+_t("Terms")+"</a> · <a href=\"/imprint/\">"+_t("Imprint")+"</a> · <a href=\"/\">"+_t("About Booklyn")+"</a></p>");}
 
 function vWelcome(){
   return ("<section class=\"hero\"><p class=\"eyebrow\">"+_t("Welcome")+"</p><h1 tabindex=\"-1\" id=\"h1\">Booklyn</h1><p class=\"motto\">"+_t("Keep your lights on.")+"</p>")
@@ -1493,7 +1442,7 @@ function vSettings(){
   else if(!storageOK) h+=("<div class=\"notice warn\">"+_t("This browser blocks saving, so your progress will be lost when you close the page.")+"</div>");
   if(!filesOK) h+=("<div class=\"notice warn\">"+_t("This browser cannot store files, so importing will not work here.")+"</div>");
   h+=("<section class=\"card stack\"><label class=\"f\">"+_t("Your name")+"<input type=\"text\" id=\"nm\" value=\"")+esc(state.name)+'" maxlength="30"></label>'
-   +("<fieldset style=\"border:0;padding:0;margin:0\" class=\"stack\"><legend class=\"f\" style=\"margin-bottom:6px\">"+_t("Theme")+"</legend><div class=\"tabs\" role=\"radiogroup\">")+['system','light','dark'].map(function(t){return '<button role="radio" aria-checked="'+(state.theme===t)+'" aria-selected="'+(state.theme===t)+'" data-a="theme" data-v="'+t+'">'+_t(t[0].toUpperCase()+t.slice(1))+'</button>';}).join('')+'</div></fieldset>'+langSel()+'</section>';
+   +("<fieldset style=\"border:0;padding:0;margin:0\" class=\"stack\"><legend class=\"f\" style=\"margin-bottom:6px\">"+_t("Theme")+"</legend><div class=\"tabs\" role=\"radiogroup\">")+['system','light','dark'].map(function(t){return '<button role="radio" aria-checked="'+(state.theme===t)+'" aria-selected="'+(state.theme===t)+'" data-a="theme" data-v="'+t+'">'+_t(t[0].toUpperCase()+t.slice(1))+'</button>';}).join('')+'</div></fieldset></section>';
   if(sem) h+='<section class="card stack"><h3>'+esc(sem.name)+'</h3><div class="row"><button class="btn small ghost" data-a="finish">'+(sem.finished?_t("Reopen this semester"):_t("Mark as finished"))+("</button><button class=\"btn small ghost\" data-a=\"newsem\">"+_t("＋ New semester")+"</button></div>")
    +'<div class="row">'+(ui.confirm==='sem'?("<button class=\"btn small danger\" data-a=\"rmsem2\">"+_t("Remove it and its files")+"</button><button class=\"btn small ghost\" data-a=\"del0\">"+_t("Cancel")+"</button>"):("<button class=\"btn small ghost\" data-a=\"rmsem1\">"+_t("Remove this semester…")+"</button>"))+'</div></section>';
   h+=("<section class=\"card stack\"><h3>"+_t("Storage")+"</h3><p class=\"lede\" id=\"stor\">"+_t("Checking…")+"</p><div class=\"row\"><button class=\"btn small ghost\" data-a=\"persist\">"+_t("Ask the browser to keep my files")+"</button></div></section>");
@@ -1921,10 +1870,10 @@ function render(focus){
   document.documentElement.removeAttribute('data-theme');
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
-  if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
-  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='goals'?vGoals():r.name==='file'?vFile(r):r.name==='setup'?vSetup():vSettings();
+  if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings'&&r.name!=='account') body=vWelcome();
+  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='goals'?vGoals():r.name==='account'?vAccount():r.name==='file'?vFile(r):r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
-  $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'<div class="langrail">'+langBar()+'</div></nav><main class="main"><div class="langtop">'+langBar()+'</div>'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
+  $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'<div class="langrail">'+acctBtn()+langBar()+'</div></nav><main class="main"><div class="langtop">'+acctBtn()+langBar()+'</div>'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
   if(focus){var h1=$('#h1');if(h1)h1.focus({preventScroll:true});window.scrollTo(0,0);}
   if(r.name==='search'){var sqi=$('#sq');if(sqi&&focus&&!ui.sq)sqi.focus({preventScroll:true});indexFiles();}
@@ -2088,21 +2037,22 @@ function fileById(id){return FILES.filter(function(f){return f.id===id;})[0];}
 function demoSem(){
   var mods=DEMO.map(function(d){
     var titles=[],base={};
-    for(var u=1;u<=14;u++){var w=d.weeks[u-1];titles.push(w?w[0]:_t("Week ")+u);base[u]=w?w[1].slice():[];}
-    return {id:d.code.toLowerCase(),code:d.code,name:d.name,h:d.h,units:14,kw:ALIASES[d.code]||'',titles:titles,base:base};
+    for(var u=1;u<=d.weeks.length;u++){var w=d.weeks[u-1];titles.push(w[0]);base[u]=w[1].slice();}
+    return {id:d.code.toLowerCase(),code:d.code,name:d.name,h:d.h,units:d.weeks.length,kw:d.kw,titles:titles,base:base};
   });
-  return {id:'demo',name:'Semester 1 (demo)',start:'2026-09-14',demo:true,finished:false,modules:mods};
+  var mon=new Date();mon.setHours(12,0,0,0);mon.setDate(mon.getDate()-((mon.getDay()+6)%7)-7*8);
+  return {id:'demo',name:'Semester 1 (demo)',start:QS.isoDay(mon),demo:true,finished:false,modules:mods};
 }
 function seedDemo(){
   if(state.sems.some(function(s){return s.id==='demo';})){state.activeSem='demo';return;}
   var s=demoSem();state.sems.push(s);state.activeSem='demo';
   Object.keys(DEMO_LIT).forEach(function(c){DEMO_LIT[c].forEach(function(u){state.lit[c.toLowerCase()+':'+u]=Date.now();});});
-  state.lit['bscm:1']=Date.now()-9*864e5;state.lit['cnb:1']=Date.now()-20*864e5;state.lvl['bscm:1']=0;state.lvl['cnb:1']=0;
-  DEMO_DEADLINES.forEach(function(d){state.deadlines.push({id:uid(),date:d.date,mod:d.code.toLowerCase(),kind:d.kind,title:d.title});});
+  state.lit['math:1']=Date.now()-9*864e5;state.lit['writ:1']=Date.now()-20*864e5;state.lvl['math:1']=0;state.lvl['writ:1']=0;
+  DEMO_DEADLINES.forEach(function(d){state.deadlines.push({id:uid(),date:QS.isoDay(new Date(Date.now()+d[0]*864e5)),mod:d[1].toLowerCase(),kind:d[2],title:d[3]});});
 }
 function setPath(o,path,v){var p=path.split('.');for(var i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=v;}
 async function sampleFiles(){
-  var items=[['BSCM_SW07_slides.txt','Sample A'],['Module 13 - ICMP.txt','Sample B'],['Module 14 - Transport Layer.txt','Sample C'],['week07_slides.txt','Sample D'],['weekly_test_04.txt','Sample E'],['BSCM_SW07_slides (copy).txt','Sample A']];
+  var items=[['MATH_week04_slides.txt','Sample A'],['Week 3 - Citing sources notes.txt','Sample B'],['BIO_week02_genetics.txt','Sample C'],['week05_slides.txt','Sample D'],['weekly_test_04.txt','Sample E'],['MATH_week04_slides (copy).txt','Sample A']];
   var files=items.map(function(x){return new File([x[1]+_t(". This is a placeholder so you can try the Port.")],x[0],{type:'text/plain'});});
   await addFiles(files);
 }
@@ -2175,6 +2125,12 @@ document.addEventListener('click',function(e){
       render();
     });
   }
+  else if(a==='pknew'){pkCreate('create');}
+  else if(a==='pkin'){pkLogin();}
+  else if(a==='pkadd'){pkCreate('register');}
+  else if(a==='pkdel'){ui.pkDel=b.dataset.id;render();}
+  else if(a==='pkkeep'){ui.pkDel='';render();}
+  else if(a==='pkdel2'){api('DELETE','/api/passkey',{id:b.dataset.id}).then(function(r){ui.pkDel='';SYNC.pks=null;SYNC.msg=r.ok?'':(r.status===409&&r.error==='last'?_t("You cannot remove your last passkey. Add another one first, or delete the account."):_t("Could not remove it. Try again."));if(r.ok)toast(_t("Passkey removed."));render();});}
   else if(a==='sycodenew'){codeEnter('',true);}
   else if(a==='sycodein'){var cv=(($('#sycode')||{}).value||'').trim();if(!cv){SYNC.msg=_t("Enter your sync code.");render();return;}codeEnter(cv,false);}
   else if(a==='sycopy'){var cc=SYNC.newCode||codeStored();try{navigator.clipboard.writeText(cc).then(function(){toast(_t("Code copied."));},function(){toast(_t("Select the code and copy it."));});}catch(e){toast(_t("Select the code and copy it."));}}
@@ -2182,12 +2138,12 @@ document.addEventListener('click',function(e){
   else if(a==='sycodedone'){SYNC.newCode='';render();}
   else if(a==='syshow'){SYNC.showCode=true;render();}
   else if(a==='syhide'){SYNC.showCode=false;render();}
-  else if(a==='sylogout2'){codeStore('');ui.confirm=null;api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.kind='';SYNC.uid='';SYNC.conflict=null;SYNC.msg='';SYNC.newCode='';SYNC.showCode=false;render();toast(_t("Signed out. Your progress stays on this device."));});}
+  else if(a==='sylogout2'){codeStore('');ui.confirm=null;api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.pks=null;SYNC.kind='';SYNC.uid='';SYNC.conflict=null;SYNC.msg='';SYNC.newCode='';SYNC.showCode=false;render();toast(_t("Signed out. Your progress stays on this device."));});}
   else if(a==='sysync'){SYNC.msg='';syncPull().then(function(){if(!SYNC.conflict&&SYNC.dirty)return syncPush();}).then(function(){if(!SYNC.msg&&!SYNC.conflict)toast(_t("Synced."));});}
   else if(a==='sylogout'&&SYNC.kind==='code'){ui.confirm='logout';render();}
-  else if(a==='sylogout'){api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.conflict=null;SYNC.msg='';SYNC.link='';render();toast(_t("Signed out. Your progress stays on this device."));});}
+  else if(a==='sylogout'){api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.pks=null;SYNC.conflict=null;SYNC.msg='';SYNC.link='';render();toast(_t("Signed out. Your progress stays on this device."));});}
   else if(a==='sydel1'){ui.confirm='acct';render();}
-  else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){codeStore('');SYNC.kind='';SYNC.uid='';SYNC.me=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast(_t("Your cloud data was deleted. Your progress stays on this device."));}else toast(_t("Could not delete just now. Try again."));render();});}
+  else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){codeStore('');SYNC.kind='';SYNC.uid='';SYNC.me=null;SYNC.pks=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast(_t("Your cloud data was deleted. Your progress stays on this device."));}else toast(_t("Could not delete just now. Try again."));render();});}
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast(_t("Using the cloud copy."));else render();}
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast(_t("Using this device. The cloud copy was replaced."));render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
@@ -2395,7 +2351,7 @@ function api(method,path,body,keep){
 }
 function codeStored(){try{return localStorage.getItem('booklyn:synccode')||'';}catch(e){return '';}}
 function codeStore(c){try{if(c)localStorage.setItem('booklyn:synccode',c);else localStorage.removeItem('booklyn:synccode');}catch(e){}}
-function setAccount(r){SYNC.kind=r.kind||'email';SYNC.me=r.kind==='code'?_t("Sync code"):(r.email||'');SYNC.uid=r.uid||'';SYNC.admin=!!r.admin;if(r.admin===undefined)adminCheck();}
+function setAccount(r){SYNC.kind=r.kind||'email';SYNC.me=r.kind==='code'?_t("Sync code"):r.kind==='passkey'?_t("Passkey"):(r.email||'');SYNC.uid=r.uid||'';SYNC.admin=!!r.admin;if(r.admin===undefined)adminCheck();}
 /* Admin is decided by the server (ADMIN_EMAILS / ADMIN_UIDS in Cloudflare). Asking /api/me is the only way to learn it. */
 function adminCheck(){api('GET','/api/me').then(function(m){var a=!!(m&&m.ok&&m.admin);if(a!==SYNC.admin){SYNC.admin=a;render();}});}
 function isAdminNow(){return !!(SYNC.me&&SYNC.admin);}
@@ -2406,7 +2362,8 @@ function pay(c){if(!unlOn())state.coins-=c;}
 /* Testing tools: for admin accounts, or on a local development address. A ?dev=1 link on the public site does nothing. */
 function devOn(){if(isAdminNow())return true;try{return localDev()&&localStorage.getItem('booklyn:dev')==='1';}catch(e){return false;}}
 function syncRender(){
-  if(route().name!=='settings'&&!SYNC.conflict)return;
+  acctPaint();
+  if(route().name!=='settings'&&route().name!=='account'&&!SYNC.conflict)return;
   var ae=document.activeElement;if(ae&&ae.id==='syemail')return;
   render();
 }
@@ -2480,21 +2437,109 @@ function accountCard(){
       +("<div class=\"row\"><button class=\"btn small\" data-a=\"sycloud\">"+_t("Use the cloud copy")+"</button><button class=\"btn small ghost\" data-a=\"sydevice\">"+_t("Use this device")+"</button></div></div>");
   }
   if(SYNC.me){
-    h+='<p class="lede">'+(SYNC.kind==='code'?(_t("Signed in with a ")+"<strong>"+_t("sync code")+"</strong>. "):(_t("Signed in as ")+"<strong>")+esc(SYNC.me)+'</strong>. ')+(SYNC.last?_t("Last synced: ")+new Date(SYNC.last).toLocaleString(LOC(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'. ':'')+(SYNC.dirty&&!SYNC.conflict?_t("Changes waiting to sync."):'')+'</p>'
+    h+='<p class="lede">'+(SYNC.kind==='code'?(_t("Signed in with a ")+"<strong>"+_t("sync code")+"</strong>. "):SYNC.kind==='passkey'?(_t("Signed in with a ")+"<strong>"+_t("passkey")+"</strong>. "):(_t("Signed in as ")+"<strong>")+esc(SYNC.me)+'</strong>. ')+(SYNC.last?_t("Last synced: ")+new Date(SYNC.last).toLocaleString(LOC(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'. ':'')+(SYNC.dirty&&!SYNC.conflict?_t("Changes waiting to sync."):'')+'</p>'
      +(SYNC.newCode?("<div class=\"notice stack\"><p style=\"margin:0\"><strong>"+_t("Your sync code. Save it now.")+"</strong>"+_t(" It is the only way to open your progress on another device, and nobody can recover it for you.")+"</p><p style=\"margin:0;font:700 1.25rem ui-monospace,Consolas,monospace;letter-spacing:.06em;word-break:break-all\">")+esc(SYNC.newCode)+("</p><div class=\"row\"><button class=\"btn small\" data-a=\"sycopy\">"+_t("Copy code")+"</button><button class=\"btn small ghost\" data-a=\"sycodedl\">"+_t("Download as a file")+"</button><button class=\"btn small ghost\" data-a=\"sycodedone\">"+_t("I saved it")+"</button></div></div>"):'')
      +(SYNC.kind==='code'&&!SYNC.newCode&&codeStored()?(SYNC.showCode?'<p style="margin:0;font:700 1.1rem ui-monospace,Consolas,monospace;letter-spacing:.06em;word-break:break-all">'+esc(codeStored())+("</p><div class=\"row\"><button class=\"btn small ghost\" data-a=\"sycopy\">"+_t("Copy code")+"</button><button class=\"btn small ghost\" data-a=\"syhide\">"+_t("Hide")+"</button></div>"):("<div class=\"row\"><button class=\"btn small ghost\" data-a=\"syshow\">"+_t("Show my sync code")+"</button></div>")):'')
-     +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
+     +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')+pkSectionHTML()
      +'<label class="check"><input type="checkbox" data-c="aiopt" '+(state.aiOpt?'checked':'')+("><div><div class=\"t\">"+_t("Let an AI write extra questions")+"</div><div class=\"s\">"+_t("Short text excerpts of your files (a few pages at a time) are sent to Cloudflare Workers AI. It reads the excerpt, writes questions and checks them before you see them. Files are never sent whole or stored. Off by default. Without it, Booklyn only asks about clear definitions it finds in your files, and says so when there is not enough material.")+"</div></div></label>")
      +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+(">"+_t("Sync now")+"</button>")+(ui.confirm==='logout'?("<button class=\"btn small danger\" data-a=\"sylogout2\">"+_t("Sign out and forget the code here")+"</button><button class=\"btn small ghost\" data-a=\"del0\">"+_t("Cancel")+"</button>"):("<button class=\"btn small ghost\" data-a=\"sylogout\">"+_t("Sign out")+"</button>"))+'</div>'
      +'<div class="row">'+(ui.confirm==='acct'?("<button class=\"btn small danger\" data-a=\"sydel2\">"+_t("Yes, delete my cloud data")+"</button><button class=\"btn small ghost\" data-a=\"del0\">"+_t("Cancel")+"</button>"):("<button class=\"btn small ghost\" data-a=\"sydel1\">"+_t("Delete my cloud data…")+"</button>"))+'</div>';
   } else {
     h+=("<p class=\"lede\">"+_t("Optional. Keep your progress safe and use it on your phone and your computer. No email and no password: Booklyn gives you a secret sync code.")+"</p>")
+     +(pkSupported()&&location.protocol!=='file:'?'<div class="stack"><div class="row"><button class="btn" data-a="pkin" '+(SYNC.busy?'disabled':'')+'>'+_t("Sign in with a passkey")+'</button><button class="btn ghost" data-a="pknew" '+(SYNC.busy?'disabled':'')+'>'+_t("Create an account with a passkey")+'</button></div><p class="foot" style="margin:0">'+_t("A passkey uses your fingerprint, face or device PIN. No password and no email. It works only on this address.")+'</p></div><h4 style="margin:8px 0 0">'+_t("Other ways to sign in")+'</h4>':'<p class="foot">'+_t("This browser does not support passkeys.")+'</p>')
      +'<div class="row"><button class="btn small" data-a="sycodenew" '+(SYNC.busy?'disabled':'')+(">"+_t("Create my sync code")+"</button></div>")
      +("<div class=\"row\"><input type=\"text\" id=\"sycode\" placeholder=\"XXXXX-XXXXX-XXXXX-XXXXX\" autocomplete=\"off\" autocapitalize=\"characters\" style=\"flex:1 1 220px\" aria-label=\""+_t("Your sync code")+"\"><button class=\"btn small ghost\" data-a=\"sycodein\" ")+(SYNC.busy?'disabled':'')+(">"+_t("I already have a code")+"</button></div>")
      +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
      +("<details><summary class=\"foot\" style=\"cursor:pointer\">"+_t("Prefer an email link?")+"</summary><div class=\"stack\" style=\"margin-top:8px\"><div class=\"row\"><input type=\"email\" id=\"syemail\" placeholder=\""+_t("you@example.com")+"\" autocomplete=\"email\" style=\"flex:1 1 220px\" aria-label=\""+_t("Your email address")+"\"><button class=\"btn small ghost\" data-a=\"syreq\" ")+(SYNC.busy?'disabled':'')+(">"+_t("Send me a link")+"</button></div>")+(SYNC.link?("<p class=\"foot\">"+_t("Local test link: ")+"<a href=\"")+esc(SYNC.link)+("\">"+_t("sign in")+"</a></p>"):'')+'</div></details>';
   }
   return h+("<p class=\"foot\">"+_t("Only your progress (semesters, modules, lights, coins, notes and deadlines) is stored in the cloud. Your files never leave this device. If you sign in by email, the address is used only to send sign-in links. You can delete everything at any time.")+"</p></section>");
+}
+/* ================= passkeys (server: functions/api/passkey/*) ================= */
+function pkSupported(){return !!(window.PublicKeyCredential&&navigator.credentials&&navigator.credentials.create);}
+function pkB64ToBuf(s){s=String(s).replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer;}
+function pkBufToB64(buf){var u=new Uint8Array(buf),s='';for(var i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function pkFail(e,mode){
+  var n=e&&e.name;
+  if(n==='NotAllowedError'||n==='AbortError')return mode==='login'?_t("Passkey sign-in was cancelled, or no passkey for Booklyn was found on this device."):_t("The passkey was cancelled or is not available on this device.");
+  if(n==='InvalidStateError')return _t("This device already has a passkey for this account.");
+  return mode==='login'?_t("Could not sign in with a passkey. Try again or use another way."):_t("A passkey could not be created. Try again.");
+}
+function pkAfterSignIn(r){
+  SYNC.pks=null;setAccount({kind:'passkey',uid:r.uid});
+  if(SYNC.known&&SYNC.known!==SYNC.uid)SYNC.base=0;SYNC.known=SYNC.uid;syncMeta();
+  return syncPull();
+}
+async function pkCreate(mode){
+  if(SYNC.busy)return;
+  var name=String((($('#pkname')||{}).value)||'').trim().slice(0,40);
+  SYNC.busy=true;SYNC.msg='';render();
+  try{
+    var o=await api('POST','/api/passkey/options',{mode:mode,name:name});
+    if(!o.ok)throw {server:o};
+    var pk=o.publicKey;pk.challenge=pkB64ToBuf(pk.challenge);pk.user.id=pkB64ToBuf(pk.user.id);
+    (pk.excludeCredentials||[]).forEach(function(c){c.id=pkB64ToBuf(c.id);});
+    var cred=await navigator.credentials.create({publicKey:pk});
+    if(!cred)throw {name:'NotAllowedError'};
+    var r=await api('POST','/api/passkey/register',{name:name,credential:{id:cred.id,type:'public-key',response:{clientDataJSON:pkBufToB64(cred.response.clientDataJSON),attestationObject:pkBufToB64(cred.response.attestationObject)}}});
+    if(!r.ok)throw {server:r};
+    if(r.created){await pkAfterSignIn(r);toast(_t("Account created. You are signed in with a passkey."));}
+    else{SYNC.pks=null;toast(_t("Passkey added."));}
+  }catch(e){
+    var sv=e&&e.server;
+    SYNC.msg=sv?(sv.status===429?_t("Too many tries. Wait a little and try again."):sv.status===409&&sv.error==='max'?_t("You have reached the limit of 10 passkeys."):sv.offline?_t("You are offline."):sv.status===404||sv.status===405||sv.status===501||sv.status===500?_t("Passkeys are not set up on this site yet."):_t("A passkey could not be created. Try again.")):pkFail(e,'create');
+  }
+  SYNC.busy=false;render();
+}
+async function pkLogin(){
+  if(SYNC.busy)return;
+  SYNC.busy=true;SYNC.msg='';render();
+  try{
+    var o=await api('POST','/api/passkey/login-options',{});
+    if(!o.ok)throw {server:o};
+    var pk=o.publicKey;pk.challenge=pkB64ToBuf(pk.challenge);
+    var cred=await navigator.credentials.get({publicKey:pk});
+    if(!cred)throw {name:'NotAllowedError'};
+    var r=await api('POST','/api/passkey/login',{credential:{id:cred.id,type:'public-key',response:{clientDataJSON:pkBufToB64(cred.response.clientDataJSON),authenticatorData:pkBufToB64(cred.response.authenticatorData),signature:pkBufToB64(cred.response.signature),userHandle:cred.response.userHandle?pkBufToB64(cred.response.userHandle):null}}});
+    if(!r.ok)throw {server:r};
+    await pkAfterSignIn(r);toast(_t("Signed in with a passkey."));
+  }catch(e){
+    var sv=e&&e.server;
+    SYNC.msg=sv?(sv.status===429?_t("Too many tries. Wait a little and try again."):sv.offline?_t("You are offline."):sv.status===404&&sv.error==='unknown'?_t("This passkey is not registered here. Create an account first, or use your sync code."):sv.status===404||sv.status===405||sv.status===501||sv.status===500?_t("Passkeys are not set up on this site yet."):_t("Could not sign in with a passkey. Try again or use another way.")):pkFail(e,'login');
+  }
+  SYNC.busy=false;render();
+}
+function pkLoad(){
+  if(SYNC.pks!==null&&SYNC.pks!==undefined)return;
+  if(SYNC.pkBusy)return;SYNC.pkBusy=true;
+  api('GET','/api/passkey').then(function(r){SYNC.pkBusy=false;SYNC.pks=r.ok?r.passkeys:[];if(route().name==='account'||route().name==='settings')render();});
+}
+function pkDate(t){return t?new Date(t).toLocaleDateString(LOC(),{day:'numeric',month:'short',year:'numeric'}):'';}
+function pkSectionHTML(){
+  if(!SYNC.me)return '';
+  var h='<div class="stack"><h4 style="margin:4px 0">'+_t("Passkeys")+'</h4>';
+  if(!pkSupported())return h+'<p class="foot" style="margin:0">'+_t("This browser does not support passkeys.")+'</p></div>';
+  if(SYNC.pks===null||SYNC.pks===undefined){setTimeout(pkLoad,0);return h+'<p class="foot" style="margin:0">'+_t("Checking…")+'</p></div>';
+  }
+  if(SYNC.kind==='passkey')h+='<p class="foot" style="margin:0">'+_t("Your account is opened only by passkeys. If you lose them all, nobody can recover it. Add a passkey on a second device.")+'</p>';
+  if(SYNC.pks.length)h+='<ul class="list">'+SYNC.pks.map(function(p){
+    var del=ui.pkDel===p.id;
+    return '<li class="qrow"><div class="grow"><div class="t">'+esc(p.name||_t("Passkey"))+'</div><div class="s">'+esc(_t("Added ")+pkDate(p.created)+' · '+(p.last?_t("last used ")+pkDate(p.last):_t("never used")))+'</div>'
+      +'<div class="row tight">'+(del?'<button class="btn small danger" data-a="pkdel2" data-id="'+esc(p.id)+'">'+_t("Yes, remove it")+'</button><button class="btn small ghost" data-a="pkkeep">'+_t("Cancel")+'</button>':'<button class="btn small ghost" data-a="pkdel" data-id="'+esc(p.id)+'">'+_t("Remove passkey")+'</button>')+'</div></div></li>';}).join('')+'</ul>';
+  h+='<div class="row"><input type="text" id="pkname" maxlength="40" placeholder="'+esc(_t("e.g. My phone"))+'" style="flex:1 1 180px" aria-label="'+esc(_t("Name for this passkey (optional)"))+'"><button class="btn small" data-a="pkadd" '+(SYNC.busy?'disabled':'')+'>'+_t("Add a passkey on this device")+'</button></div></div>';
+  return h;
+}
+function acctBtn(){
+  if(SYNC.na)return '';
+  var on=!!SYNC.me;
+  return '<button type="button" class="acctbtn'+(on?' on':'')+'" data-a="go" data-to="#/account"><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON.acct+'</svg><span>'+(on||!SYNC.checked?_t("Account"):_t("Sign in"))+'</span></button>';
+}
+function acctPaint(){
+  var els=document.querySelectorAll('.acctbtn');if(!els.length)return;
+  var t=document.createElement('div');t.innerHTML=acctBtn();
+  for(var i=0;i<els.length;i++){if(t.firstChild)els[i].outerHTML=t.firstChild.outerHTML;else els[i].remove();}
+}
+function vAccount(){
+  return '<button class="back" data-a="go" data-to="#/">'+_t("← Campus")+'</button><header class="stack"><p class="eyebrow">'+_t("Account")+'</p><h1 tabindex="-1" id="h1">'+_t("Your account")+'</h1></header>'+accountCard()+foot();
 }
 /* ================= boot ================= */
 try{var _u=new URL(location.href);if(_u.searchParams.get('dev')==='1'||_u.searchParams.get('dev')==='0'){localStorage.setItem('booklyn:dev',_u.searchParams.get('dev'));_u.searchParams.delete('dev');history.replaceState(null,'',_u.pathname+(_u.search||'')+_u.hash);}}catch(e){}

@@ -25,3 +25,16 @@ CREATE TABLE IF NOT EXISTS states (
   updated_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS ai_usage (user_id INTEGER NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day));
+-- Passkeys (sign in with fingerprint, face or device PIN). Run this once in the D1 console.
+CREATE TABLE IF NOT EXISTS passkeys (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  user_handle TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  alg INTEGER NOT NULL,
+  counter INTEGER NOT NULL DEFAULT 0,
+  name TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  last_used INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_passkeys_user ON passkeys(user_id);

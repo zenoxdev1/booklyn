@@ -8,6 +8,7 @@ export async function onRequestDelete({ request, env }) {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM states WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
+    env.DB.prepare('DELETE FROM passkeys WHERE user_id = ?').bind(user.id),
     env.DB.prepare('DELETE FROM login_tokens WHERE email = ?').bind(user.email),
     env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
   ]);
