@@ -42,7 +42,7 @@ h1:focus{outline:none}
 .shell{min-height:100dvh}
 .rail{display:none}
 .main{width:100%;max-width:960px;margin:0 auto;padding:22px max(16px,env(safe-area-inset-right)) 104px max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:20px}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(4px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(4px,env(safe-area-inset-left))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(4px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(4px,env(safe-area-inset-left))}
 .navbtn{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;min-height:52px;padding:6px 4px;border:0;background:none;color:var(--muted);font-size:.74rem;font-weight:600;border-radius:10px}
 .navbtn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .navbtn[aria-current="page"]{color:var(--accent)}
@@ -402,3 +402,19 @@ details summary{cursor:pointer}
 .langf select{width:100%}
 /* longer translations: keep the hint clear of the legend */
 html:not([lang="en"]) .chint{bottom:46px}
+/* search and ILIAS steps */
+mark{background:color-mix(in srgb,var(--accent) 28%,transparent);color:inherit;border-radius:3px;padding:0 1px}
+.snip{font-size:.85rem;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+.item.sres{align-items:flex-start;flex-wrap:wrap}
+.item.sres .grow{min-width:0;flex:1 1 240px;overflow-wrap:anywhere}
+.searchbar{align-items:flex-end;gap:12px}
+.searchbar .grow{flex:1;min-width:200px}
+.searchbar select{max-width:100%}
+details.steps,details#ilmgr{display:block}
+details.steps{font-size:.9rem;color:var(--muted)}
+details.steps summary{cursor:pointer;font-weight:700;display:block}
+details.steps a{color:var(--accent)}
+details.steps ol{margin:8px 0 0;padding-left:22px;display:grid;gap:6px}
+details#ilmgr{margin:8px 0}
+details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
+@media (max-width:420px){.navbtn{font-size:.66rem;padding:6px 2px}}

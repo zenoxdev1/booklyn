@@ -5,6 +5,7 @@ import * as ST from './js/storage.js';
 import * as IM from './js/imports.js';
 import * as QC from './js/quiz-core.js';
 import * as BK from './js/backup.js';
+import * as SR from './js/search.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -131,7 +132,8 @@ var ICON = {
  port:'<path d="M3 13l3-8h12l3 8v6H3zM3 13h5l1 3h6l1-3h5"/>',
  dead:'<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/>',
  set:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6"/>',
- shop:'<path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0"/>'
+ shop:'<path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0"/>',
+ search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'
 };
 
 /* ================= helpers ================= */
@@ -741,7 +743,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var lastRendered=null, study=null, ui={tab:'units',q:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -773,10 +775,13 @@ function ckey(name){return String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,
 function iliasCourseModule(courseName){
   var sem=curSem();if(!sem||!courseName||courseName==='ILIAS news')return null;
   var saved=state.iliasCourseMap[ckey(courseName)];
+  if(saved==='-')return null;
   if(saved){var sm=M(saved);if(sm&&sem.modules.indexOf(sm)>-1)return {m:sm,how:'saved'};}
   var sg=suggest(String(courseName),sem);
   return sg.mod?{m:M(sg.mod),how:'name'}:null;
 }
+/* 'saved' = you chose it, 'name' = guessed from the course name, 'skip' = you said do not assign, 'open' = nothing known */
+function iliasCourseState(c){if(state.iliasCourseMap[ckey(c)]==='-')return 'skip';var r=iliasCourseModule(c);return r?r.how:'open';}
 function iliasHint(file){
   var r=iliasCourseModule(file.course);if(!r||!r.m)return null;
   var sg=suggest(String(file.name||'')+' '+String(file.context||''),{modules:[{id:r.m.id,code:r.m.code,kw:'',units:MAXU}]});
@@ -792,13 +797,33 @@ function iliasSuggest(file){
   var sg=suggest(String(file.name||'')+' '+String(file.context||''),c),m2=sg.mod?M(sg.mod):null;
   return m2?m2.code+(sg.unit?_t(" · week ")+sg.unit:''):'';
 }
+function iliasCourseNames(){var seen={},out=[];ui.ilias.items.forEach(function(f){var c=f.course;if(!c||c==='ILIAS news'||seen[c])return;seen[c]=1;out.push(c);});return out;}
+function iliasMapSelect(c,sem,asking){
+  var cur=state.iliasCourseMap[ckey(c)]||'',g=cur?null:iliasCourseModule(c);
+  var o='<option value=""'+(cur?'':' selected')+'>'+(asking?_t("Choose a module…"):_t("Automatic (from the course name)")+(g&&g.m?' → '+esc(g.m.code):''))+'</option>';
+  o+=sem.modules.map(function(x){return '<option value="'+esc(x.id)+'"'+(cur===x.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('');
+  o+='<option value="-"'+(cur==='-'?' selected':'')+'>'+_t("Don't assign to a module")+'</option>';
+  return '<label class="f">'+esc(c)+'<select data-c="ilmap" data-k="'+esc(ckey(c))+'">'+o+'</select></label>';
+}
 function iliasMapHTML(){
   var sem=curSem();if(!sem)return '';
-  var seen={},open=[];
-  ui.ilias.items.forEach(function(f){var c=f.course;if(!c||c==='ILIAS news'||seen[c])return;seen[c]=1;if(!iliasCourseModule(c))open.push(c);});
-  if(!open.length)return '';
-  return ("<div class=\"notice\" role=\"region\" aria-label=\""+_t("Match ILIAS courses to modules")+"\"><strong>"+_t("Which module is this ILIAS course?")+"</strong><p class=\"foot\">"+_t("Booklyn could not tell from the course name. Choose once and it remembers. Until then it guesses from each file name.")+"</p>")
-   +open.map(function(c){var k=ckey(c);return '<label class="f">'+esc(c)+'<select data-c="ilmap" data-k="'+esc(k)+("\"><option value=\"\">"+_t("Choose a module…")+"</option>")+sem.modules.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>';}).join('')+'</div>';
+  var all=iliasCourseNames();if(!all.length)return '';
+  var open=all.filter(function(c){return iliasCourseState(c)==='open';}),h='';
+  if(open.length&&!ui.ilias.mapHide)h+='<div class="notice" role="region" aria-label="'+_t("Match ILIAS courses to modules")+'"><strong>'+_t("Which module is this ILIAS course?")+'</strong><p class="foot">'+_t("Booklyn could not tell from the course name. Choose a module, or “Don't assign to a module” if the course does not belong to any. You can also skip this: Booklyn then guesses from each file name.")+'</p>'
+    +open.map(function(c){return iliasMapSelect(c,sem,true);}).join('')+'<div class="row"><button class="btn ghost small" data-a="ilmaplater">'+_t("Ask me later")+'</button></div></div>';
+  h+='<details class="foot" id="ilmgr"'+(ui.ilias.mgrOpen?' open':'')+'><summary>'+_t("Courses and modules")+'</summary><p class="foot">'+_t("Each ILIAS course is matched to one of your modules. If Booklyn got one wrong, change it here.")+'</p>'
+    +all.map(function(c){return iliasMapSelect(c,sem,false);}).join('')+'<div class="row"><button class="btn ghost small" data-a="ilmapreset">'+_t("Reset all course matches")+'</button></div></details>';
+  return h;
+}
+function ilStepsHTML(){
+  var st=[
+    _t("Install the Booklyn ILIAS Connector once. You need Edge or Chrome on a computer; it does not work on phones.")+' <a href="/connector/" target="_blank" rel="noopener">'+_t("download and install steps")+'</a>',
+    _t("Reload Booklyn so it finds the connector. “Connector ready” then appears below."),
+    _t("Open ILIAS in this same browser and sign in with your HSLU account."),
+    _t("Come back here and press “Check ILIAS again”. Booklyn lists the files it can read. Nothing is downloaded yet."),
+    _t("Booklyn may ask which module an ILIAS course belongs to. Choose one, or skip it: Booklyn then guesses from the file names. You can change it later under “Courses and modules”."),
+    _t("Press “Add to Port” on the files you want and dismiss the rest.")];
+  return '<details class="steps"'+(iliasBridge?'':' open')+'><summary>'+_t("Step by step")+'</summary><ol>'+st.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ol></details>';
 }
 function iliasCounts(){var c={todo:0,in:0,dis:0};ui.ilias.items.forEach(function(f){c[iliasCls(f)]++;});return c;}
 
@@ -929,7 +954,7 @@ async function iliasCrawl(){
 }
 async function scanIlias(){
   if(iliasBridge&&verNum(iliasVersion)<verNum(CONNECTOR_MIN_SCAN)){ui.ilias.status=_t("Booklyn needs connector v")+CONNECTOR_MIN_SCAN+_t(" or newer (yours is v")+(iliasVersion||'?')+_t("). Download it again from the Connector page, extract it over your old connector folder, then press the reload arrow on edge://extensions. After this version, scan improvements arrive with Booklyn itself, so you will rarely need to do it again.");render();return;}
-  ui.ilias.busy=true;ui.ilias.status=_t("Checking ILIAS…");render();
+  ui.ilias.busy=true;ui.ilias.mapHide=false;ui.ilias.status=_t("Checking ILIAS…");render();
   var result=await iliasCrawl();
   ui.ilias.busy=false;ui.ilias.scanned=true;
   if(!result.ok){ui.ilias.status=result.message||_t("Could not check ILIAS.");render();return;}
@@ -1018,6 +1043,7 @@ function route(){
   if(p[0]==='deadlines') return {name:'deadlines'};
   if(p[0]==='settings') return {name:'settings'};
   if(p[0]==='shop') return {name:'shop'};
+  if(p[0]==='search') return {name:'search'};
   if(p[0]==='setup') return {name:'setup'};
   if(p[0]==='m'){
     var m=M(p[1]); if(!m) return {name:'campus'};
@@ -1087,10 +1113,10 @@ function vPort(){
   }
   var lastChk=state.iliasLast?new Date(state.iliasLast).toLocaleString(LOC(),{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   if(!isMobileDevice()||iliasBridge)h+=("<section class=\"card stack\"><div class=\"row\" style=\"justify-content:space-between\"><div><p class=\"eyebrow\">"+_t("HSLU ILIAS")+"</p><h2>"+_t("Find new files")+"</h2></div><a class=\"btn ghost small\" href=\"https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show\" target=\"_blank\" rel=\"noopener noreferrer\">"+_t("Open ILIAS ↗")+"</a></div>")
-    +("<p class=\"lede\">"+_t("Booklyn looks for file links on your ILIAS dashboard and linked courses and lists the ones it can read: PDF, Word (.docx), PowerPoint (.pptx) and text files. Videos, audio, images and zips are skipped. Files you already have are recognised by their content, so nothing is added twice. Nothing is downloaded until you press “Add to Port”. Sign in to ILIAS in this browser first.")+"</p>")
+    +("<p class=\"lede\">"+_t("Booklyn lists the ILIAS files it can read: PDF, Word (.docx), PowerPoint (.pptx) and text files. Videos, audio, images and zips are skipped. Files you already have are recognised by their content, so nothing is added twice.")+"</p>")
+    +ilStepsHTML()
     +'<div class="row"><button class="btn small" data-a="scanilias" '+(ui.ilias.busy?'disabled':'')+(">"+_t("Check ILIAS again")+"</button><span class=\"foot\">")+(iliasBridge?_t("Connector ready")+(iliasVersion?' (v'+esc(iliasVersion)+')':'')+(verNum(iliasVersion)<verNum(CONNECTOR_LATEST)?(" · <a href=\"/connector/#changelog\" target=\"_blank\" rel=\"noopener\">"+_t("Update available (v"))+CONNECTOR_LATEST+')</a>':''):_t("Needs the Booklyn ILIAS Connector browser extension"))+'</span></div>'
     +'<p class="foot">'+(lastChk?_t("Last checked: ")+lastChk+'.':_t("Not checked yet."))+'</p>'
-    +(!iliasBridge?("<p class=\"foot\">"+_t("Install the connector once on a computer with Edge or Chrome: ")+"<a href=\"/connector/\" target=\"_blank\" rel=\"noopener\">"+_t("download and install steps")+"</a>"+_t(". Then reload Booklyn. It does not work on phones; add files by hand there.")+"</p>"):'')
     +(ui.ilias.status?'<p class="foot" role="status">'+esc(ui.ilias.status)+'</p>':'')
     +(ui.ilias.items.length?iliasListHTML():iliasCoursesHTML())+'</section>';
   if(state.lastImport.length&&!list.length){
@@ -1132,12 +1158,13 @@ function vModule(r){
     }
     h+='</ul><div class="row" style="margin-top:12px"><button class="btn ghost small" data-a="addfloor" data-m="'+m.id+("\">"+_t("＋ Add a floor")+"</button>")+(m.units>1&&!mats(m,m.units).length&&!state.lit[m.id+':'+m.units]?'<button class="btn ghost small" data-a="rmfloor" data-m="'+m.id+("\">"+_t("Remove last floor (Week "))+m.units+')</button>':'')+'</div>';
   } else {
-    h+=("<label class=\"f\">"+_t("Search files")+"<input type=\"search\" id=\"q\" value=\"")+esc(ui.q)+("\" placeholder=\""+_t("Name or type")+"\"></label><div id=\"matlist\">")+fileList(m)+'</div>';
+    h+=("<label class=\"f\">"+_t("Search files")+"<input type=\"search\" id=\"q\" value=\"")+esc(ui.q)+("\" placeholder=\""+_t("Name, type or words inside the files")+"\"></label><div id=\"matlist\">")+fileList(m)+'</div>';
   }
   return h;
 }
 function fileList(m){
-  var q=ui.q.trim().toLowerCase(),out='';
+  if(ui.q.trim())return resultsHTML(SR.search(searchDocs(),ui.q,{mod:m.id}),{hideMod:true});
+  var q='',out='';
   for(var u=1;u<=m.units;u++){
     var ms=mats(m,u).filter(function(x){return !q||(x.name+' '+x.type).toLowerCase().indexOf(q)>-1;});
     if(!ms.length) continue;
@@ -1442,8 +1469,78 @@ function vSettings(){
 }
 
 /* ================= shell ================= */
+/* ================= search (logic in js/search.js) ================= */
+function searchDocs(){
+  var docs=[],recs={};
+  FILES.forEach(function(f){if(f.status==='imported')recs[f.id]=f;});
+  state.sems.forEach(function(sem){sem.modules.forEach(function(m){
+    docs.push({key:'m:'+m.id,kind:'module',mod:m.id,unit:0,title:m.code+' '+m.name});
+    for(var u=1;u<=m.units;u++){
+      var ft=String(m.titles[u-1]||''),nt=String(state.notes[m.id+':'+u]||'');
+      docs.push({key:'u:'+m.id+':'+u+':'+hashStr(ft),kind:'floor',mod:m.id,unit:u,title:ft});
+      if(nt.trim())docs.push({key:'n:'+m.id+':'+u+':'+hashStr(nt),kind:'note',mod:m.id,unit:u,title:ft,body:nt});
+      mats(m,u).forEach(function(x){
+        var rec=x.blob?recs[x.id]:null;
+        docs.push({key:'f:'+x.id,kind:'file',mod:m.id,unit:u,title:x.name,body:rec&&rec.textV===2?rec.text:'',fid:x.blob?x.id:'',label:rec?pageLabelOf(rec):''});
+      });
+    }
+  });});
+  return docs;
+}
+function hl(text,toks){return SR.marks(text,toks).map(function(p){return p.m?'<mark>'+esc(p.t)+'</mark>':esc(p.t);}).join('');}
+function resultsHTML(res,opt){
+  opt=opt||{};
+  if(!res.toks.length)return '<p class="lede">'+_t("Type a word to search.")+'</p>';
+  if(!res.results.length)return '<p class="lede">'+_t("Nothing found for these words. Try fewer or shorter words.")+'</p>';
+  var KL={module:_t("Module"),floor:_t("Floor"),file:_t("File"),note:_t("Note")};
+  var h='<p class="foot" role="status">'+res.total+_pl(res.total,' result',' results')+(res.total>res.results.length?' · '+_t("Showing the first ")+res.results.length:'')+'</p><ul class="list">';
+  res.results.forEach(function(r){
+    var d=r.doc,m=M(d.mod);if(!m)return;
+    var sm=semOf(m.id),where=[];
+    if(!opt.hideMod)where.push(esc(m.code));
+    if(d.unit){where.push(esc(_t("Week "))+d.unit);if(d.kind!=='floor'&&m.titles[d.unit-1])where.push(esc(m.titles[d.unit-1]));}
+    if(d.kind==='module'&&sm&&sm.name)where.push(esc(sm.name));
+    if(r.page)where.push(esc((d.label==='p.'?_t("Page "):d.label==='slide'?_t("Slide "):'')+r.page));
+    h+='<li class="item sres"><div class="grow"><div class="t"><span class="chip">'+KL[d.kind]+'</span> '+hl(d.title,res.toks)+'</div><div class="s">'+where.join(' · ')+'</div>'
+      +(r.snip&&r.field==='body'?'<div class="snip">'+hl(r.snip,res.toks)+'</div>':'')+'</div><div class="row tight">'
+      +(d.fid?'<button class="btn small" data-a="open" data-id="'+esc(d.fid)+'">'+_t("Open")+'</button>':'')
+      +'<button class="btn small ghost" data-a="go" data-to="#/m/'+esc(m.id)+(d.unit?'/'+d.unit:'')+'">'+(d.unit?_t("Go to floor"):_t("Go to module"))+'</button></div></li>';
+  });
+  return h+'</ul>';
+}
+function idxText(){var x=ui.sIdx;return x.run?_t("Reading files for search: ")+x.done+' / '+x.total:'';}
+function searchResultsHTML(){return resultsHTML(SR.search(searchDocs(),ui.sq,{mod:ui.smod||''}),{hideMod:!!ui.smod});}
+function paintSearch(){
+  var r=route(),el;
+  if(r.name==='search'){el=$('#sres');if(el)el.innerHTML=searchResultsHTML();var ix=$('#sidx');if(ix)ix.textContent=idxText();}
+  else if(r.name==='module'&&ui.tab==='files'&&ui.q.trim()){el=$('#matlist');if(el)el.innerHTML=fileList(r.m);}
+}
+/* Reads the text of imported files once (cached with each file) so their contents can be searched. */
+async function indexFiles(){
+  var x=ui.sIdx;if(x.run)return;
+  var todo=FILES.filter(function(f){return f.status==='imported'&&f.textV!==2&&!x.tried[f.id]&&/\.(txt|md|csv|tex|html?|py|java|js|json|sql|pdf|docx|pptx)$/i.test(String(f.name));});
+  if(!todo.length)return;
+  x.run=true;x.total=todo.length;x.done=0;paintSearch();
+  for(var i=0;i<todo.length;i++){
+    x.tried[todo[i].id]=1;
+    try{await fileText(todo[i]);}catch(e){}
+    x.done++;
+    if(i%2===1||i===todo.length-1)paintSearch();
+    await new Promise(function(res){setTimeout(res,0);});
+  }
+  x.run=false;paintSearch();
+}
+function vSearch(){
+  if(!state.sems.length)return vWelcome();
+  var opts='<option value="">'+_t("All modules")+'</option>'+state.sems.map(function(sm){
+    return '<optgroup label="'+esc(sm.name)+'">'+sm.modules.map(function(m){return '<option value="'+esc(m.id)+'"'+(ui.smod===m.id?' selected':'')+'>'+esc(m.code+' · '+m.name)+'</option>';}).join('')+'</optgroup>';}).join('');
+  return '<header class="stack"><p class="eyebrow">'+_t("Search")+'</p><h1 tabindex="-1" id="h1">'+_t("Search everything")+'</h1><p class="lede">'+_t("Find anything in your modules, floors, files and notes. Search looks at names, titles, notes and the text inside your PDF, Word, PowerPoint and text files.")+'</p></header>'
+    +'<div class="row searchbar"><label class="f grow" for="sq">'+_t("Search for words")+'<input type="search" id="sq" value="'+esc(ui.sq)+'" placeholder="'+esc(_t("e.g. subnet mask"))+'" autocomplete="off" maxlength="120"></label>'
+    +'<label class="f" for="smod">'+_t("Where")+'<select id="smod" data-c="smod">'+opts+'</select></label></div>'
+    +'<p class="foot" id="sidx" role="status">'+idxText()+'</p><div id="sres">'+searchResultsHTML()+'</div>';
+}
 function nav(cur){
-  var items=[['campus',_t("Campus"),'#/','campus'],['port',_t("Port"),'#/port','port'],['deadlines',_t("Deadlines"),'#/deadlines','dead'],['shop',_t("Shop"),'#/shop','shop'],['settings',_t("Settings"),'#/settings','set']];
+  var items=[['campus',_t("Campus"),'#/','campus'],['port',_t("Port"),'#/port','port'],['search',_t("Search"),'#/search','search'],['deadlines',_t("Deadlines"),'#/deadlines','dead'],['shop',_t("Shop"),'#/shop','shop'],['settings',_t("Settings"),'#/settings','set']];
   var on={module:'campus',unit:'campus',study:'campus',setup:'campus'}[cur]||cur,p=pending().length;
   return items.map(function(i){return '<button class="navbtn" data-a="go" data-to="'+i[2]+'" '+(on===i[0]?'aria-current="page"':'')+'><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[i[3]]+'</svg><span>'+i[1]+'</span>'+(i[0]==='port'&&p?'<span class="badge" aria-label="'+_pl(p,' file waiting',' files waiting')+'">'+p+'</span>':'')+'</button>';}).join('');
 }
@@ -1455,11 +1552,12 @@ function render(focus){
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
-  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='setup'?vSetup():vSettings();
+  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
   $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'</nav><main class="main">'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
   if(focus){var h1=$('#h1');if(h1)h1.focus({preventScroll:true});window.scrollTo(0,0);}
+  if(r.name==='search'){var sqi=$('#sq');if(sqi&&focus&&!ui.sq)sqi.focus({preventScroll:true});indexFiles();}
   if(r.name==='settings') storageInfo();
 }
 window.addEventListener('hashchange',function(){try{var h=location.hash||'#/';if(h!==memHash){memHash=h;render(true);}}catch(e){}});
@@ -1722,6 +1820,8 @@ document.addEventListener('click',function(e){
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast(_t("Using the cloud copy."));else render();}
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast(_t("Using this device. The cloud copy was replaced."));render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
+  else if(a==='ilmaplater'){ui.ilias.mapHide=true;render();}
+  else if(a==='ilmapreset'){state.iliasCourseMap={};save();render();toast(_t("Course matches reset."));}
   else if(a==='ilreport'){var rep=ui.ilias.report||'';try{navigator.clipboard.writeText(rep).then(function(){ui.ilias.status=_t("Scan report copied. Paste it in the chat.");render();},function(){ui.ilias.status=_t("Could not copy. Your browser blocked the clipboard.");render();});}catch(e){ui.ilias.status=_t("Could not copy the report.");render();}}
   else if(a==='iliasimport'){if(!ui.ilias.busy)importIlias(b.dataset.key);}
   else if(a==='iliasall'){if(!ui.ilias.busy)importAllIlias();}
@@ -1819,6 +1919,7 @@ document.addEventListener('change',function(e){
   else if(c==='pin'){var pk=t.dataset.k;if(t.checked)state.pin[pk]=true;else delete state.pin[pk];save();render();toast(t.checked?_t("Pinned. This light stays on and pays no rent."):_t("Unpinned. The light follows the normal rules again."));}
   else if(c==='aiopt'){state.aiOpt=t.checked;save();}
   else if(c==='unl'){if(!isAdminNow())return;try{if(t.checked)localStorage.setItem('booklyn:unl','1');else localStorage.removeItem('booklyn:unl');}catch(e){}if(t.checked&&state.coins<999999){state.coins=999999;save();}render();toast(t.checked?_t("Unlimited coins on."):_t("Unlimited coins off."));}
+  else if(c==='smod'){ui.smod=t.value;paintSearch();}
   else if(c==='ilmap'){if(t.value)state.iliasCourseMap[t.dataset.k]=t.value;else delete state.iliasCourseMap[t.dataset.k];save();render();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
   else{
@@ -1831,12 +1932,14 @@ document.addEventListener('change',function(e){
     IM.commitPatch(fileStore,[f],function(){return patch;}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();window.scrollTo(0,y);});
   }
 });
+document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='ilmgr')ui.ilias.mgrOpen=t.open;},true);
 document.addEventListener('input',function(e){
   var t=e.target;
   if(t.id==='note'){state.notes[t.dataset.k]=t.value;save();}
   else if(t.id==='utitle'){var p=t.dataset.k.split(':'),m=M(p[0]);if(m){m.titles[+p[1]-1]=t.value||(_t("Week ")+p[1]);save();}}
   else if(t.id==='nm'){state.name=t.value;save();}
-  else if(t.id==='q'){ui.q=t.value;var r=route();$('#matlist').innerHTML=fileList(r.m);}
+  else if(t.id==='q'){ui.q=t.value;var r=route();$('#matlist').innerHTML=fileList(r.m);if(t.value.trim())indexFiles();}
+  else if(t.id==='sq'){ui.sq=t.value;paintSearch();}
   else if(t.dataset.sb){setPath(ui.setup,t.dataset.sb,t.type==='number'?t.value:t.value);if(/^mods\./.test(t.dataset.sb)){var sc=$('#setupcity');if(sc)sc.innerHTML=setupCityHTML();}}
   else if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;}
 });

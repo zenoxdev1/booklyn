@@ -14,6 +14,7 @@ Unofficial student project, not affiliated with HSLU. Files stay on the device (
       js/imports.js     when a file counts as "added" or "imported" (failed writes never count)
       js/quiz-core.js   chunking with headings and pages, definition questions, quality rules, question bank, 5-question and 80 % rules
       js/backup.js      progress backup, full backup, checked restore, merge rules
+      js/search.js      search across modules, floors, files and notes
       vendor/, fonts/, icons
     functions/api/      Cloudflare Pages Functions: sync, sign-in, optional AI questions
       quiz.js           the /api/quiz endpoint (limits, auth)
