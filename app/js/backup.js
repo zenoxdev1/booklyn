@@ -1,6 +1,7 @@
 import { _t } from './i18n.js';
 import * as QS from './questions.js';
 import * as SN from './snotes.js';
+import * as OB from './objectives.js';
 /* Booklyn backups.
    Light backup: one JSON object with your progress (semesters, lights, notes, deadlines, coins, city). No files.
    Full backup: a text file with one JSON object per line: header, progress, question banks, then each imported
@@ -234,6 +235,7 @@ export function mergeStates(cur, inc) {
   out.iliasCourseMap = union(out.iliasCourseMap, inc.iliasCourseMap);
   out.questions = QS.merge(out.questions || [], QS.clean(inc.questions, modAlive));
   out.snotes = SN.merge(out.snotes || [], SN.clean(inc.snotes));
+  out.goals = OB.merge(out.goals || [], OB.clean(inc.goals, modAlive));
   out.coins = Math.max(out.coins || 0, inc.coins || 0);
   out.shields = Math.max(out.shields || 0, inc.shields || 0);
   out.lastBackup = Math.max(out.lastBackup || 0, inc.lastBackup || 0);

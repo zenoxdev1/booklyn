@@ -10,6 +10,7 @@ import * as TD from './js/today.js';
 import * as QS from './js/questions.js';
 import * as SN from './js/snotes.js';
 import * as V from './js/versions.js';
+import * as OB from './js/objectives.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -164,7 +165,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{},iliasCourseMap:{},questions:[],qRemind:'daily',qNotify:false,qNotified:'',snotes:[]};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{},iliasCourseMap:{},questions:[],qRemind:'daily',qNotify:false,qNotified:'',snotes:[],goals:[]};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 /* Untrusted data (backup files, the cloud copy) is cleaned before it is used: ids are checked because they end up in the page, text is trimmed, odd keys are dropped. */
@@ -209,6 +210,7 @@ function clean(s){
   var qAlive={};s.sems.forEach(function(sem){sem.modules.forEach(function(m){qAlive[m.id]=1;});});
   s.questions=QS.clean(s.questions,qAlive,MAXU);
   s.snotes=SN.clean(s.snotes);
+  s.goals=OB.clean(s.goals,qAlive,MAXU);
   if(QS.MODES.indexOf(s.qRemind)<0)s.qRemind='daily';
   s.qNotify=!!s.qNotify;s.qNotified=/^\d{4}-\d{2}-\d{2}$/.test(String(s.qNotified))?s.qNotified:'';
   if(s.activeSem!==null&&!ID_OK.test(String(s.activeSem)))s.activeSem=null;
@@ -752,7 +754,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',ver:{},verPick:{},snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var lastRendered=null, study=null, ui={tab:'units',q:'',gIdx:{},gMod:'',gUnit:0,goalOpen:'',goalDel:'',goalGaps:false,ver:{},verPick:{},snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -1055,6 +1057,7 @@ function route(){
   if(p[0]==='search') return {name:'search'};
   if(p[0]==='today') return {name:'today'};
   if(p[0]==='questions') return {name:'questions'};
+  if(p[0]==='goals') return {name:'goals'};
   if(p[0]==='file'){var ff=fileById(p[1]);return ff?{name:'file',f:ff}:{name:'campus'};}
   if(p[0]==='setup') return {name:'setup'};
   if(p[0]==='m'){
@@ -1102,6 +1105,7 @@ function vCampus(){
   if(n) h+=("<section class=\"card accent stack\"><p class=\"eyebrow\">"+_t("Next up")+"</p><h2>")+esc(n.m.code)+' · '+esc(n.m.titles[n.u-1])+'</h2><p class="lede">'+esc(n.why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+("/study\">"+_t("Start block")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/m/")+n.m.id+'/'+n.u+("\">"+_t("Open unit")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/today\">"+_t("Study today")+"</button></div></section>");
   else if(!pending().length&&!FILES.some(function(f){return f.sem===sem.id;})&&!sem.demo) h+=("<section class=\"card stack\"><h3>"+_t("Add your first files")+"</h3><p class=\"lede\">"+_t("Drop your slides and scripts into the Port. Booklyn suggests where each one belongs.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"go\" data-to=\"#/port\">"+_t("Open the Port")+"</button></div></section>");
   h+=qCardHTML(sem,3);
+  h+=goalCardHTML(sem);
   if(p) h+='<section class="card row between"><div><h3>'+p+_pl(p,' file waiting in the Port',' files waiting in the Port')+("</h3><p class=\"lede\">"+_t("Review where they belong, then import.")+"</p></div><button class=\"btn\" data-a=\"go\" data-to=\"#/port\">"+_t("Review")+"</button></section>");
   if(ups.length) h+=("<section class=\"stack\"><div class=\"row between\"><h2>"+_t("Coming up")+"</h2><button class=\"link\" data-a=\"go\" data-to=\"#/deadlines\">"+_t("All deadlines")+"</button></div><ul class=\"list\">")
    +ups.map(function(d){var m=d.mod?M(d.mod):null;return '<li><div class="item"><span class="floor" style="--h:'+(m?m.h:0)+'">'+(m?esc(m.code.slice(0,2)):'•')+'</span><div class="grow"><div class="t">'+esc(d.title)+'</div><div class="s">'+(m?esc(m.code)+' · ':'')+fmt(d.date)+'</div></div><span class="chip">'+rel(d)+'</span></div></li>';}).join('')+'</ul></section>';
@@ -1219,6 +1223,7 @@ function vUnit(r){
    +("<section class=\"stack\"><div class=\"row between\"><h2>"+_t("Material")+"</h2><button class=\"btn small ghost\" data-a=\"pickhere\" data-mod=\"")+m.id+'" data-unit="'+u+("\">"+_t("Add files here")+"</button></div><div class=\"stack\">")+ms.map(function(x){return matRow(m,u,x);}).join('')+'</div></section>';
   h+=verCardsHTML(function(f){return f.mod===m.id&&f.unit===u;});
   h+=snUnitHTML(m,u);
+  h+=goalUnitHTML(m,u);
   h+=qUnitHTML(m,u);
   h+=("<section class=\"stack\"><label class=\"f\" for=\"utitle\">"+_t("Unit name")+"<input type=\"text\" id=\"utitle\" data-k=\"")+k+'" value="'+esc(m.titles[u-1])+'" maxlength="80"></label>'
    +("<label class=\"f\" for=\"note\">"+_t("Notes")+"<textarea id=\"note\" data-k=\"")+k+("\" placeholder=\""+_t("Terms you could not explain, questions for the lecturer…")+"\">")+esc(state.notes[k]||'')+("</textarea></label><p class=\"foot\">"+_t("Saved on this device while you type.")+"</p></section>");
@@ -1568,6 +1573,7 @@ async function verConfirm(id){
       else{n.page=m.page;n.unsure=!m.sure;}
     }else if(n.at)n.unsure=true;
   });
+  state.goals=OB.relinkFile(state.goals,old.id,nw.id,Date.now());
   if(state.seen[old.id])state.seen[nw.id]=true;
   delete state.seen[old.id];
   save();
@@ -1576,11 +1582,108 @@ async function verConfirm(id){
   else toast(_t("Could not remove the old version. Both files are still here."));
   render();
 }
+/* ================= learning objectives (logic in js/objectives.js) ================= */
+function goalFilesOf(o){return o.files.map(fileById).filter(function(f){return f&&f.status==='imported';});}
+function goalPractice(o,cache){
+  var qs=[],stats={};
+  goalFilesOf(o).forEach(function(f){
+    if(!f.mod||!f.unit)return;
+    var k=f.mod+':'+f.unit,b=cache[k]||(cache[k]=bankGet(k)),fk=QC.fileKey(f);
+    b.q.forEach(function(q){if(q.fk===fk&&!q.bad){qs.push({id:q.id});if(b.stats[q.id])stats[q.id]=b.stats[q.id];}});
+  });
+  return OB.practice(qs,stats);
+}
+function goalChip(st,pr){
+  var T={none:_t("Nothing linked yet"),notesonly:_t("Notes only, no file linked"),noq:_t("No quiz questions from these files yet"),untested:_t("Not asked in a quiz yet"),weak:pr?pr.missed+_pl(pr.missed,' question still missed',' questions still missed'):'',ok:_t("Asked in quizzes, none missed")};
+  return '<span class="chip'+(st==='ok'?' s-lit':st==='weak'?' warn':' s-empty')+'">'+esc(T[st])+'</span>';
+}
+/* Statuses for a list of objectives (one bank read per unit). */
+function goalStatuses(list){
+  var cache={};
+  return list.map(function(o){var pr=goalPractice(o,cache);return {o:o,pr:pr,st:OB.status(o,pr)};});
+}
+function goalTally(mods){
+  var ids={};mods.forEach(function(m){ids[m.id]=1;});
+  return OB.tally(goalStatuses(state.goals.filter(function(o){return ids[o.mod];})).map(function(x){return x.st;}));
+}
+function goalIndex(mod){
+  var todo=FILES.filter(function(f){return f.status==='imported'&&f.mod===mod&&f.textV!==2&&!ui.gIdx[f.id];});
+  if(!todo.length)return;
+  todo.forEach(function(f){ui.gIdx[f.id]=1;});
+  (async function(){for(var i=0;i<todo.length;i++){try{await fileText(todo[i]);}catch(e){}}if(route().name==='goals'||route().name==='unit')render();})();
+}
+function goalFormHTML(fixed){
+  var id='gtext'+(fixed?'-'+fixed.unit:''),pick='';
+  if(!fixed){
+    var sem=curSem(),m=M(ui.gMod)||sem.modules[0];if(!m)return '';
+    var un=Math.min(+ui.gUnit||0,m.units);
+    pick='<div class="row"><label class="f grow" for="gmod">'+_t("Module")+'<select id="gmod" name="mod" data-c="gmod">'+sem.modules.map(function(x){return '<option value="'+x.id+'"'+(x.id===m.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>'
+      +'<label class="f grow" for="gunit">'+_t("Applies to")+'<select id="gunit" name="unit" data-c="gunit"><option value="0"'+(un===0?' selected':'')+'>'+_t("Whole module")+'</option>'+Array.apply(null,{length:m.units}).map(function(_,i){return '<option value="'+(i+1)+'"'+(un===i+1?' selected':'')+'>'+esc(_t("Week "))+(i+1)+'</option>';}).join('')+'</select></label></div>';
+  }
+  return '<form class="stack qform" data-form="goaladd" data-focus="'+id+'"'+(fixed?' data-mod="'+esc(fixed.mod)+'" data-unit="'+fixed.unit+'"':'')+'>'+pick
+    +'<label class="f" for="'+id+'">'+_t("Add objectives")+'<textarea id="'+id+'" name="text" rows="2" maxlength="6000" placeholder="'+esc(_t("One objective per line. You can paste a list from your syllabus."))+'"></textarea></label>'
+    +'<div><button class="btn small" type="submit">'+_t("Add objectives")+'</button></div></form>';
+}
+function goalPanelHTML(o){
+  var m=M(o.mod),recs=FILES.filter(function(f){return f.status==='imported'&&f.mod===o.mod;}).sort(function(a,b){return (a.unit-b.unit)||String(a.name).localeCompare(String(b.name));});
+  if(!recs.length)return '<div class="notice"><p class="foot" style="margin:0">'+_t("Add files to this module first, then link them here.")+'</p></div>';
+  var sg={};OB.suggest(o.text,recs.map(function(f){return {id:f.id,name:f.name,body:f.textV===2?f.text:''};}),3).forEach(function(s){sg[s.id]=1;});
+  var order=recs.filter(function(f){return sg[f.id];}).concat(recs.filter(function(f){return !sg[f.id];}));
+  function btn(kind,ref,label,on,hint){return '<button type="button" class="btn small '+(on?'':'ghost ')+'goalpick" data-a="goallink" data-id="'+esc(o.id)+'" data-kind="'+kind+'" data-ref="'+esc(ref)+'" aria-pressed="'+on+'">'+(on?'<span class="sr">'+_t("Linked")+': </span>':'')+label+(hint?' <span class="chip">'+_t("Suggested")+'</span>':'')+'</button>';}
+  var h='<div class="stack goalpanel"><p class="foot" style="margin:0">'+_t("Booklyn suggests files whose name or text contains the main words of the objective. You decide what to link.")+'</p><h4 style="margin:4px 0">'+_t("Files for this objective")+'</h4><div class="goalpicks">'
+    +order.map(function(f){return btn('file',f.id,esc(f.name)+(f.unit?' · '+esc(_t("Week "))+f.unit:''),OB.hasLink(o,'file',f.id),!!sg[f.id]);}).join('')+'</div>';
+  var rid={};recs.forEach(function(f){rid[f.id]=f;});
+  var ns=state.snotes.filter(function(n){return rid[n.file];});
+  h+='<h4 style="margin:4px 0">'+_t("Notes for this objective")+'</h4>';
+  if(!ns.length)h+='<p class="foot" style="margin:0">'+_t("No notes on this module’s files yet.")+'</p>';
+  else h+='<div class="goalpicks">'+ns.map(function(n){return btn('note',n.id,esc(n.text.length>70?n.text.slice(0,70)+'…':n.text)+' <span class="foot">'+esc(rid[n.file].name)+'</span>',OB.hasLink(o,'note',n.id),false);}).join('')+'</div>';
+  return h+'<div><button type="button" class="btn small" data-a="goalopen" data-id="'+esc(o.id)+'">'+_t("Done linking")+'</button></div></div>';
+}
+function goalRowHTML(x,where){
+  var o=x.o,open=ui.goalOpen===o.id,del=ui.goalDel===o.id,m=M(o.mod);
+  return '<li class="qrow goal"><div class="grow"><textarea class="qtext" rows="1" maxlength="'+OB.MAX_TEXT+'" data-q="goaltext" data-id="'+esc(o.id)+'" aria-label="'+esc(_t("Objective"))+'">'+esc(o.text)+'</textarea>'
+    +'<div class="s">'+(where?'<span class="chip">'+esc(o.unit?_t("Week ")+o.unit:_t("Whole module"))+'</span> ':'')+goalChip(x.st,x.pr)
+    +' <span class="chip">'+o.files.length+_pl(o.files.length,' file',' files')+'</span> <span class="chip">'+o.notes.length+_pl(o.notes.length,' note',' notes')+'</span></div>'
+    +'<div class="row tight"><button class="btn small ghost" data-a="goalopen" data-id="'+esc(o.id)+'" aria-expanded="'+open+'">'+_t("Link files and notes")+'</button>'
+    +(m&&o.unit?'<button class="btn small ghost" data-a="go" data-to="#/m/'+m.id+'/'+o.unit+'">'+_t("Open floor")+'</button>':'')
+    +(del?'<button class="btn small" data-a="goaldel2" data-id="'+esc(o.id)+'">'+_t("Remove it")+'</button><button class="btn small ghost" data-a="goalkeep">'+_t("Keep it")+'</button>':'<button class="btn small ghost" data-a="goaldel" data-id="'+esc(o.id)+'">'+_t("Remove objective")+'</button>')+'</div>'
+    +(open?goalPanelHTML(o):'')+'</div></li>';
+}
+function goalUnitHTML(m,u){
+  var list=goalStatuses(OB.forUnit(state.goals,m.id,u));
+  return '<section class="stack"><div class="row between"><h2>'+_t("Learning objectives")+'</h2><button class="btn small ghost" data-a="go" data-to="#/goals">'+_t("All objectives")+'</button></div>'+goalFormHTML({mod:m.id,unit:u})
+    +(list.length?'<ul class="list">'+list.map(function(x){return goalRowHTML(x,false);}).join('')+'</ul>':'')+'</section>';
+}
+function goalCardHTML(sem){
+  var t=goalTally(sem.modules);
+  if(!t.all)return '<section class="card row between"><div><p class="eyebrow">'+_t("Learning objectives")+'</p><p class="lede" style="margin:0">'+_t("Write down what each module expects you to do and see what is still uncovered.")+'</p></div><button class="btn small ghost" data-a="go" data-to="#/goals">'+_t("Add objectives")+'</button></section>';
+  return '<section class="card row between"><div><p class="eyebrow">'+_t("Learning objectives")+'</p><h3>'+t.all+_pl(t.all,' objective',' objectives')+' · '+t.gaps+_t(" need attention")+'</h3></div><button class="btn small" data-a="go" data-to="#/goals">'+_t("Open objectives")+'</button></section>';
+}
+function vGoals(){
+  var sem=curSem();if(!sem)return vWelcome();
+  if(!ui.gMod||!M(ui.gMod))ui.gMod=sem.modules[0]?sem.modules[0].id:'';
+  sem.modules.forEach(function(m){goalIndex(m.id);});
+  var all=goalStatuses(state.goals.filter(function(o){var m=M(o.mod);return m&&semOf(m.id)===sem;})),t=OB.tally(all.map(function(x){return x.st;}));
+  var h='<button class="back" data-a="go" data-to="#/">'+_t("← Campus")+'</button><header class="stack"><p class="eyebrow">'+_t("Learning objectives")+'</p><h1 tabindex="-1" id="h1">'+_t("What you should be able to do")+'</h1><p class="lede">'+_t("Add what each module or week expects you to do, link the files and notes that cover it, and Booklyn shows where you have no material or no practice yet. It is a study aid. It does not tell you whether you are ready for an exam.")+'</p>'
+    +'<p class="foot">'+_t("Practice counts the quiz questions made from the linked files. A question is not tied to one objective, so read it as a hint.")+'</p></header>'
+    +'<section class="card stack">'+goalFormHTML(null)+'</section>';
+  if(!all.length)return h;
+  h+='<div class="row between"><p class="foot" role="status" style="margin:0">'+t.all+_pl(t.all,' objective',' objectives')+' · '+t.gaps+_t(" need attention")+'</p><button class="btn small ghost" data-a="goalgaps" aria-pressed="'+!!ui.goalGaps+'">'+(ui.goalGaps?_t("Show all"):_t("Show only gaps"))+'</button></div>';
+  var shown=0;
+  sem.modules.forEach(function(m){
+    var rows=all.filter(function(x){return x.o.mod===m.id&&(!ui.goalGaps||OB.isGap(x.st));}).sort(function(a,b){return (a.o.unit-b.o.unit)||(a.o.created-b.o.created);});
+    if(!rows.length)return;shown+=rows.length;
+    h+='<section class="stack"><h2>'+esc(m.code)+' · '+esc(m.name)+'</h2><ul class="list">'+rows.map(function(x){return goalRowHTML(x,true);}).join('')+'</ul></section>';
+  });
+  if(!shown)h+='<p class="lede">'+_t("No gaps found in the objectives you added.")+'</p>';
+  return h;
+}
 /* ================= source notes (logic in js/snotes.js) ================= */
 function snLoc(n,name){var k=SN.kindOf(name);if(n.page)return (k==='slide'?_t("Slide "):_t("Page "))+n.page;if(n.at)return SN.fmtAt(n.at);return '';}
 function snChip(n,name){var l=snLoc(n,name);return l?'<span class="chip">'+esc(l)+'</span>':'';}
 function snOpenBtn(n,rec){return '<button class="btn small ghost" data-a="open" data-id="'+esc(rec.id)+'" data-page="'+(n.page||0)+'" data-at="'+(n.at||0)+'">'+(n.page||n.at?_t("Open at this location"):_t("Open file"))+'</button>';}
-function snPrune(){var ids={};FILES.forEach(function(f){ids[f.id]=1;});var b=state.snotes.length;state.snotes=SN.prune(state.snotes,ids);if(state.snotes.length!==b)save();}
+function snPrune(){var ids={};FILES.forEach(function(f){ids[f.id]=1;});var b=state.snotes.length;state.snotes=SN.prune(state.snotes,ids);if(state.snotes.length!==b)save();goalPrune();}
+function goalPrune(){var f={},n={};FILES.forEach(function(x){f[x.id]=1;});state.snotes.forEach(function(x){n[x.id]=1;});var al={};state.sems.forEach(function(sm){sm.modules.forEach(function(m){al[m.id]=1;});});var r=OB.prune(state.goals,f,n,al);if(r.changed){state.goals=r.list;save();}}
 function snRowHTML(n,rec){
   return '<li class="qrow"><div class="grow"><div class="s">'+snChip(n,rec.name)+(n.unsure?' <span class="chip s-fading">'+_t("Check this location")+'</span>':'')+'</div>'
     +'<textarea class="sntext" data-q="sn" data-id="'+esc(n.id)+'" maxlength="'+SN.MAX_TEXT+'" aria-label="'+esc(_t("Note"))+'">'+esc(n.text)+'</textarea>'
@@ -1807,7 +1910,8 @@ function vSearch(){
 }
 function nav(cur){
   var items=[['campus',_t("Campus"),'#/','campus'],['port',_t("Port"),'#/port','port'],['search',_t("Search"),'#/search','search'],['deadlines',_t("Deadlines"),'#/deadlines','dead'],['shop',_t("Shop"),'#/shop','shop'],['settings',_t("Settings"),'#/settings','set']];
-  var on={module:'campus',unit:'campus',study:'campus',setup:'campus',today:'campus',questions:'campus',file:'campus'}[cur]||cur,p=pending().length;
+  if(!state.sems.length)items=items.filter(function(i){return i[0]==='campus'||i[0]==='settings';});
+  var on={module:'campus',unit:'campus',study:'campus',setup:'campus',today:'campus',questions:'campus',goals:'campus',file:'campus'}[cur]||cur,p=pending().length;
   return items.map(function(i){return '<button class="navbtn" data-a="go" data-to="'+i[2]+'" '+(on===i[0]?'aria-current="page"':'')+'><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[i[3]]+'</svg><span>'+i[1]+'</span>'+(i[0]==='port'&&p?'<span class="badge" aria-label="'+_pl(p,' file waiting',' files waiting')+'">'+p+'</span>':'')+'</button>';}).join('');
 }
 function render(focus){
@@ -1818,7 +1922,7 @@ function render(focus){
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
-  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='file'?vFile(r):r.name==='setup'?vSetup():vSettings();
+  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='goals'?vGoals():r.name==='file'?vFile(r):r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
   $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'<div class="langrail">'+langBar()+'</div></nav><main class="main"><div class="langtop">'+langBar()+'</div>'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
@@ -2127,6 +2231,12 @@ document.addEventListener('click',function(e){
   else if(a==='verreplace'){var rf=fileById(id),ro=fileById(b.dataset.old);if(rf&&ro)IM.commitPatch(fileStore,[rf],function(){return {replaces:ro.id,mod:ro.mod,unit:ro.unit,include:true,confirmed:true};}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();});}
   else if(a==='verkeep'||a==='verundo'){var kf=fileById(id);if(kf)IM.commitPatch(fileStore,[kf],function(){return a==='verundo'?{replaces:'',noVer:true}:{noVer:true};}).then(function(r){if(!r.ok)toast(saveErr(r.error));render();});}
   else if(a==='verconfirm'){verConfirm(id);}
+  else if(a==='goalopen'){ui.goalOpen=ui.goalOpen===id?'':id;var go1=state.goals.filter(function(o){return o.id===id;})[0];if(ui.goalOpen&&go1)goalIndex(go1.mod);var gy=window.scrollY;render();window.scrollTo(0,gy);}
+  else if(a==='goallink'){var go2=state.goals.filter(function(o){return o.id===id;})[0];if(go2){OB.toggleLink(go2,b.dataset.kind,b.dataset.ref,Date.now());save();var gy2=window.scrollY;render();window.scrollTo(0,gy2);}}
+  else if(a==='goaldel'){ui.goalDel=id;render();}
+  else if(a==='goalkeep'){ui.goalDel='';render();}
+  else if(a==='goaldel2'){state.goals=state.goals.filter(function(o){return o.id!==id;});ui.goalDel='';if(ui.goalOpen===id)ui.goalOpen='';save();render();toast(_t("Objective removed."));}
+  else if(a==='goalgaps'){ui.goalGaps=!ui.goalGaps;render();}
   else if(a==='snok'){state.snotes.forEach(function(n){if(n.id===id){n.unsure=false;n.upd=Date.now();}});save();render();}
   else if(a==='qdel1'){ui.qDel=id;render();}
   else if(a==='qdel0'){ui.qDel=null;render();}
@@ -2167,7 +2277,7 @@ document.addEventListener('click',function(e){
       var ids={};sm.modules.forEach(function(m){ids[m.id]=1;});
       Object.keys(state.lit).forEach(function(k){if(ids[k.split(':')[0]])delete state.lit[k];});
       Object.keys(state.how).forEach(function(k){if(ids[k.split(':')[0]])delete state.how[k];});
-      state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});state.questions=state.questions.filter(function(q){return !ids[q.mod];});
+      state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});state.questions=state.questions.filter(function(q){return !ids[q.mod];});state.goals=state.goals.filter(function(o){return !ids[o.mod];});
       state.sems=state.sems.filter(function(x){return x.id!==sm.id;});state.activeSem=state.sems.length?state.sems[0].id:null;
       ui.confirm=null;save();go('#/');toast(_t("Semester removed."));
     });
@@ -2201,6 +2311,8 @@ document.addEventListener('change',function(e){
   else if(c==='unl'){if(!isAdminNow())return;try{if(t.checked)localStorage.setItem('booklyn:unl','1');else localStorage.removeItem('booklyn:unl');}catch(e){}if(t.checked&&state.coins<999999){state.coins=999999;save();}render();toast(t.checked?_t("Unlimited coins on."):_t("Unlimited coins off."));}
   else if(c==='smod'){ui.smod=t.value;paintSearch();}
   else if(c==='verpage'){var vp=ui.verPick[t.dataset.fid]=ui.verPick[t.dataset.fid]||{};vp[t.dataset.id]=t.value;}
+  else if(c==='gmod'){ui.gMod=t.value;ui.gUnit=0;render();}
+  else if(c==='gunit'){ui.gUnit=+t.value||0;}
   else if(c==='qmod'){ui.qMod=t.value;ui.qUnit=0;render();}
   else if(c==='qunit'){ui.qUnit=+t.value||0;}
   else if(c==='qfilter'){ui.qFilter=t.value;render();}
@@ -2242,6 +2354,19 @@ document.addEventListener('submit',function(e){
   var inp=document.getElementById(f.dataset.focus||'qtext');if(inp)inp.focus();
   toast(_t("Question added."));
 });
+document.addEventListener('submit',function(e){
+  var f=e.target;if(!f||!f.dataset||f.dataset.form!=='goaladd')return;e.preventDefault();
+  var fd=new FormData(f),mod=String(fd.get('mod')||f.dataset.mod||''),unit=+(fd.get('unit')!==null?fd.get('unit'):f.dataset.unit)||0,m=M(mod),texts=OB.parseList(fd.get('text'));
+  if(!m||!texts.length)return;
+  var room=OB.MAX_O-state.goals.length;
+  if(room<=0){toast(_t("You have reached the limit of 600 objectives."));return;}
+  var now=Date.now(),n=0;
+  texts.slice(0,room).forEach(function(t,i){var o=OB.make(uid(),m.id,Math.min(unit,m.units),t,now+i);if(o){state.goals.push(o);n++;}});
+  if(!n)return;
+  save();render();
+  var inp=document.getElementById(f.dataset.focus||'gtext');if(inp)inp.focus();
+  toast(n+_pl(n,' objective added',' objectives added'));
+});
 document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='ilmgr')ui.ilias.mgrOpen=t.open;},true);
 document.addEventListener('input',function(e){
   var t=e.target;
@@ -2250,6 +2375,7 @@ document.addEventListener('input',function(e){
   else if(t.id==='nm'){state.name=t.value;save();}
   else if(t.id==='q'){ui.q=t.value;var r=route();$('#matlist').innerHTML=fileList(r.m);if(t.value.trim())indexFiles();}
   else if(t.id==='sq'){ui.sq=t.value;paintSearch();}
+  else if(t.dataset.q==='goaltext'){var ig=state.goals.filter(function(o){return o.id===t.dataset.id;})[0];if(ig){var gt=t.value.replace(/\s+/g,' ').trim().slice(0,OB.MAX_TEXT);if(gt){ig.text=gt;ig.upd=Date.now();save();}}}
   else if(t.dataset.q==='sn'){var sn1=state.snotes.filter(function(n){return n.id===t.dataset.id;})[0];if(sn1){sn1.text=t.value.slice(0,SN.MAX_TEXT);sn1.upd=Date.now();save();}}
   else if(t.dataset.q==='text'||t.dataset.q==='answer'){var iq=state.questions.filter(function(q){return q.id===t.dataset.id;})[0];if(iq){if(t.dataset.q==='text')iq.text=t.value.replace(/\s*\n\s*/g,' ').slice(0,QS.MAX_TEXT);else iq.answer=t.value.slice(0,QS.MAX_ANSWER);iq.upd=Date.now();save();}}
   else if(t.dataset.sb){setPath(ui.setup,t.dataset.sb,t.type==='number'?t.value:t.value);if(/^mods\./.test(t.dataset.sb)){var sc=$('#setupcity');if(sc)sc.innerHTML=setupCityHTML();}}
