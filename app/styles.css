@@ -418,3 +418,6 @@ details.steps ol{margin:8px 0 0;padding-left:22px;display:grid;gap:6px}
 details#ilmgr{margin:8px 0}
 details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 @media (max-width:420px){.navbtn{font-size:.66rem;padding:6px 2px}}
+.item.today{flex-wrap:wrap}
+.item.today .grow{flex:1 1 150px;min-width:0;overflow-wrap:anywhere}
+.todayacts{margin-left:auto;align-items:center}

@@ -6,6 +6,7 @@ import * as IM from './js/imports.js';
 import * as QC from './js/quiz-core.js';
 import * as BK from './js/backup.js';
 import * as SR from './js/search.js';
+import * as TD from './js/today.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -743,7 +744,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var lastRendered=null, study=null, ui={tab:'units',q:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var lastRendered=null, study=null, ui={tab:'units',q:'',todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -1044,6 +1045,7 @@ function route(){
   if(p[0]==='settings') return {name:'settings'};
   if(p[0]==='shop') return {name:'shop'};
   if(p[0]==='search') return {name:'search'};
+  if(p[0]==='today') return {name:'today'};
   if(p[0]==='setup') return {name:'setup'};
   if(p[0]==='m'){
     var m=M(p[1]); if(!m) return {name:'campus'};
@@ -1076,7 +1078,7 @@ function vCampus(){
    +("<p class=\"lede\">"+_t("Tap a building to open its weeks, or pick a module below.")+"</p></header>");
   var bld=ui.cityBuild;if(bld)setTimeout(function(){ui.cityBuild=false;},4500);
   h+=cityBox(cityMods(sem),{interactive:true,build:bld,full:ui.cityFull,title:sem.name,coins:state.coins,rent:rentPerDay()});
-  if(n) h+=("<section class=\"card accent stack\"><p class=\"eyebrow\">"+_t("Next up")+"</p><h2>")+esc(n.m.code)+' · '+esc(n.m.titles[n.u-1])+'</h2><p class="lede">'+esc(n.why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+("/study\">"+_t("Start block")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/m/")+n.m.id+'/'+n.u+("\">"+_t("Open unit")+"</button></div></section>");
+  if(n) h+=("<section class=\"card accent stack\"><p class=\"eyebrow\">"+_t("Next up")+"</p><h2>")+esc(n.m.code)+' · '+esc(n.m.titles[n.u-1])+'</h2><p class="lede">'+esc(n.why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+("/study\">"+_t("Start block")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/m/")+n.m.id+'/'+n.u+("\">"+_t("Open unit")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/today\">"+_t("Study today")+"</button></div></section>");
   else if(!pending().length&&!FILES.some(function(f){return f.sem===sem.id;})&&!sem.demo) h+=("<section class=\"card stack\"><h3>"+_t("Add your first files")+"</h3><p class=\"lede\">"+_t("Drop your slides and scripts into the Port. Booklyn suggests where each one belongs.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"go\" data-to=\"#/port\">"+_t("Open the Port")+"</button></div></section>");
   if(p) h+='<section class="card row between"><div><h3>'+p+_pl(p,' file waiting in the Port',' files waiting in the Port')+("</h3><p class=\"lede\">"+_t("Review where they belong, then import.")+"</p></div><button class=\"btn\" data-a=\"go\" data-to=\"#/port\">"+_t("Review")+"</button></section>");
   if(ups.length) h+=("<section class=\"stack\"><div class=\"row between\"><h2>"+_t("Coming up")+"</h2><button class=\"link\" data-a=\"go\" data-to=\"#/deadlines\">"+_t("All deadlines")+"</button></div><ul class=\"list\">")
@@ -1469,6 +1471,39 @@ function vSettings(){
 }
 
 /* ================= shell ================= */
+/* ================= study today (logic in js/today.js) ================= */
+function todayChip(st){var t={lit:_t("Quiz passed"),fading:_t("Due for review"),progress:_t("Reviewed, no quiz yet"),ready:_t("Not started")}[st];return t?'<span class="chip s-'+st+'">'+t+'</span>':'';}
+function todayFloors(sem){
+  var out=[];
+  sem.modules.forEach(function(m){for(var u=1;u<=m.units;u++){
+    var st=uStatus(m,u),li=(st==='lit'||st==='fading')?litInfo(m.id+':'+u):null;
+    out.push({k:m.id+':'+u,m:m,u:u,st:st,until:(li&&li.until)||0,left:(li&&li.left)||0});
+  }});
+  return out;
+}
+function todayRow(x){
+  var m=x.m;
+  return '<li><div class="item today"><span class="floor" style="--h:'+m.h+'">'+x.u+'</span><div class="grow"><div class="t">'+esc(m.code)+' · '+esc(m.titles[x.u-1])+'</div><div class="s">'
+    +(x.st==='fading'?_t("The light fades in ")+cdSpan(x.until,true):esc(m.name))+'</div></div><div class="row tight todayacts">'+todayChip(x.st)
+    +'<button class="btn ghost small" data-a="todaypick" data-k="'+esc(x.k)+'">'+_t("Choose this task")+'</button></div></div></li>';
+}
+function vToday(){
+  var sem=curSem();if(!sem)return vWelcome();
+  var nx=nextUp(sem),fl=todayFloors(sem),pl=TD.plan(fl,nx?nx.m.id+':'+nx.u:'',ui.todayPick);
+  if(ui.todayPick&&pl.why!=='pick')ui.todayPick='';
+  var h='<button class="back" data-a="go" data-to="#/">'+_t("← Campus")+'</button><header class="stack"><p class="eyebrow">'+_t("Study today")+'</p><h1 tabindex="-1" id="h1">'+_t("Your plan for today")+'</h1><p class="lede">'+_t("One clear next step, what needs a review, and what is due next. You can pick a different task any time.")+'</p></header>';
+  var L=pl.lead;
+  if(!L)return h+'<section class="card stack"><h3>'+_t("Nothing to study yet")+'</h3><p class="lede">'+_t("Add files in the Port and Booklyn will plan your day.")+'</p><div class="row"><button class="btn" data-a="go" data-to="#/port">'+_t("Open the Port")+'</button></div></section>';
+  var why=pl.why==='next'?(nx?nx.why:''):(pl.why==='urgent'||pl.why==='review')?_t("Due for review · ")+L.left+_pl(L.left,' day left',' days left'):pl.why==='pick'?(L.st==='fading'?_t("Due for review · ")+L.left+_pl(L.left,' day left',' days left'):_t("You chose this task.")):_t("The next dark floor in your district");
+  h+='<section class="card accent stack"><p class="eyebrow">'+_t("Your task today")+'</p><h2>'+esc(L.m.code)+' · '+esc(L.m.titles[L.u-1])+'</h2><p class="lede">'+esc(why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+esc(L.m.id)+'/'+L.u+'/study">'+_t("Start block")+'</button><button class="btn ghost" data-a="go" data-to="#/m/'+esc(L.m.id)+'/'+L.u+'">'+_t("Open unit")+'</button>'+(ui.todayPick?'<button class="btn ghost" data-a="todayreset">'+_t("Back to the suggestion")+'</button>':'')+'</div></section>';
+  var nd=semDeadlines(sem).filter(function(d){return !state.tasksDone[d.id]&&daysTo(d)>=0;}).sort(function(a,b){return pdate(a.date)-pdate(b.date);})[0];
+  h+='<section class="card row between"><div><p class="eyebrow">'+_t("Next deadline")+'</p>'+(nd?'<h3>'+esc(nd.title)+'</h3><p class="lede">'+(nd.mod&&M(nd.mod)?esc(M(nd.mod).code)+' · ':'')+fmt(nd.date)+'</p>':'<p class="lede">'+_t("No upcoming deadlines.")+'</p>')+'</div>'+(nd?'<span class="chip">'+rel(nd)+'</span>':'')+'<button class="btn ghost small" data-a="go" data-to="#/deadlines">'+_t("All deadlines")+'</button></section>';
+  if(pl.review.length)h+='<section class="stack"><h2>'+_t("Due for review")+'</h2><ul class="list">'+pl.review.slice(0,5).map(todayRow).join('')+'</ul></section>';
+  if(pl.other.length)h+='<section class="stack"><h2>'+_t("Other tasks")+'</h2><ul class="list">'+pl.other.slice(0,6).map(todayRow).join('')+'</ul></section>';
+  var C=pl.counts;
+  h+='<section class="stack"><h2>'+_t("Your floors")+'</h2><div class="row tight">'+['lit','fading','progress','ready'].map(function(k){return todayChip(k).replace('</span>',' · '+C[k]+'</span>');}).join('')+'</div><p class="foot">'+_t("“Reviewed” means you ticked a file but have not passed the quiz yet.")+'</p></section>';
+  return h;
+}
 /* ================= search (logic in js/search.js) ================= */
 function searchDocs(){
   var docs=[],recs={};
@@ -1541,7 +1576,7 @@ function vSearch(){
 }
 function nav(cur){
   var items=[['campus',_t("Campus"),'#/','campus'],['port',_t("Port"),'#/port','port'],['search',_t("Search"),'#/search','search'],['deadlines',_t("Deadlines"),'#/deadlines','dead'],['shop',_t("Shop"),'#/shop','shop'],['settings',_t("Settings"),'#/settings','set']];
-  var on={module:'campus',unit:'campus',study:'campus',setup:'campus'}[cur]||cur,p=pending().length;
+  var on={module:'campus',unit:'campus',study:'campus',setup:'campus',today:'campus'}[cur]||cur,p=pending().length;
   return items.map(function(i){return '<button class="navbtn" data-a="go" data-to="'+i[2]+'" '+(on===i[0]?'aria-current="page"':'')+'><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[i[3]]+'</svg><span>'+i[1]+'</span>'+(i[0]==='port'&&p?'<span class="badge" aria-label="'+_pl(p,' file waiting',' files waiting')+'">'+p+'</span>':'')+'</button>';}).join('');
 }
 function render(focus){
@@ -1552,7 +1587,7 @@ function render(focus){
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings') body=vWelcome();
-  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='setup'?vSetup():vSettings();
+  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
   $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'</nav><main class="main">'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
@@ -1820,6 +1855,8 @@ document.addEventListener('click',function(e){
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast(_t("Using the cloud copy."));else render();}
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast(_t("Using this device. The cloud copy was replaced."));render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
+  else if(a==='todaypick'){ui.todayPick=b.dataset.k;render(true);}
+  else if(a==='todayreset'){ui.todayPick='';render(true);}
   else if(a==='ilmaplater'){ui.ilias.mapHide=true;render();}
   else if(a==='ilmapreset'){state.iliasCourseMap={};save();render();toast(_t("Course matches reset."));}
   else if(a==='ilreport'){var rep=ui.ilias.report||'';try{navigator.clipboard.writeText(rep).then(function(){ui.ilias.status=_t("Scan report copied. Paste it in the chat.");render();},function(){ui.ilias.status=_t("Could not copy. Your browser blocked the clipboard.");render();});}catch(e){ui.ilias.status=_t("Could not copy the report.");render();}}
