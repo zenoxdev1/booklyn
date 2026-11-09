@@ -431,3 +431,4 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .qans summary{cursor:pointer;font-size:.85rem;color:var(--muted);font-weight:600}
 .qans textarea{min-height:70px;margin-top:6px}
 .card.qdue{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.sntext{min-height:70px}

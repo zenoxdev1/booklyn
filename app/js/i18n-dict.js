@@ -813,7 +813,20 @@ export const DICT = {
 "Questions for the lesson": "Fragen für den Unterricht",
 "All questions": "Alle Fragen",
 "Question added.": "Frage hinzugefügt.",
-"You have reached the limit of 500 questions.": "Du hast das Limit von 500 Fragen erreicht."
+"You have reached the limit of 500 questions.": "Du hast das Limit von 500 Fragen erreicht.",
+"File notes": "Dateinotizen",
+"Your note": "Deine Notiz",
+"Add a note": "Notiz hinzufügen",
+"Write a note about this file or page…": "Schreib eine Notiz zu dieser Datei oder Seite…",
+"Time (mm:ss)": "Zeit (mm:ss)",
+"No notes on this file yet.": "Noch keine Notizen zu dieser Datei.",
+"Open at this location": "An dieser Stelle öffnen",
+"Check this location": "Stelle prüfen",
+"Confirm location": "Stelle bestätigen",
+"Notes on files": "Notizen zu Dateien",
+"Its notes will be removed too.": "Die Notizen dazu werden ebenfalls entfernt.",
+"Note added.": "Notiz hinzugefügt.",
+"You have reached the limit of 2000 notes.": "Du hast das Limit von 2000 Notizen erreicht."
 },
 "es": {
 "Week ": "Semana ",
@@ -1627,7 +1640,20 @@ export const DICT = {
 "Questions for the lesson": "Preguntas para la clase",
 "All questions": "Todas las preguntas",
 "Question added.": "Pregunta añadida.",
-"You have reached the limit of 500 questions.": "Has llegado al límite de 500 preguntas."
+"You have reached the limit of 500 questions.": "Has llegado al límite de 500 preguntas.",
+"File notes": "Notas del archivo",
+"Your note": "Tu nota",
+"Add a note": "Añadir nota",
+"Write a note about this file or page…": "Escribe una nota sobre este archivo o página…",
+"Time (mm:ss)": "Tiempo (mm:ss)",
+"No notes on this file yet.": "Aún no hay notas en este archivo.",
+"Open at this location": "Abrir en este punto",
+"Check this location": "Revisa este punto",
+"Confirm location": "Confirmar ubicación",
+"Notes on files": "Notas en archivos",
+"Its notes will be removed too.": "Sus notas también se eliminarán.",
+"Note added.": "Nota añadida.",
+"You have reached the limit of 2000 notes.": "Has llegado al límite de 2000 notas."
 },
 "fr": {
 "Week ": "Semaine ",
@@ -2441,6 +2467,19 @@ export const DICT = {
 "Questions for the lesson": "Questions pour le cours",
 "All questions": "Toutes les questions",
 "Question added.": "Question ajoutée.",
-"You have reached the limit of 500 questions.": "Tu as atteint la limite de 500 questions."
+"You have reached the limit of 500 questions.": "Tu as atteint la limite de 500 questions.",
+"File notes": "Notes du fichier",
+"Your note": "Ta note",
+"Add a note": "Ajouter une note",
+"Write a note about this file or page…": "Écris une note sur ce fichier ou cette page…",
+"Time (mm:ss)": "Temps (mm:ss)",
+"No notes on this file yet.": "Pas encore de notes sur ce fichier.",
+"Open at this location": "Ouvrir à cet endroit",
+"Check this location": "Vérifie cet emplacement",
+"Confirm location": "Confirmer l’emplacement",
+"Notes on files": "Notes sur les fichiers",
+"Its notes will be removed too.": "Ses notes seront aussi supprimées.",
+"Note added.": "Note ajoutée.",
+"You have reached the limit of 2000 notes.": "Tu as atteint la limite de 2000 notes."
 }
 };
