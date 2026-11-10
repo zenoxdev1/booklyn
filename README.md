@@ -12,6 +12,7 @@ Unofficial student project, not affiliated with HSLU. Files stay on the device (
       app.js            screens, routing, city drawing, sync, wiring (being split up step by step)
       js/storage.js     IndexedDB access: every write resolves only after the browser confirmed it
       js/imports.js     when a file counts as "added" or "imported" (failed writes never count)
+      js/final.js       whole-house final practice: balanced sessions, missed questions, review plan (kept apart from floor status)
       js/quiz-core.js   chunking with headings and pages, definition questions, quality rules, question bank, 5-question and 80 % rules
       js/backup.js      progress backup, full backup, checked restore, merge rules
       js/search.js      search across modules, floors, files and notes
@@ -52,6 +53,13 @@ English text in `app/app.js` is the source and also the dictionary key. Wrap eve
     python3 tests/e2e/batch2.py
 
 What they cover: failed imports and retries without duplicates, import confirmation only after a successful write, complete chunking (no truncated text), cache refresh when files are added or removed, the 5-question and 80 % rule, wrong answers coming back first, full backup and restore (merge and replace), damaged and hostile backups.
+
+## Final practice (whole house)
+
+- Every house (module) has "Practise this house for the final": sessions of 20 or 25 questions drawn from all floors, about the same number from each floor (floors with less material give fewer). Nothing is invented: with fewer than 20 good questions the practice is not offered.
+- Wrong answers show the right answer, the explanation and a link to the source file (page when known).
+- The result lists floors and topics to review with direct links, and offers a retry of the missed questions or a focused review (10 questions from the weakest floors).
+- Results live in `state.final[houseId]` (small: counts, ids, sessions) and **never** light a floor or mark it as reviewed. The questions themselves stay in the floor question banks on the device.
 
 ## Quiz quality
 

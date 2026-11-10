@@ -11,6 +11,7 @@ import * as QS from './js/questions.js';
 import * as SN from './js/snotes.js';
 import * as V from './js/versions.js';
 import * as OB from './js/objectives.js';
+import * as FN from './js/final.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -114,7 +115,7 @@ var MIGRATIONS = {
      Old data is copied to a backup key before migrating. */
 };
 function blank(){
-  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{},iliasCourseMap:{},questions:[],qRemind:'daily',qNotify:false,qNotified:'',snotes:[],goals:[]};
+  return {schema:SCHEMA,name:'',theme:'system',activeSem:null,sems:[],lit:{},seen:{},notes:{},tasksDone:{},deadlines:[],lastImport:[],lastBackup:0,snoozeBackup:0,coins:0,rentAt:0,lvl:{},pin:{},deco:{},paid:{},shields:0,iliasKnown:{},iliasDismissed:{},iliasHash:{},iliasImported:{},iliasLast:0,scenery:{},sceneOwn:{},aiOpt:false,how:{},iliasCourseMap:{},questions:[],qRemind:'daily',qNotify:false,qNotified:'',snotes:[],goals:[],final:{}};
 }
 function fill(s){var d=blank();Object.keys(d).forEach(function(k){if(s[k]===undefined)s[k]=d[k];});return s;}
 /* Untrusted data (backup files, the cloud copy) is cleaned before it is used: ids are checked because they end up in the page, text is trimmed, odd keys are dropped. */
@@ -160,6 +161,7 @@ function clean(s){
   s.questions=QS.clean(s.questions,qAlive,MAXU);
   s.snotes=SN.clean(s.snotes);
   s.goals=OB.clean(s.goals,qAlive,MAXU);
+  s.final=FN.clean(s.final,qAlive);
   if(QS.MODES.indexOf(s.qRemind)<0)s.qRemind='daily';
   s.qNotify=!!s.qNotify;s.qNotified=/^\d{4}-\d{2}-\d{2}$/.test(String(s.qNotified))?s.qNotified:'';
   if(s.activeSem!==null&&!ID_OK.test(String(s.activeSem)))s.activeSem=null;
@@ -207,7 +209,7 @@ function save(){
 state=load();
 
 /* ================= file storage (IndexedDB) ================= */
-var FILES=[], filesOK=true;
+var FILES=[], filesOK=true, filesReady=false;
 /* The storage code lives in js/storage.js. Every write resolves only when the browser confirmed it. */
 var dbAll=ST.dbAll, dbPut=ST.dbPut, dbBlob=ST.dbBlob, dbDel=ST.dbDel;
 var fileStore={add:ST.dbAdd,putMany:ST.dbPutMany,delMany:ST.dbDelMany};
@@ -1014,6 +1016,7 @@ function route(){
   if(p[0]==='setup') return {name:'setup'};
   if(p[0]==='m'){
     var m=M(p[1]); if(!m) return {name:'campus'};
+    if(p[2]==='final') return {name:'final',m:m};
     var u=+p[2];
     if(u>=1&&u<=m.units) return p[3]==='study'?{name:'study',m:m,u:u}:{name:'unit',m:m,u:u};
     return {name:'module',m:m};
@@ -1194,6 +1197,7 @@ function vPort(){
 function vModule(r){
   var m=r.m,c=litCount(m);
   var h=("<button class=\"back\" data-a=\"go\" data-to=\"#/\">"+_t("← Campus")+"</button><header class=\"row\" style=\"gap:18px;align-items:flex-end\"><div style=\"width:72px;flex:none\">")+building(m)+'</div><div class="stack" style="gap:6px"><p class="eyebrow">'+esc(m.code)+'</p><h1 tabindex="-1" id="h1">'+esc(m.name)+'</h1><p class="lede">'+c+_t(" of ")+m.units+(_t(" lights on")+"</p></div></header>")
+   +'<section class="card row between"><div class="grow"><h3>'+_t("Practise this house for the final")+'</h3><p class="foot" style="margin:0">'+_t("20 or 25 questions from all floors, with a review of what you missed. Kept apart from your floors.")+'</p></div><button class="btn" data-a="go" data-to="#/m/'+m.id+'/final">'+_t("Practise this house for the final")+'</button></section>'
    +'<div class="tabs" role="tablist"><button role="tab" aria-selected="'+(ui.tab==='units')+("\" data-a=\"tab\" data-v=\"units\">"+_t("Units")+"</button><button role=\"tab\" aria-selected=\"")+(ui.tab==='files')+("\" data-a=\"tab\" data-v=\"files\">"+_t("All files")+"</button></div>");
   if(ui.tab==='units'){
     h+='<ul class="list">';
@@ -1340,7 +1344,8 @@ async function aiMore(items,bank){
   return QC.addQuestions(bank,made,QC.fileKey(pick.rec),pick.rec.name);
 }
 /* Result: {quiz:[5 questions], notes:[]} or {fail:'nofiles'|'notext'|'timeout'|'few'|'error', have:n, reason, aiOn} */
-async function prepareQuiz(m,u){
+/* Reads the files of one floor and makes sure its question bank has the on-device questions. No AI here. */
+async function loadBank(m,u){
   var k=m.id+':'+u,recs=FILES.filter(function(f){return f.status==='imported'&&f.mod===m.id&&f.unit===u;});
   if(!recs.length)return {fail:'nofiles'};
   var texts=await Promise.race([Promise.all(recs.map(fileText)),new Promise(function(res){setTimeout(function(){res(null);},25000);})]);
@@ -1354,6 +1359,11 @@ async function prepareQuiz(m,u){
     QC.addQuestions(bank,QC.definitionQuestions(it.text,40,{pageLabel:pageLabelOf(it.rec)}),fk,it.rec.name);
     bank.done[fk]=true;
   });
+  return {k:k,recs:recs,items:items,bank:bank};
+}
+async function prepareQuiz(m,u){
+  var lb=await loadBank(m,u);if(lb.fail)return lb;
+  var k=lb.k,recs=lb.recs,items=lb.items,bank=lb.bank;
   SYNC.aiMsg='';
   var aiOn=!!(state.aiOpt&&SYNC.me&&navigator.onLine!==false);
   function freshAi(){return bank.q.filter(function(q){return q.src==='ai'&&!q.bad&&!(bank.stats[q.id]&&bank.stats[q.id].asked);}).length;}
@@ -1434,6 +1444,116 @@ function vStudy(r){
      :'<section class="card stack"><h2>'+study.score+_t(" of ")+(N||QC.QUIZ_LEN)+(_t(". One more pass.")+"</h2><p class=\"lede\">"+_t("You need "))+QC.PASS_MIN+_t(" of ")+QC.QUIZ_LEN+_t(" correct (")+QC.PASS_PCT+(_t(" %) to turn the light on. Re-read the material, then try again.")+"</p>")+missedHTML()+("<div class=\"row\"><button class=\"btn\" data-a=\"retry\">"+_t("Try again")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/m/")+m.id+'/'+u+("\">"+_t("Back to material")+"</button></div></section>");
   }
   return h;
+}
+
+/* ================= final practice: a whole house (module) =================
+   Questions from all floors, balanced. Results are kept in state.final[houseId], SEPARATE from the floors:
+   nothing here turns a light on, marks a floor as reviewed or changes a floor quiz result. */
+var fp=null;
+function finGet(m){if(!state.final[m.id])state.final[m.id]=FN.blank();return state.final[m.id];}
+function newFp(mid){return {m:mid,step:'prep',prog:0,floors:{},info:[],total:0,quiz:[],q:0,picked:null,answers:[],kind:'full',sess:null,plan:null,notes:[]};}
+/* all valid questions of the house, by floor (reads the files of each floor the first time) */
+async function houseFloors(m,onProg){
+  var floors={},info=[],seenId={},seenTxt={};
+  for(var u=1;u<=m.units;u++){
+    var nf=FILES.filter(function(f){return f.status==='imported'&&f.mod===m.id&&f.unit===u;}).length,row={unit:u,files:nf,n:0,fail:''};
+    if(nf){
+      if(onProg)onProg(u);
+      var lb=null;try{lb=await loadBank(m,u);}catch(e){lb={fail:'error'};}
+      if(lb.fail)row.fail=lb.fail;
+      else{
+        bankPut(lb.k,lb.bank);
+        var list=[];
+        lb.bank.q.forEach(function(q){
+          if(q.bad||!QC.validQuestion(q))return;
+          var tx=QC.questionKey(q);if(seenId[q.id]||seenTxt[tx])return;seenId[q.id]=1;seenTxt[tx]=1;
+          var c=Object.assign({},q);c.k=lb.k;list.push(c);
+        });
+        if(list.length){floors[u]=list;row.n=list.length;}
+      }
+    }
+    info.push(row);
+  }
+  return {floors:floors,info:info};
+}
+function finLoad(m){
+  var id=m.id;
+  houseFloors(m,function(u){if(fp&&fp.m===id&&fp.step==='prep'){fp.prog=u;render(true);}}).then(function(r){
+    if(!fp||fp.m!==id)return;
+    fp.floors=r.floors;fp.info=r.info;fp.total=r.info.reduce(function(a,x){return a+x.n;},0);fp.step='start';render(true);
+  }).catch(function(){if(!fp||fp.m!==id)return;fp.step='start';render(true);});
+}
+function finSrc(m,q){
+  if(!q.file)return '';
+  var rec=FILES.filter(function(f){return f.status==='imported'&&f.mod===m.id&&q.fk&&QC.fileKey(f)===q.fk;})[0]||FILES.filter(function(f){return f.status==='imported'&&f.mod===m.id&&f.name===q.file;})[0];
+  var pg=FN.pageOf(q),txt=QC.sourceLine(q);
+  if(!rec)return '<span class="foot">'+_t("Source: ")+esc(txt)+'</span>';
+  return '<button class="btn small ghost" data-a="open" data-id="'+rec.id+'" data-page="'+pg+'">'+_t("Open ")+esc(txt)+'</button>';
+}
+function finKind(k){return k==='retry'?_t("Retry of missed questions"):k==='focus'?_t("Focused review"):_t("Final practice");}
+function finBar(a,b){return '<div class="bar" aria-hidden="true"><i style="width:'+(b?Math.round(a/b*100):0)+'%"></i></div>';}
+function vFinal(r){
+  var m=r.m,L=['A','B','C','D','E'];
+  if(!filesReady)return '<button class="back" data-a="fleave">← '+esc(m.code)+'</button><section class="card stack" style="text-align:center"><h2>'+_t("Preparing the whole house…")+'</h2></section>';
+  if(!fp||fp.m!==m.id){fp=newFp(m.id);finLoad(m);}
+  var rec=finGet(m),h='<button class="back" data-a="fleave">← '+esc(m.code)+'</button><header class="stack"><p class="eyebrow">'+esc(m.code)+_t(" · Final practice")+'</p><h1 tabindex="-1" id="h1">'+esc(m.name)+'</h1></header>';
+  if(fp.step==='prep'){
+    return h+'<section class="card stack" style="text-align:center"><h2>'+_t("Preparing the whole house…")+'</h2><p class="lede">'+_t("Booklyn is reading the files of every floor. This takes a few seconds the first time.")+(fp.prog?' '+_t("Floor ")+fp.prog+_t(" of ")+m.units+'.':'')+'</p></section>';
+  }
+  if(fp.step==='start'){
+    var max=0;fp.info.forEach(function(x){max=Math.max(max,x.n);});
+    h+='<section class="card stack"><h2>'+_t("Practise this house for the final")+'</h2><p class="lede">'+_t("A practice session mixes questions from all floors of this house, about the same number from each floor. Floors with less material give fewer questions.")+'</p>'
+      +'<ul class="list">'+fp.info.map(function(x){
+        return '<li class="qrow"><div class="grow"><div class="t">'+_t("Floor ")+x.unit+' · '+esc(m.titles[x.unit-1])+'</div><div class="s">'+(x.n?x.n+_pl(x.n,' question ready',' questions ready'):(x.files?(x.fail==='notext'?_t("The files have no readable text yet."):_t("Not enough clear definitions in the files yet.")):_t("No files yet")))+'</div>'+(x.n?finBar(x.n,max):'')+'</div></li>';}).join('')+'</ul>'
+      +'<p class="foot">'+fp.total+_pl(fp.total,' question',' questions')+_t(" in total.")+'</p>'
+      +'<div class="row">'+FN.SIZES.map(function(n,i){return '<button class="btn'+(i?' ghost':'')+'" data-a="fstart" data-n="'+n+'"'+(fp.total>=n?'':' disabled')+'>'+_t("Start ")+n+_t(" questions")+'</button>';}).join('')+'</div>'
+      +(fp.total<FN.SIZES[0]?'<p class="foot" role="status">'+_t("This house has fewer than ")+FN.SIZES[0]+_t(" good questions so far. Booklyn does not make a shorter practice or invent questions. Add more material to the floors, or turn on AI questions in Settings.")+'</p>':'')
+      +'<p class="foot">'+_t("Practice results are kept apart from your floors. A final practice never turns a light on and never marks a floor as reviewed.")+'</p></section>';
+    var sm=FN.summary(rec),openN=FN.openMissed(rec,fp.floors).length,focusOn=FN.focusSet(rec,fp.floors,1).length>0;
+    if(sm.count){
+      h+='<section class="card stack"><h3>'+_t("Your practice so far")+'</h3><p class="lede">'+sm.count+_pl(sm.count,' session',' sessions')+_t(", best result ")+sm.best+' %.</p><ul class="list">'
+        +rec.sessions.slice(-5).reverse().map(function(x){return '<li class="foot"><strong>'+esc(finKind(x.kind))+'</strong> · '+new Date(x.t).toLocaleDateString(LOC(),{day:'numeric',month:'short'})+' · '+x.ok+_t(" of ")+x.n+' ('+Math.round(x.ok/x.n*100)+' %)</li>';}).join('')+'</ul>'
+        +(openN?'<p class="lede">'+openN+_pl(openN,' missed question is waiting for another try.',' missed questions are waiting for another try.')+'</p>':'<p class="lede">'+_t("No missed questions are waiting.")+'</p>')
+        +'<div class="row">'+(openN?'<button class="btn small" data-a="fretry">'+_t("Retry missed questions")+' ('+openN+')</button>':'')+(focusOn?'<button class="btn small ghost" data-a="ffocus">'+_t("Focused review")+'</button>':'')+'</div></section>';
+    }
+    return h;
+  }
+  if(fp.step==='run'){
+    var N=fp.quiz.length,q=fp.quiz[fp.q],src=finSrc(m,q),wrong=fp.picked!==null&&fp.picked!==q.a;
+    return h+'<section class="card stack"><p class="eyebrow">'+esc(finKind(fp.kind))+_t(" · Question ")+(fp.q+1)+_t(" of ")+N+'</p>'+finBar(fp.q,N)
+      +'<div class="row tight"><span class="chip">'+_t("Floor ")+q.unit+' · '+esc(m.titles[q.unit-1])+'</span></div>'
+      +'<h2>'+esc(q.q)+'</h2><div class="stack">'
+      +q.o.map(function(o,i){var cls=fp.picked===null?'':(i===q.a?' right':(i===fp.picked?' wrong':''));return '<button class="opt'+cls+'" data-a="fpick" data-i="'+i+'" '+(fp.picked!==null?'disabled':'')+'><span class="k">'+L[i]+'</span><span>'+esc(o)+'</span></button>';}).join('')+'</div>'
+      +(fp.picked!==null?'<div class="notice'+(wrong?' warn':'')+'" role="status"><strong>'+(wrong?_t("Not quite. "):_t("Correct. "))+'</strong>'+(wrong?_t("The right answer is: ")+esc(q.o[q.a])+'. ':'')+esc(q.e)
+        +(q.evidence&&q.src!=='def'?'<br><span class="foot">'+_t("From your material: “")+esc(q.evidence)+'”</span>':'')+'</div>'
+        +(src?'<div class="row tight">'+(wrong?'<span class="foot">'+_t("Check the source:")+'</span>':'<span class="foot">'+_t("Source:")+'</span>')+src+'</div>':'')
+        +'<div class="row"><button class="btn" data-a="fnext">'+(fp.q<N-1?_t("Next question"):_t("See result"))+'</button></div>':'')
+      +'<p class="foot">'+_t("Leaving now does not save this session.")+'</p></section>';
+  }
+  /* result */
+  var n=fp.answers.length,ok=fp.answers.filter(function(a){return a.ok;}).length,res=FN.floorResults(fp.answers),plan=fp.plan||[];
+  h+='<section class="card stack"><p class="eyebrow">'+esc(finKind(fp.kind))+'</p><h2>'+ok+_t(" of ")+n+' ('+Math.round(ok/n*100)+' %)</h2><p class="lede">'+_t("This result is saved as final practice only. It did not turn any light on or change the status of any floor.")+'</p>'
+    +'<ul class="list">'+res.slice().sort(function(a,b){return a.unit-b.unit;}).map(function(x){return '<li class="qrow"><div class="grow"><div class="t">'+_t("Floor ")+x.unit+' · '+esc(m.titles[x.unit-1])+'</div><div class="s">'+x.ok+_t(" of ")+x.n+_t(" right")+'</div>'+finBar(x.ok,x.n)+'</div></li>';}).join('')+'</ul></section>';
+  if(plan.length){
+    h+='<section class="stack"><h2>'+_t("What to review")+'</h2><p class="foot">'+_t("Floors with mistakes, weakest first. Each link opens your material at the right place when the page is known.")+'</p>'
+      +plan.map(function(e){
+        return '<div class="card stack"><div class="row between"><div><h3>'+_t("Floor ")+e.unit+' · '+esc(e.title)+'</h3><div class="foot">'+e.ok+_t(" of ")+e.n+_t(" right")+'</div></div><button class="btn small ghost" data-a="go" data-to="#/m/'+m.id+'/'+e.unit+'">'+_t("Open the floor")+'</button></div>'
+          +(e.topics.length?'<div class="row tight">'+e.topics.slice(0,8).map(function(t){return '<span class="chip">'+esc(t)+'</span>';}).join('')+'</div>':'')
+          +'<ul class="list">'+e.missed.map(function(q){var s=finSrc(m,q);return '<li class="foot"><strong>'+esc(q.q)+'</strong><br>'+_t("Right answer: ")+esc(q.o[q.a])+'. '+esc(q.e)+(s?'<div class="row tight" style="margin-top:6px">'+s+'</div>':'')+'</li>';}).join('')+'</ul></div>';}).join('')+'</section>';
+  } else h+='<section class="card stack"><p class="lede">'+_t("No mistakes in this session. Well done.")+'</p></section>';
+  var missN=fp.answers.filter(function(a){return !a.ok&&!a.q.bad;}).length,focusN=FN.focusSet(rec,fp.floors,2).length;
+  h+='<div class="row">'+(missN?'<button class="btn" data-a="fretry">'+_t("Retry missed questions")+' ('+missN+')</button>':'')+(focusN?'<button class="btn ghost" data-a="ffocus">'+_t("Focused review")+'</button>':'')+'<button class="btn ghost" data-a="fagain">'+_t("New practice session")+'</button><button class="btn ghost" data-a="fleave">'+_t("Back to the house")+'</button></div>';
+  return h;
+}
+function finRun(kind,qs){
+  if(!qs.length){toast(_t("Nothing to practise right now."));return;}
+  fp.kind=kind;fp.quiz=qs;fp.q=0;fp.picked=null;fp.answers=[];fp.sess=null;fp.plan=null;fp.step='run';render(true);
+}
+function finDone(m){
+  var rec=finGet(m);
+  fp.sess=FN.record(rec,fp.answers,{kind:fp.kind,t:Date.now()});
+  fp.plan=FN.reviewPlan(fp.answers,m.titles);
+  fp.step='result';save();
 }
 
 function shopItem(name,desc,price,control){return '<div class="shopitem"><div class="grow"><div class="t">'+name+'</div><div class="s">'+desc+'</div></div><div class="shopbuy">'+(price?'<span class="price"><i class="cdot"></i>'+price+'</span>':'')+control+'</div></div>';}
@@ -1924,18 +2044,19 @@ function vSearch(){
 function nav(cur){
   var items=[['campus',_t("Campus"),'#/','campus'],['port',_t("Port"),'#/port','port'],['search',_t("Search"),'#/search','search'],['deadlines',_t("Deadlines"),'#/deadlines','dead'],['shop',_t("Shop"),'#/shop','shop'],['settings',_t("Settings"),'#/settings','set']];
   if(!state.sems.length)items=items.filter(function(i){return i[0]==='campus'||i[0]==='settings';});
-  var on={module:'campus',unit:'campus',study:'campus',setup:'campus',today:'campus',questions:'campus',goals:'campus',file:'campus'}[cur]||cur,p=pending().length;
+  var on={module:'campus',final:'campus',unit:'campus',study:'campus',setup:'campus',today:'campus',questions:'campus',goals:'campus',file:'campus'}[cur]||cur,p=pending().length;
   return items.map(function(i){return '<button class="navbtn" data-a="go" data-to="'+i[2]+'" '+(on===i[0]?'aria-current="page"':'')+'><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON[i[3]]+'</svg><span>'+i[1]+'</span>'+(i[0]==='port'&&p?'<span class="badge" aria-label="'+_pl(p,' file waiting',' files waiting')+'">'+p+'</span>':'')+'</button>';}).join('');
 }
 function render(focus){
   var r=route(); lastRendered=cur();
   if(r.name!=='campus') ui.cityFull=false;
+  if(r.name!=='final') fp=null;
   if(r.name==='campus'&&state.sems.length){var rp=collectRent();if(rp)setTimeout(function(){toast(_t("Rent collected: +")+rp+_t(" coins"));},400);}
   document.documentElement.removeAttribute('data-theme');
   if(state.theme==='light'||state.theme==='dark') document.documentElement.setAttribute('data-theme',state.theme);
   var body;
   if(!state.sems.length&&r.name!=='setup'&&r.name!=='settings'&&r.name!=='account') body=vWelcome();
-  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='goals'?vGoals():r.name==='account'?vAccount():r.name==='file'?vFile(r):r.name==='setup'?vSetup():vSettings();
+  else body=r.name==='campus'?vCampus():r.name==='port'?vPort():r.name==='module'?vModule(r):r.name==='unit'?vUnit(r):r.name==='study'?vStudy(r):r.name==='final'?vFinal(r):r.name==='deadlines'?vDeadlines():r.name==='shop'?vShop():r.name==='search'?vSearch():r.name==='today'?vToday():r.name==='questions'?vQuestions():r.name==='goals'?vGoals():r.name==='account'?vAccount():r.name==='file'?vFile(r):r.name==='setup'?vSetup():vSettings();
   if(r.name!=='study'&&study){pauseTimer();study=null;}
   $('#app').innerHTML=("<nav class=\"rail\" aria-label=\""+_t("Main")+"\"><div class=\"brand\"><img src=\"icon.svg\" alt=\"\" width=\"30\" height=\"30\">Booklyn<small>"+_t("Keep your lights on")+"</small></div>")+nav(r.name)+'<div class="langrail">'+acctBtn()+langBar()+'</div></nav><main class="main"><div class="langtop">'+acctBtn()+langBar()+'</div>'+body+("</main><nav class=\"tabbar\" aria-label=\""+_t("Main")+"\">")+nav(r.name)+'</nav>';
   document.documentElement.classList.toggle('cityfull',!!ui.cityFull);
@@ -2158,6 +2279,13 @@ document.addEventListener('click',function(e){
   else if(a==='cclose'){ui.cityFull=false;render();}
   else if(a==='addfloor'){var am=M(b.dataset.m);if(am){if(am.units>=MAXU)toast(_t("A module can have up to ")+MAXU+_t(" floors."));else{ensureUnits(am,am.units+1);render();}}}
   else if(a==='rmfloor'){var rm=M(b.dataset.m);if(rm&&rm.units>1&&!mats(rm,rm.units).length&&!state.lit[rm.id+':'+rm.units]){rm.titles.length=rm.units-1;rm.units--;save();render();}}
+  else if(a==='fleave'){var fm=fp&&M(fp.m);fp=null;go(fm?'#/m/'+fm.id:'#/');}
+  else if(a==='fstart'&&fp){var fm1=M(fp.m),fn=+b.dataset.n;if(FN.SIZES.indexOf(fn)<0||!fm1)return;finRun('full',FN.pickSession(fp.floors,finGet(fm1),fn,(Date.now()&0xffff)+1));}
+  else if(a==='fretry'&&fp){var fm2=M(fp.m);if(!fm2)return;var rq=fp.step==='result'?fp.answers.filter(function(x){return !x.ok&&!x.q.bad;}).map(function(x){return x.q;}):FN.openMissed(finGet(fm2),fp.floors);finRun('retry',FN.retrySet(rq.slice(0,FN.RETRY_MAX),Date.now()&0xffff));}
+  else if(a==='ffocus'&&fp){var fm3=M(fp.m);if(!fm3)return;finRun('focus',FN.focusSet(finGet(fm3),fp.floors,(Date.now()&0xffff)+3));}
+  else if(a==='fpick'&&fp&&fp.step==='run'&&fp.picked===null){var fi=+b.dataset.i,fq=fp.quiz[fp.q];fp.picked=fi;fp.answers[fp.q]={q:fq,ok:fi===fq.a};render();var fnb=document.querySelector('[data-a="fnext"]');if(fnb)fnb.focus();}
+  else if(a==='fnext'&&fp&&fp.step==='run'&&fp.picked!==null){if(fp.q<fp.quiz.length-1){fp.q++;fp.picked=null;render(true);}else{var fm4=M(fp.m);if(fm4)finDone(fm4);render(true);}}
+  else if(a==='fagain'&&fp){fp.step='start';fp.quiz=[];fp.answers=[];fp.sess=null;fp.plan=null;render(true);}
   else if(a==='leave'){pauseTimer();study=null;go(b.dataset.to);}
   else if(a==='tab'){ui.tab=b.dataset.v;render();}
   else if(a==='newsem'){ui.setup=null;go('#/setup');}
@@ -2290,7 +2418,7 @@ document.addEventListener('click',function(e){
       var ids={};sm.modules.forEach(function(m){ids[m.id]=1;});
       Object.keys(state.lit).forEach(function(k){if(ids[k.split(':')[0]])delete state.lit[k];});
       Object.keys(state.how).forEach(function(k){if(ids[k.split(':')[0]])delete state.how[k];});
-      state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});state.questions=state.questions.filter(function(q){return !ids[q.mod];});state.goals=state.goals.filter(function(o){return !ids[o.mod];});
+      state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});state.questions=state.questions.filter(function(q){return !ids[q.mod];});state.goals=state.goals.filter(function(o){return !ids[o.mod];});Object.keys(ids).forEach(function(k){delete state.final[k];});
       state.sems=state.sems.filter(function(x){return x.id!==sm.id;});state.activeSem=state.sems.length?state.sems[0].id:null;
       ui.confirm=null;save();go('#/');toast(_t("Semester removed."));
     });
@@ -2625,7 +2753,7 @@ async function signOutWipe(){
 function acctBtn(){
   if(SYNC.na)return '';
   var on=route().name==='account',signed=!!SYNC.me;
-  return '<button type="button" class="acctbtn'+(on?' on':'')+(signed?' signed':'')+'"'+(on?' aria-current="page"':'')+' data-a="go" data-to="#/account"><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON.acct+'</svg><span>'+(signed||on||!SYNC.checked?_t("Account"):_t("Sign in"))+'</span></button>';
+  return '<button type="button" class="acctbtn'+(on?' on':'')+(signed?' signed':'')+'"'+(on?' aria-current="page"':'')+' data-a="go" data-to="#/account"><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON.acct+'</svg><span>'+(signed||!SYNC.checked?_t("Account"):_t("Sign in"))+'</span></button>';
 }
 function acctPaint(){
   var els=document.querySelectorAll('.acctbtn');if(!els.length)return;
@@ -2644,5 +2772,5 @@ try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catc
 render(false);
 try{syncInit();}catch(e){}
 maybeNotify();
-dbAll().then(function(all){FILES=all||[];render(false);}).catch(function(){filesOK=false;render(false);});
+dbAll().then(function(all){FILES=all||[];filesReady=true;render(false);}).catch(function(){filesOK=false;filesReady=true;render(false);});
 })();

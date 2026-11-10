@@ -171,21 +171,25 @@ export function addQuestions(bank, qs, fk, fileName) {
    - at most 2 questions of the same kind (statement, term, gap, pairing, AI …) in one quiz,
    - the answer options are shuffled again every time.
    Returns null if fewer than n are valid. */
+/* Same wording AND same options = the same question. (Pairing questions share one wording but differ in their options.) */
+export function questionKey(q) {
+  return q.q.trim().toLowerCase() + '|' + q.o.map(function (x) { return String(x).trim().toLowerCase(); }).sort().join('|');
+}
 export function conceptKey(q) {
   var ev = String(q.evidence || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 90);
   return ev ? 'e:' + ev : 'q:' + q.id;
 }
 export function kindOf(q) { return q.kind || q.src || 'x'; }
-export function selectQuiz(bank, n, seed) {
+export function selectQuiz(bank, n, seed, opts) {
   n = n || QUIZ_LEN;
   var st = bank.stats || {}, recent = {};
   (bank.recent || []).forEach(function (id) { recent[id] = 1; });
   function s(q) { return st[q.id] || { asked: 0, miss: 0 }; }
   var seen = {}, qs = bank.q.filter(function (q) {
     if (!validQuestion(q)) return false;
-    var key = q.q.trim().toLowerCase(); if (seen[key]) return false; seen[key] = 1; return true;
+    var key = questionKey(q); if (seen[key]) return false; seen[key] = 1; return true;
   });
-  if (qs.length < n) return null;
+  if (qs.length < n) { if (!(opts && opts.partial)) return null; n = qs.length; if (!n) return []; }
   var sh = shuffled(qs, seed);
   var missed = sh.filter(function (q) { return s(q).miss > 0; }).sort(function (a, b) { return s(b).miss - s(a).miss; });
   var rest = sh.filter(function (q) { return !(s(q).miss > 0); }).sort(function (a, b) {
@@ -216,7 +220,7 @@ export function selectQuiz(bank, n, seed) {
   fill(missed, n);
   return shuffled(pick, seed + 7).map(function (q) {
     var order = shuffled(q.o.map(function (_, i) { return i; }), hashStr(q.id) + seed * 31), o2 = order.map(function (i) { return q.o[i]; });
-    return { id: q.id, q: q.q, o: o2, a: order.indexOf(q.a), e: q.e, src: q.src, kind: q.kind || '', file: q.file || '', page: q.page || null, pageLabel: q.pageLabel || '', ref: q.ref || '', evidence: q.evidence || '', title: q.title || '' };
+    return { id: q.id, q: q.q, o: o2, a: order.indexOf(q.a), e: q.e, src: q.src, kind: q.kind || '', topic: q.topic || '', fk: q.fk || '', file: q.file || '', page: q.page || null, pageLabel: q.pageLabel || '', ref: q.ref || '', evidence: q.evidence || '', title: q.title || '' };
   });
 }
 export function markAsked(bank, ids) {
@@ -380,7 +384,7 @@ function defQuestion(defs, d, kind, de) {
   }
   var optsArr = wrongs.concat([right]), order = shuffled([0, 1, 2, 3], hashStr(d.sent + 'o' + kind)), o2 = order.map(function (i) { return optsArr[i]; });
   var idn = kind === 'stmt' ? '0' : kind === 'term' ? '1' : kind;
-  return { id: 'd' + hashStr(d.sent + idn), q: qtext, o: o2, a: o2.indexOf(right), e: 'From your material: “' + ev + '”', src: 'def', kind: kind, evidence: ev, page: d.page };
+  return { id: 'd' + hashStr(d.sent + idn), q: qtext, o: o2, a: o2.indexOf(right), e: 'From your material: “' + ev + '”', src: 'def', kind: kind, topic: d.term, evidence: ev, page: d.page };
 }
 export function definitionQuestions(text, max, opts) {
   opts = opts || {};

@@ -169,3 +169,15 @@ test('banks from before the new kinds drop on-device questions but keep AI ones 
   assert.deepEqual(b.q.map((q) => q.id), ['a1']); assert.deepEqual(b.done, {}); assert.equal(b.gen, Q.GEN); assert.equal(b.stats.d1.asked, 2); assert.deepEqual(b.recent, []);
   const again = Q.upgradeBank(JSON.parse(JSON.stringify(b))); again.done.f1 = true; assert.deepEqual(Q.upgradeBank(again).done, { f1: true });
 });
+
+test('pairing questions share one wording but are not treated as the same question', () => {
+  const b = vbank();
+  const pairs = b.q.filter((q) => q.kind === 'pair');
+  assert.ok(pairs.length >= 3);
+  assert.equal(new Set(pairs.map((q) => q.q)).size < pairs.length, true, 'same wording');
+  /* all pairing questions of the bank are still available to the quiz */
+  const many = Q.newBank(); pairs.forEach((q) => many.q.push({ ...q, fk: 'f' }));
+  const stmt = b.q.filter((q) => q.kind === 'stmt').slice(0, 3); stmt.forEach((q) => many.q.push({ ...q, fk: 'f' }));
+  const ids = new Set(); for (let s = 1; s < 30; s++) Q.selectQuiz(many, 3, s).forEach((q) => ids.add(q.id));
+  pairs.forEach((q) => assert.ok(ids.has(q.id), 'pair question ' + q.id + ' can be chosen'));
+});
