@@ -95,7 +95,11 @@ with sync_playwright() as p:
     check('quiz states the 4 of 5 (80 %) rule', '4 of 5' in pg.inner_text('body') and '80 %' in pg.inner_text('body'))
     check('quiz shows the source file, no invented page', 'Source: NET_week1_lecture.txt' in pg.inner_text('body') and ', p.' not in pg.inner_text('.card'))
     bk = bank(pg)
-    answer_of = lambda text: next(q['a'] for q in bk['q'] if q['q'] == text)
+    def answer_of(text):
+        # options are shuffled on screen: find the button that shows the right option text
+        q = next(q for q in bk['q'] if q['q'] == text)
+        labels = pg.locator('[data-a="pick"]').all_inner_texts()
+        return next(i for i, l in enumerate(labels) if q['o'][q['a']] in l)
     def play(correct_flags):
         asked = []
         for ok in correct_flags:

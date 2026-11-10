@@ -1,5 +1,8 @@
 # Accounts setup (Cloudflare Pages Functions + D1 + Resend)
 
+> **Note (v16):** the email sign-in link is no longer offered in the app. Booklyn only shows passkeys (recommended) and sync codes. The `/api/auth/*` endpoints stay on the server so old sessions and links keep working, but nothing in the UI calls them.
+
+
 Booklyn works without an account. Signing in is optional and only syncs the small progress data
 (semesters, modules, lights, coins, notes, deadlines). Files never leave the device.
 

@@ -1287,7 +1287,7 @@ async function prepareQuiz(m,u){
   /* On-device questions only come from clear definitions in the files; random-word blanks are no longer made. */
   items.forEach(function(it){
     var fk=QC.fileKey(it.rec);if(bank.done[fk])return;
-    QC.addQuestions(bank,QC.definitionQuestions(it.text,12,{pageLabel:pageLabelOf(it.rec)}),fk,it.rec.name);
+    QC.addQuestions(bank,QC.definitionQuestions(it.text,40,{pageLabel:pageLabelOf(it.rec)}),fk,it.rec.name);
     bank.done[fk]=true;
   });
   SYNC.aiMsg='';
@@ -2112,19 +2112,6 @@ document.addEventListener('click',function(e){
     if(S.name)state.name=S.name;
     state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;ui.cityBuild=true;ui.cityT={x:0,y:0,k:1};save();go('#/');toast(_t("Your district is ready. Tap a building to add its first files."));
   }
-  else if(a==='syreq'){
-    var em=($('#syemail')||{}).value;em=String(em||'').trim();
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)){SYNC.msg=_t("Enter a valid email address.");render();return;}
-    SYNC.busy=true;SYNC.msg=_t("Sending…");SYNC.link='';render();
-    api('POST','/api/auth/request',{email:em}).then(function(r){
-      SYNC.busy=false;
-      if(r.ok){SYNC.msg=_t("Check your inbox for the sign-in link. It works once and expires in 15 minutes.");SYNC.link=r.devLink||'';}
-      else if(r.status===503)SYNC.msg=_t("Email sending is not set up on this site yet.");
-      else if(r.status===400)SYNC.msg=_t("That email address does not look right.");
-      else SYNC.msg=r.offline?_t("You are offline."):_t("Could not send the link. Try again in a minute.");
-      render();
-    });
-  }
   else if(a==='pknew'){pkCreate('create');}
   else if(a==='pkin'){pkLogin();}
   else if(a==='pkadd'){pkCreate('register');}
@@ -2364,7 +2351,7 @@ function devOn(){if(isAdminNow())return true;try{return localDev()&&localStorage
 function syncRender(){
   acctPaint();
   if(route().name!=='settings'&&route().name!=='account'&&!SYNC.conflict)return;
-  var ae=document.activeElement;if(ae&&ae.id==='syemail')return;
+  var ae=document.activeElement;if(ae&&(ae.id==='sycode'||ae.id==='pkname'))return;
   render();
 }
 function syncSchedule(){clearTimeout(SYNC.timer);SYNC.timer=setTimeout(function(){syncPush();},4000);}
@@ -2445,14 +2432,13 @@ function accountCard(){
      +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+(">"+_t("Sync now")+"</button>")+(ui.confirm==='logout'?("<button class=\"btn small danger\" data-a=\"sylogout2\">"+_t("Sign out and forget the code here")+"</button><button class=\"btn small ghost\" data-a=\"del0\">"+_t("Cancel")+"</button>"):("<button class=\"btn small ghost\" data-a=\"sylogout\">"+_t("Sign out")+"</button>"))+'</div>'
      +'<div class="row">'+(ui.confirm==='acct'?("<button class=\"btn small danger\" data-a=\"sydel2\">"+_t("Yes, delete my cloud data")+"</button><button class=\"btn small ghost\" data-a=\"del0\">"+_t("Cancel")+"</button>"):("<button class=\"btn small ghost\" data-a=\"sydel1\">"+_t("Delete my cloud data…")+"</button>"))+'</div>';
   } else {
-    h+=("<p class=\"lede\">"+_t("Optional. Keep your progress safe and use it on your phone and your computer. No email and no password: Booklyn gives you a secret sync code.")+"</p>")
-     +(pkSupported()&&location.protocol!=='file:'?'<div class="stack"><div class="row"><button class="btn" data-a="pkin" '+(SYNC.busy?'disabled':'')+'>'+_t("Sign in with a passkey")+'</button><button class="btn ghost" data-a="pknew" '+(SYNC.busy?'disabled':'')+'>'+_t("Create an account with a passkey")+'</button></div><p class="foot" style="margin:0">'+_t("A passkey uses your fingerprint, face or device PIN. No password and no email. It works only on this address.")+'</p></div><h4 style="margin:8px 0 0">'+_t("Other ways to sign in")+'</h4>':'<p class="foot">'+_t("This browser does not support passkeys.")+'</p>')
+    h+=("<p class=\"lede\">"+_t("Optional. Keep your progress safe and use it on your phone and your computer. We recommend a passkey. No email and no password.")+"</p>")
+     +(pkSupported()&&location.protocol!=='file:'?'<div class="stack"><p class="foot" style="margin:0"><strong>'+_t("Recommended: sign in with a passkey")+'</strong></p><div class="row"><button class="btn" data-a="pkin" '+(SYNC.busy?'disabled':'')+'>'+_t("Sign in with a passkey")+'</button><button class="btn ghost" data-a="pknew" '+(SYNC.busy?'disabled':'')+'>'+_t("Create an account with a passkey")+'</button></div><p class="foot" style="margin:0">'+_t("A passkey uses your fingerprint, face or device PIN. No password and no email. It works only on this address.")+'</p></div><h4 style="margin:8px 0 0">'+_t("Other way to sign in")+'</h4><p class="foot" style="margin:0">'+_t("A sync code works everywhere, but if you lose it nobody can recover your account. A passkey is safer and easier.")+'</p>':'<p class="foot">'+_t("This browser does not support passkeys. A passkey is the recommended way to sign in, so try a current browser on your phone or computer. The sync code below works everywhere.")+'</p>')
      +'<div class="row"><button class="btn small" data-a="sycodenew" '+(SYNC.busy?'disabled':'')+(">"+_t("Create my sync code")+"</button></div>")
      +("<div class=\"row\"><input type=\"text\" id=\"sycode\" placeholder=\"XXXXX-XXXXX-XXXXX-XXXXX\" autocomplete=\"off\" autocapitalize=\"characters\" style=\"flex:1 1 220px\" aria-label=\""+_t("Your sync code")+"\"><button class=\"btn small ghost\" data-a=\"sycodein\" ")+(SYNC.busy?'disabled':'')+(">"+_t("I already have a code")+"</button></div>")
-     +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')
-     +("<details><summary class=\"foot\" style=\"cursor:pointer\">"+_t("Prefer an email link?")+"</summary><div class=\"stack\" style=\"margin-top:8px\"><div class=\"row\"><input type=\"email\" id=\"syemail\" placeholder=\""+_t("you@example.com")+"\" autocomplete=\"email\" style=\"flex:1 1 220px\" aria-label=\""+_t("Your email address")+"\"><button class=\"btn small ghost\" data-a=\"syreq\" ")+(SYNC.busy?'disabled':'')+(">"+_t("Send me a link")+"</button></div>")+(SYNC.link?("<p class=\"foot\">"+_t("Local test link: ")+"<a href=\"")+esc(SYNC.link)+("\">"+_t("sign in")+"</a></p>"):'')+'</div></details>';
+     +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'');
   }
-  return h+("<p class=\"foot\">"+_t("Only your progress (semesters, modules, lights, coins, notes and deadlines) is stored in the cloud. Your files never leave this device. If you sign in by email, the address is used only to send sign-in links. You can delete everything at any time.")+"</p></section>");
+  return h+("<p class=\"foot\">"+_t("Only your progress (semesters, modules, lights, coins, notes and deadlines) is stored in the cloud. Your files never leave this device. You can delete everything at any time.")+"</p></section>");
 }
 /* ================= passkeys (server: functions/api/passkey/*) ================= */
 function pkSupported(){return !!(window.PublicKeyCredential&&navigator.credentials&&navigator.credentials.create);}
@@ -2520,6 +2506,7 @@ function pkSectionHTML(){
   if(!pkSupported())return h+'<p class="foot" style="margin:0">'+_t("This browser does not support passkeys.")+'</p></div>';
   if(SYNC.pks===null||SYNC.pks===undefined){setTimeout(pkLoad,0);return h+'<p class="foot" style="margin:0">'+_t("Checking…")+'</p></div>';
   }
+  if(SYNC.kind!=='passkey'&&!SYNC.pks.length)h+='<p class="foot" style="margin:0"><strong>'+_t("Recommended: add a passkey.")+'</strong> '+_t("It opens your account with your fingerprint, face or device PIN, and it cannot be lost like a code.")+'</p>';
   if(SYNC.kind==='passkey')h+='<p class="foot" style="margin:0">'+_t("Your account is opened only by passkeys. If you lose them all, nobody can recover it. Add a passkey on a second device.")+'</p>';
   if(SYNC.pks.length)h+='<ul class="list">'+SYNC.pks.map(function(p){
     var del=ui.pkDel===p.id;

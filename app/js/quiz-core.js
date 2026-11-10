@@ -115,15 +115,26 @@ export function validQuestion(q) {
    bank = { v:2, q:[questions], used:[chunk hashes already sent to the AI], done:{fileKey:true}, stats:{questionId:{asked,miss}} }
    Every question carries `fk`, the key of the file it came from, so questions of a removed or
    replaced file can be dropped. */
-export function newBank() { return { v: 3, q: [], used: [], done: {}, stats: {}, aiReason: '' }; }
+export var GEN = 2; /* generation of the on-device questions: older ones are made again with the new kinds */
+export var RECENT_MAX = 60;
+export function newBank() { return { v: 3, gen: GEN, q: [], used: [], done: {}, stats: {}, recent: [], aiReason: '' }; }
 export function upgradeBank(b) {
   if (!b || typeof b !== 'object' || !Array.isArray(b.q)) return newBank();
-  if (b.v === 3) { b.used = b.used || []; b.done = b.done || {}; b.stats = b.stats || {}; b.aiReason = b.aiReason || ''; return b; }
+  if (b.v === 3) {
+    b.used = b.used || []; b.done = b.done || {}; b.stats = b.stats || {}; b.aiReason = b.aiReason || '';
+    b.recent = Array.isArray(b.recent) ? b.recent.slice(-RECENT_MAX) : [];
+    if (b.gen !== GEN) {
+      /* new kinds of on-device questions: the old ones are dropped and made again; AI questions and the answer history stay */
+      b.q = b.q.filter(function (q) { return q && q.src !== 'def'; });
+      b.done = {}; b.gen = GEN;
+    }
+    return b;
+  }
   if (b.v === 2) {
     /* version 2 held fill-in-the-blank questions made from single words: they were often unclear, so they are dropped.
        Questions written by the AI stay, and so does the answer history. */
     var nb = newBank();
-    nb.stats = b.stats || {}; nb.used = b.used || [];
+    nb.stats = b.stats || {}; nb.used = b.used || []; nb.recent = Array.isArray(b.recent) ? b.recent.slice(-RECENT_MAX) : [];
     (b.q || []).forEach(function (q) { if (q && q.src === 'ai' && q.fk) nb.q.push(q); });
     return nb;
   }
@@ -154,10 +165,21 @@ export function addQuestions(bank, qs, fk, fileName) {
 }
 
 /* Picks n questions. Questions answered wrong before come first (at most n-2 of them, so the quiz still has new
-   material), then fresh AI questions, then local ones, least asked first. Returns null if fewer than n are valid. */
+   material), then fresh AI questions, then local ones, least asked first. Variety rules, relaxed only when the bank is too small:
+   - nothing that was in the last quizzes (bank.recent) comes back while other questions are available,
+   - no two questions about the same sentence/concept in one quiz,
+   - at most 2 questions of the same kind (statement, term, gap, pairing, AI …) in one quiz,
+   - the answer options are shuffled again every time.
+   Returns null if fewer than n are valid. */
+export function conceptKey(q) {
+  var ev = String(q.evidence || '').replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 90);
+  return ev ? 'e:' + ev : 'q:' + q.id;
+}
+export function kindOf(q) { return q.kind || q.src || 'x'; }
 export function selectQuiz(bank, n, seed) {
   n = n || QUIZ_LEN;
-  var st = bank.stats || {};
+  var st = bank.stats || {}, recent = {};
+  (bank.recent || []).forEach(function (id) { recent[id] = 1; });
   function s(q) { return st[q.id] || { asked: 0, miss: 0 }; }
   var seen = {}, qs = bank.q.filter(function (q) {
     if (!validQuestion(q)) return false;
@@ -170,14 +192,37 @@ export function selectQuiz(bank, n, seed) {
     var ra = (s(a).asked ? 2 + s(a).asked : (a.src === 'ai' ? 0 : 1)), rb = (s(b).asked ? 2 + s(b).asked : (b.src === 'ai' ? 0 : 1));
     return ra - rb;
   });
-  var pick = missed.slice(0, Math.max(1, n - 2));
-  rest.forEach(function (q) { if (pick.length < n) pick.push(q); });
-  missed.forEach(function (q) { if (pick.length < n && pick.indexOf(q) < 0) pick.push(q); });
+  var pick = [], used = {}, kinds = {};
+  function take(q) { pick.push(q); used[q.id] = 1; used[conceptKey(q)] = 1; kinds[kindOf(q)] = (kinds[kindOf(q)] || 0) + 1; }
+  /* passes from strict to loose */
+  var passes = [
+    { recent: true, concept: true, kind: true }, { recent: true, concept: true, kind: false },
+    { recent: false, concept: true, kind: true }, { recent: false, concept: true, kind: false },
+    { recent: false, concept: false, kind: false }
+  ];
+  function fill(list, limit) {
+    passes.forEach(function (p) {
+      list.forEach(function (q) {
+        if (pick.length >= limit || used[q.id]) return;
+        if (p.recent && recent[q.id] && !(s(q).miss > 0)) return;
+        if (p.concept && used[conceptKey(q)]) return;
+        if (p.kind && (kinds[kindOf(q)] || 0) >= 2) return;
+        take(q);
+      });
+    });
+  }
+  fill(missed, Math.max(1, n - 2));
+  fill(rest, n);
+  fill(missed, n);
   return shuffled(pick, seed + 7).map(function (q) {
-    return { id: q.id, q: q.q, o: q.o, a: q.a, e: q.e, src: q.src, file: q.file || '', page: q.page || null, pageLabel: q.pageLabel || '', ref: q.ref || '', evidence: q.evidence || '', title: q.title || '' };
+    var order = shuffled(q.o.map(function (_, i) { return i; }), hashStr(q.id) + seed * 31), o2 = order.map(function (i) { return q.o[i]; });
+    return { id: q.id, q: q.q, o: o2, a: order.indexOf(q.a), e: q.e, src: q.src, kind: q.kind || '', file: q.file || '', page: q.page || null, pageLabel: q.pageLabel || '', ref: q.ref || '', evidence: q.evidence || '', title: q.title || '' };
   });
 }
-export function markAsked(bank, ids) { ids.forEach(function (id) { var s = bank.stats[id] || (bank.stats[id] = { asked: 0, miss: 0 }); s.asked++; }); }
+export function markAsked(bank, ids) {
+  ids.forEach(function (id) { var s = bank.stats[id] || (bank.stats[id] = { asked: 0, miss: 0 }); s.asked++; });
+  bank.recent = (Array.isArray(bank.recent) ? bank.recent : []).filter(function (x) { return ids.indexOf(x) < 0; }).concat(ids).slice(-RECENT_MAX);
+}
 export function recordAnswer(bank, id, correct) {
   var s = bank.stats[id] || (bank.stats[id] = { asked: 0, miss: 0 });
   if (correct) s.miss = Math.max(0, (s.miss || 0) - 1); else s.miss = (s.miss || 0) + 1;
@@ -286,30 +331,71 @@ export function extractDefinitions(text) {
   return defs;
 }
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function esc(s) { return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'); }
+/* Wordings per kind: the same fact is asked in different ways so quizzes do not feel the same every time. */
+var WORDS = {
+  stmt: { en: ['Which statement describes “{t}” correctly?', 'Which of these is the correct description of “{t}”?', 'What does “{t}” mean in your material?'],
+          de: ['Welche Aussage beschreibt «{t}» richtig?', 'Welche Beschreibung passt zu «{t}»?', 'Was bedeutet «{t}» in deinem Material?'] },
+  term: { en: ['Which term is described here: “{d}”?', 'Which concept does this describe: “{d}”?', 'What is being defined here: “{d}”?'],
+          de: ['Welcher Begriff wird hier beschrieben: «{d}»?', 'Welches Konzept ist gemeint: «{d}»?', 'Was wird hier definiert: «{d}»?'] },
+  cloze: { en: ['Complete the sentence: “{s}”', 'Which term fills the gap? “{s}”'], de: ['Ergänze den Satz: «{s}»', 'Welcher Begriff fehlt? «{s}»'] },
+  pair: { en: ['Which term is matched with its correct description?', 'Which pairing is correct?'], de: ['Welche Zuordnung von Begriff und Beschreibung stimmt?', 'Welches Paar ist richtig zugeordnet?'] }
+};
+export var DEF_KINDS = ['stmt', 'term', 'cloze', 'pair'];
+function word(kind, de, h, vars) {
+  var list = WORDS[kind][de ? 'de' : 'en'], t = list[h % list.length];
+  return t.replace(/\{(\w)\}/g, function (_, k) { return vars[k]; });
+}
+function defQuestion(defs, d, kind, de) {
+  var pool = defs.filter(function (x) { return x !== d && x.def.toLowerCase().indexOf(d.term.toLowerCase()) < 0 && x.term.toLowerCase().indexOf(d.term.toLowerCase()) < 0 && d.def.toLowerCase().indexOf(x.term.toLowerCase()) < 0; });
+  var h = hashStr(d.sent), qtext, right, wrongs, ev = d.sent;
+  if (kind === 'stmt') {
+    pool = shuffled(pool, h).slice(0, 3);
+    if (pool.length < 3) return null;
+    qtext = word('stmt', de, h, { t: d.term });
+    right = cap(d.def); wrongs = pool.map(function (x) { return cap(x.def); });
+  } else if (kind === 'term') {
+    pool = shuffled(pool.filter(function (x) { return Math.abs(x.term.split(' ').length - d.term.split(' ').length) <= 1; }), h).slice(0, 3);
+    if (pool.length < 3) return null;
+    qtext = word('term', de, h, { d: cap(d.def) });
+    right = cap(d.term); wrongs = pool.map(function (x) { return cap(x.term); });
+  } else if (kind === 'cloze') {
+    var re = new RegExp('\\b' + esc(d.term) + '\\b', 'i');
+    if (!re.test(d.sent)) return null;
+    pool = shuffled(pool.filter(function (x) { return Math.abs(x.term.split(' ').length - d.term.split(' ').length) <= 1 && !re.test(x.term); }), h + 3).slice(0, 3);
+    if (pool.length < 3) return null;
+    var blanked = d.sent.replace(re, '_____');
+    if (blanked.indexOf('_____') < 0 || (blanked.match(/_____/g) || []).length !== 1) return null;
+    qtext = word('cloze', de, h, { s: blanked });
+    right = cap(d.term); wrongs = pool.map(function (x) { return cap(x.term); });
+  } else {
+    if (d.def.length > 110) return null;
+    pool = shuffled(pool.filter(function (x) { return x.def.length <= 110; }), h + 5).slice(0, 3);
+    if (pool.length < 3) return null;
+    var P = [d].concat(pool);
+    qtext = word('pair', de, h, {});
+    right = cap(d.term) + ' — ' + d.def;
+    /* the three wrong pairs use terms 1..3 with the description of the next one (a cycle among them), so none is right */
+    wrongs = [cap(P[1].term) + ' — ' + P[2].def, cap(P[2].term) + ' — ' + P[3].def, cap(P[3].term) + ' — ' + P[1].def];
+  }
+  var optsArr = wrongs.concat([right]), order = shuffled([0, 1, 2, 3], hashStr(d.sent + 'o' + kind)), o2 = order.map(function (i) { return optsArr[i]; });
+  var idn = kind === 'stmt' ? '0' : kind === 'term' ? '1' : kind;
+  return { id: 'd' + hashStr(d.sent + idn), q: qtext, o: o2, a: o2.indexOf(right), e: 'From your material: “' + ev + '”', src: 'def', kind: kind, evidence: ev, page: d.page };
+}
 export function definitionQuestions(text, max, opts) {
   opts = opts || {};
-  var defs = extractDefinitions(text), out = [], de = opts.lang ? opts.lang === 'de' : isGerman(text);
+  var defs = extractDefinitions(text), out = [], de = opts.lang ? opts.lang === 'de' : isGerman(text), seen = {};
   if (defs.length < 4) return [];
-  defs.forEach(function (d, idx) {
-    if (out.length >= max) return;
-    var type = idx % 2;
-    var pool = defs.filter(function (x) { return x !== d && x.def.toLowerCase().indexOf(d.term.toLowerCase()) < 0 && x.term.toLowerCase().indexOf(d.term.toLowerCase()) < 0 && d.def.toLowerCase().indexOf(x.term.toLowerCase()) < 0; });
-    var qtext, right, wrongs;
-    if (type === 0) {
-      pool = shuffled(pool, hashStr(d.sent)).slice(0, 3);
-      if (pool.length < 3) return;
-      qtext = de ? 'Welche Aussage beschreibt «' + d.term + '» richtig?' : 'Which statement describes “' + d.term + '” correctly?';
-      right = cap(d.def); wrongs = pool.map(function (x) { return cap(x.def); });
-    } else {
-      pool = pool.filter(function (x) { return Math.abs(x.term.split(' ').length - d.term.split(' ').length) <= 1; });
-      pool = shuffled(pool, hashStr(d.sent)).slice(0, 3);
-      if (pool.length < 3) return;
-      qtext = de ? 'Welcher Begriff wird hier beschrieben: «' + cap(d.def) + '»?' : 'Which term is described here: “' + cap(d.def) + '”?';
-      right = cap(d.term); wrongs = pool.map(function (x) { return cap(x.term); });
-    }
-    var optsArr = wrongs.concat([right]), order = shuffled([0, 1, 2, 3], hashStr(d.sent + 'o')), o2 = order.map(function (i) { return optsArr[i]; });
-    var q = { id: 'd' + hashStr(d.sent + type), q: qtext, o: o2, a: o2.indexOf(right), e: 'From your material: “' + d.sent + '”', src: 'def', evidence: d.sent, page: d.page, pageLabel: d.page ? (opts.pageLabel || 'p.') : '' };
-    if (!qualityIssue(q)) out.push(q);
-  });
+  /* rounds: every definition gets its first kind, then its second, and so on, so a small limit still mixes kinds */
+  for (var r = 0; r < DEF_KINDS.length && out.length < max; r++) {
+    defs.forEach(function (d, idx) {
+      if (out.length >= max) return;
+      var q = defQuestion(defs, d, DEF_KINDS[(idx + r) % DEF_KINDS.length], de);
+      if (!q || seen[q.id]) return;
+      q.pageLabel = q.page ? (opts.pageLabel || 'p.') : '';
+      if (qualityIssue(q)) return;
+      seen[q.id] = 1; out.push(q);
+    });
+  }
   return out;
 }

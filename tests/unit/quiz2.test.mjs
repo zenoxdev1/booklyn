@@ -18,7 +18,7 @@ test('definition questions come from clear definitions, with plausible options f
     assert.equal(Q.qualityIssue(q), '');
     assert.ok(q.evidence.length > 30 && DOC.includes(q.evidence));
     assert.equal(q.src, 'def');
-    assert.ok(!/_____/.test(q.q), 'no word blanks');
+    assert.ok(q.kind === 'cloze' || !/_____/.test(q.q), 'blanks only in gap questions');
   });
 });
 
@@ -102,8 +102,70 @@ test('German material gets German question wording and clean options', () => {
   const qs = Q.definitionQuestions(DE_BAD + ' ' + DE_GOOD, 6);
   assert.ok(qs.length >= 2, 'got ' + qs.length);
   qs.forEach((q) => {
-    assert.match(q.q, /^Welche/);
+    assert.match(q.q, /^(Welche|Was|Ergänze)/);
     q.o.forEach((o) => assert.ok(!/^(Hier|F(ü|u)r|Celsius)\b/.test(o), 'bad option: ' + o));
     assert.equal(Q.qualityIssue(q), '');
   });
+});
+
+test('definitions are asked in several kinds and wordings, not one fixed template', () => {
+  const qs = Q.definitionQuestions(DOC, 40);
+  const kinds = new Set(qs.map((q) => q.kind));
+  assert.ok(kinds.size >= 4, 'kinds: ' + [...kinds]);
+  assert.ok(new Set(qs.map((q) => q.id)).size === qs.length, 'ids unique');
+  qs.forEach((q) => { assert.equal(q.o.length, 4); assert.equal(new Set(q.o).size, 4); assert.equal(Q.qualityIssue(q), ''); assert.ok(DOC.includes(q.evidence)); });
+  const pairs = qs.filter((q) => q.kind === 'pair');
+  assert.ok(pairs.length >= 2);
+  pairs.forEach((q) => {
+    /* exactly one pairing matches the sentence in the material */
+    const good = q.o.filter((o) => { const [t, d] = o.split(' — '); return DOC.toLowerCase().includes(t.toLowerCase() + ' ') && DOC.toLowerCase().replace(/\s+/g, ' ').includes(d.toLowerCase()) && q.evidence.toLowerCase().includes(t.toLowerCase()) && q.evidence.toLowerCase().includes(d.toLowerCase()); });
+    assert.equal(good.length, 1); assert.equal(q.o[q.a], good[0]);
+  });
+  const cloze = qs.filter((q) => q.kind === 'cloze');
+  assert.ok(cloze.length >= 2);
+  cloze.forEach((q) => { assert.equal((q.q.match(/_____/g) || []).length, 1); assert.ok(q.evidence.toLowerCase().includes(q.o[q.a].toLowerCase())); });
+  /* a small limit still mixes kinds */
+  assert.ok(new Set(Q.definitionQuestions(DOC, 5).map((q) => q.kind)).size >= 4);
+});
+
+function vbank() {
+  const b = Q.newBank();
+  Q.definitionQuestions(DOC, 40).forEach((q) => b.q.push({ ...q, fk: 'f', file: 'f.pdf' }));
+  return b;
+}
+test('a quiz never has two questions about the same sentence, nor more than 2 of a kind', () => {
+  const b = vbank();
+  for (let seed = 1; seed < 40; seed++) {
+    const qz = Q.selectQuiz(b, 5, seed);
+    assert.equal(new Set(qz.map((q) => q.evidence)).size, 5, 'seed ' + seed);
+    const k = {}; qz.forEach((q) => { k[q.kind] = (k[q.kind] || 0) + 1; });
+    assert.ok(Math.max(...Object.values(k)) <= 2, JSON.stringify(k));
+  }
+});
+test('questions of the last quizzes do not come back while others exist, and old ones return later', () => {
+  const b = vbank();
+  const seenIds = new Set();
+  for (let i = 0; i < 3; i++) {
+    const qz = Q.selectQuiz(b, 5, 100 + i);
+    qz.forEach((q) => { assert.ok(!seenIds.has(q.id), 'repeat ' + q.id + ' in quiz ' + i); seenIds.add(q.id); });
+    Q.markAsked(b, qz.map((q) => q.id));
+  }
+  assert.equal(seenIds.size, 15);
+  for (let i = 0; i < 20; i++) { const qz = Q.selectQuiz(b, 5, 200 + i); assert.equal(qz.length, 5); Q.markAsked(b, qz.map((q) => q.id)); }
+  assert.ok(b.recent.length <= Q.RECENT_MAX);
+});
+test('options are shuffled again each time and the right answer index follows', () => {
+  const b = vbank(); const pos = new Set();
+  for (let seed = 1; seed < 30; seed++) Q.selectQuiz(b, 5, seed).forEach((q) => {
+    const orig = b.q.find((x) => x.id === q.id);
+    assert.equal(q.o[q.a], orig.o[orig.a]); assert.deepEqual([...q.o].sort(), [...orig.o].sort()); pos.add(q.a);
+  });
+  assert.ok(pos.size >= 3, 'answer positions vary');
+});
+test('banks from before the new kinds drop on-device questions but keep AI ones and history', () => {
+  const ai = { id: 'a1', q: 'Which protocol keeps latency low for streaming applications?', o: ['UDP', 'TCP', 'ARP', 'DNS'], a: 0, e: 'x', src: 'ai', fk: 'f1' };
+  const def = { id: 'd1', q: 'Which statement describes “X” correctly?', o: ['a', 'b', 'c', 'd'], a: 0, e: 'x', src: 'def', fk: 'f1' };
+  const b = Q.upgradeBank({ v: 3, q: [ai, def], used: [], done: { f1: true }, stats: { d1: { asked: 2, miss: 1 } } });
+  assert.deepEqual(b.q.map((q) => q.id), ['a1']); assert.deepEqual(b.done, {}); assert.equal(b.gen, Q.GEN); assert.equal(b.stats.d1.asked, 2); assert.deepEqual(b.recent, []);
+  const again = Q.upgradeBank(JSON.parse(JSON.stringify(b))); again.done.f1 = true; assert.deepEqual(Q.upgradeBank(again).done, { f1: true });
 });
