@@ -321,7 +321,9 @@ function suggest(text,sem){
 }
 
 /* ================= adding files ================= */
-async function addFiles(list,preset,skipDups,hint){
+var busyAdd=0;
+async function addFiles(list,preset,skipDups,hint){busyAdd++;try{return await addFilesRun(list,preset,skipDups,hint);}finally{busyAdd--;}}
+async function addFilesRun(list,preset,skipDups,hint){
   var sem=curSem(); if(!sem){toast(_t("Set up a semester first."));return;}
   var arr=Array.prototype.slice.call(list); if(!arr.length) return;
   try{if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();}catch(e){}
@@ -1072,7 +1074,67 @@ function pendingRow(f){
    +'<label class="sr" for="u-'+f.id+("\">"+_t("Unit for "))+esc(f.name)+'</label><select id="u-'+f.id+'" data-c="unit">'
    +Array.apply(null,{length:N}).map(function(_,i){return '<option value="'+(i+1)+'"'+(i+1===f.unit?' selected':'')+(">"+_t("Week "))+(i+1)+'</option>';}).join('')+'</select></div>'
    +(held&&!f.dup&&f.mod?'<div><button class="btn small ghost" data-a="confirm" data-id="'+f.id+("\">"+_t("Looks right")+"</button></div>"):'')
-   +(held&&!f.dup&&!f.mod?("<p class=\"foot\">"+_t("Choose a module to continue.")+"</p>"):'')+verPendingHTML(f)+'</div></li>';
+   +(held&&!f.dup&&!f.mod?("<p class=\"foot\">"+_t("Choose a module to continue.")+"</p>"):'')+verPendingHTML(f)+portRowTools(f)+'</div></li>';
+}
+/* ----- deleting files that wait in the Port (pending only; imported files are never touched) ----- */
+function portBusy(){return !!(ui.busyImport||busyAdd||ui.portBusy);}
+function portRowTools(f){
+  var d=ui.portDel&&ui.portDel.kind==='one'&&ui.portDel.ids[0]===f.id,off=portBusy()?' disabled':'';
+  var h='<div class="pmanage">';
+  if(d){
+    h+='<p class="foot" role="alert" style="margin:0">'+_t("Delete this file from the Port? Its stored content and details are removed from this device. This cannot be undone.")+'</p>'
+      +'<div class="row tight"><button class="btn small danger" data-a="pdelyes"'+off+'>'+_t("Yes, delete this file")+'</button><button class="btn small ghost" data-a="pdelno">'+_t("Cancel")+'</button></div>';
+  } else {
+    h+='<label class="psel"><input type="checkbox" data-c="delsel" '+(ui.sel&&ui.sel[f.id]?'checked ':'')+'aria-label="'+esc(_t("Select to delete: ")+f.name)+'"><span>'+_t("Select to delete")+'</span></label>'
+      +'<button class="btn small ghost" data-a="pdel1" data-id="'+f.id+'"'+off+'>'+_t("Delete this file")+'</button>';
+  }
+  return h+'</div>';
+}
+function portManageHTML(list){
+  var sel=ui.sel||{},ids=list.map(function(f){return f.id;}),n=ids.filter(function(i){return sel[i];}).length,all=n===ids.length&&n>0,off=portBusy()?' disabled':'';
+  var h='<section class="card stack"><h3>'+_t("Manage waiting files")+'</h3><p class="foot" style="margin:0">'+_t("Deleting here removes files that are waiting in the Port only. Files already imported into a house and floor are never touched. Deleting cannot be undone.")+'</p>'
+    +'<div class="row" style="align-items:center"><label class="psel"><input type="checkbox" data-c="pselall" '+(all?'checked':'')+'><span>'+_t("Select all pending files")+' ('+ids.length+')</span></label>'
+    +'<button class="btn small danger" data-a="pdelsel"'+(n&&!off?'':' disabled')+'>'+_t("Delete selected")+' ('+n+')</button>'
+    +'<button class="btn small ghost" data-a="pdelall"'+off+'>'+_t("Empty the Port")+'</button></div>';
+  var d=ui.portDel;
+  if(d&&d.kind!=='one'){
+    var c=d.ids.length;
+    h+='<div class="notice warn stack" role="alert"><p style="margin:0"><strong>'+(d.kind==='all'?_t("Empty the Port? ")+c+_pl(c,' pending file will be removed.',' pending files will be removed.'):_t("Delete ")+c+_pl(c,' selected file?',' selected files?'))+'</strong></p>'
+      +'<p style="margin:0">'+_t("Their stored content and details are removed from this device together, and this cannot be undone. Only files waiting in the Port are removed. Imported and assigned files stay untouched.")+'</p>'
+      +'<div class="row"><button class="btn small danger" data-a="pdelyes"'+off+'>'+_t("Yes, delete ")+c+_pl(c,' file',' files')+'</button><button class="btn small ghost" data-a="pdelno">'+_t("Cancel")+'</button></div></div>';
+  }
+  return h+'</section>';
+}
+function portResultHTML(){
+  var r=ui.portRes;if(!r)return '';
+  var h='<section class="card stack" role="status"><h3>'+r.removed.length+_pl(r.removed.length,' file deleted',' files deleted')+'</h3>';
+  function names(a){return '<ul class="list">'+a.slice(0,10).map(function(x){return '<li class="foot"><strong>'+esc(x.name)+'</strong>'+(x.reason?' · '+esc(x.reason):'')+'</li>';}).join('')+(a.length>10?'<li class="foot">'+_t("and ")+(a.length-10)+_t(" more.")+'</li>':'')+'</ul>';}
+  if(r.removed.length)h+=names(r.removed.map(function(n){return {name:n};}));
+  if(r.failed.length)h+='<div class="notice warn stack" role="alert"><p style="margin:0"><strong>'+r.failed.length+_pl(r.failed.length,' file could not be deleted. It is still stored and still in the list.',' files could not be deleted. They are still stored and still in the list.')+'</strong></p>'+names(r.failed)+'</div>';
+  if(r.skipped.length)h+='<p class="foot" style="margin:0">'+r.skipped.length+_pl(r.skipped.length,' file was skipped because it is no longer waiting in the Port.',' files were skipped because they are no longer waiting in the Port.')+'</p>'+names(r.skipped);
+  return h+'<div class="row"><button class="btn small ghost" data-a="pdelclose">'+_t("Dismiss")+'</button></div></section>';
+}
+async function portDelete(){
+  var d=ui.portDel;if(!d)return;
+  if(portBusy()){toast(_t("Wait until the files finish adding or importing, then try again."));return;}
+  ui.portBusy=true;render();
+  var res={removed:[],failed:[],skipped:[]};
+  try{
+    /* re-check: only files that are still pending right now are deleted */
+    var plan=IM.planDelete(FILES,d.ids);
+    plan.skipped.forEach(function(s){res.skipped.push({name:s.name||_t("A file that no longer exists"),reason:s.reason==='imported'?_t("already imported"):_t("already gone")});});
+    var out=await IM.removeEach(fileStore,plan.ok.map(function(f){return f.id;}));
+    var gone={},byId={};plan.ok.forEach(function(f){byId[f.id]=f;});
+    out.removed.forEach(function(id){gone[id]=1;res.removed.push(byId[id].name);});
+    out.failed.forEach(function(x){res.failed.push({name:byId[x.id].name,reason:ST.explainStorageError(x.error)});});
+    FILES=FILES.filter(function(f){return !gone[f.id];});
+    var orph=IM.orphanedDups(FILES,Object.keys(gone));
+    if(orph.length)await IM.commitPatch(fileStore,orph,function(){return {dup:null,include:true,flag:true,confirmed:false,why:_t("The other copy was removed from the Port. Check this file.")};});
+    Object.keys(gone).forEach(function(id){if(ui.sel)delete ui.sel[id];});
+    if(Object.keys(gone).length)snPrune();
+  }catch(e){res.failed.push({name:_t("Some files"),reason:ST.explainStorageError(e)});}
+  ui.portBusy=false;ui.portDel=null;ui.portRes=res;render();
+  toast(res.failed.length?res.removed.length+_pl(res.removed.length,' file deleted, ',' files deleted, ')+res.failed.length+_t(" could not be deleted."):res.removed.length+_pl(res.removed.length,' file deleted.',' files deleted.'));
 }
 function eligible(f){return f.include&&f.mod&&f.unit&&(!f.flag||f.confirmed);}
 function isDupRow(f){return !!f.dup&&f.status==='pending'&&FILES.some(function(x){return x.id===f.dup;});}
@@ -1088,6 +1150,7 @@ function vPort(){
       +("<p class=\"lede\">"+_t("Nothing was added twice, and files that did save are already in the list. Free some space or try again: only these files are retried.")+"</p>")
       +("<div class=\"row\"><button class=\"btn small\" data-a=\"retryfailed\">"+_t("Try these again")+"</button><button class=\"btn small ghost\" data-a=\"dismissfailed\">"+_t("Dismiss")+"</button></div></section>");
   }
+  h+=portResultHTML();
   h+=verCardsHTML(null);
   var lastChk=state.iliasLast?new Date(state.iliasLast).toLocaleString(LOC(),{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
   if(!isMobileDevice()||iliasBridge)h+=("<section class=\"card stack\"><div class=\"row\" style=\"justify-content:space-between\"><div><p class=\"eyebrow\">"+_t("HSLU ILIAS")+"</p><h2>"+_t("Find new files")+"</h2></div><a class=\"btn ghost small\" href=\"https://elearning.hslu.ch/ilias/ilias.php?baseClass=ildashboardgui&amp;cmd=show\" target=\"_blank\" rel=\"noopener noreferrer\">"+_t("Open ILIAS ↗")+"</a></div>")
@@ -1107,6 +1170,7 @@ function vPort(){
   }
   var dupN=list.filter(isDupRow).length;
   if(dupN)h+='<section class="card stack"><h3>'+dupN+_pl(dupN,' duplicate waiting',' duplicates waiting')+("</h3><p class=\"lede\">"+_t("These files have exactly the same content as a file Booklyn already has. Removing them here only clears the extra copy from the Port.")+"</p><div class=\"row\"><button class=\"btn small\" data-a=\"rmdups\">"+_t("Remove "))+dupN+_pl(dupN,' duplicate',' duplicates')+'</button></div></section>';
+  h+=portManageHTML(list);
   var ready=list.filter(eligible),check=list.filter(function(f){return !eligible(f);}),ok=ready.length, held=list.filter(function(f){return f.include&&!eligible(f);}).length;
   if(check.length)h+='<ul class="list">'+check.map(pendingRow).join('')+'</ul>';
   if(ready.length){
@@ -2125,10 +2189,10 @@ document.addEventListener('click',function(e){
   else if(a==='sycodedone'){SYNC.newCode='';render();}
   else if(a==='syshow'){SYNC.showCode=true;render();}
   else if(a==='syhide'){SYNC.showCode=false;render();}
-  else if(a==='sylogout2'){codeStore('');ui.confirm=null;api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.pks=null;SYNC.kind='';SYNC.uid='';SYNC.conflict=null;SYNC.msg='';SYNC.newCode='';SYNC.showCode=false;render();toast(_t("Signed out. Your progress stays on this device."));});}
   else if(a==='sysync'){SYNC.msg='';syncPull().then(function(){if(!SYNC.conflict&&SYNC.dirty)return syncPush();}).then(function(){if(!SYNC.msg&&!SYNC.conflict)toast(_t("Synced."));});}
-  else if(a==='sylogout'&&SYNC.kind==='code'){ui.confirm='logout';render();}
-  else if(a==='sylogout'){api('POST','/api/auth/logout',{}).then(function(){SYNC.me=null;SYNC.pks=null;SYNC.conflict=null;SYNC.msg='';SYNC.link='';render();toast(_t("Signed out. Your progress stays on this device."));});}
+  else if(a==='sylogout'){ui.confirm='logout';render();}
+  else if(a==='sylogout2'){signOutKeep();}
+  else if(a==='sylogout3'){signOutWipe();}
   else if(a==='sydel1'){ui.confirm='acct';render();}
   else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){codeStore('');SYNC.kind='';SYNC.uid='';SYNC.me=null;SYNC.pks=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast(_t("Your cloud data was deleted. Your progress stays on this device."));}else toast(_t("Could not delete just now. Try again."));render();});}
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast(_t("Using the cloud copy."));else render();}
@@ -2186,6 +2250,12 @@ document.addEventListener('click',function(e){
   else if(a==='qdel2'){state.questions=state.questions.filter(function(q){return q.id!==id;});ui.qDel=null;save();render();}
   else if(a==='del1'){ui.confirm=id;render();}
   else if(a==='del0'){ui.confirm=null;render();}
+  else if(a==='pdel1'){if(portBusy()){toast(_t("Wait until the files finish adding or importing, then try again."));return;}ui.portDel={kind:'one',ids:[id]};ui.portRes=null;render();}
+  else if(a==='pdelsel'){var sids=pending().map(function(f){return f.id;}).filter(function(i){return ui.sel&&ui.sel[i];});if(!sids.length)return;ui.portDel={kind:'sel',ids:sids};ui.portRes=null;render();}
+  else if(a==='pdelall'){var aids=pending().map(function(f){return f.id;});if(!aids.length)return;ui.portDel={kind:'all',ids:aids};ui.portRes=null;render();}
+  else if(a==='pdelno'){ui.portDel=null;render();}
+  else if(a==='pdelyes'){portDelete();}
+  else if(a==='pdelclose'){ui.portRes=null;render();}
   else if(a==='rmdups'){var gone=pending().filter(isDupRow),gids=gone.map(function(f){return f.id;});IM.removeFiles(fileStore,gids).then(function(r){if(!r.ok){toast(_t("Could not remove the duplicates. ")+ST.explainStorageError(r.error));return;}var ids={};gids.forEach(function(i){ids[i]=1;});FILES=FILES.filter(function(f){return !ids[f.id];});render();toast(gone.length+_pl(gone.length,' duplicate removed.',' duplicates removed.'));});}
   else if(a==='del2'){IM.removeFiles(fileStore,[id]).then(function(r){if(!r.ok){toast(_t("Could not remove the file. ")+ST.explainStorageError(r.error));return;}FILES=FILES.filter(function(f){return f.id!==id;});snPrune();ui.confirm=null;render();toast(_t("File removed."));});}
   else if(a==='retryfailed'){
@@ -2265,6 +2335,8 @@ document.addEventListener('change',function(e){
   else if(c==='qtext'){var tq=state.questions.filter(function(q){return q.id===t.dataset.id;})[0];if(tq&&!t.value.trim()){t.value=t.defaultValue;tq.text=t.defaultValue;save();}}
   else if(c==='ilmap'){if(t.value)state.iliasCourseMap[t.dataset.k]=t.value;else delete state.iliasCourseMap[t.dataset.k];save();render();}
   else if(c==='self'){study.checks[+t.dataset.i]=t.checked;render();var cb=document.querySelectorAll('[data-c="self"]')[+t.dataset.i];if(cb)cb.focus();}
+  else if(c==='delsel'){var rw=t.closest('[data-f]');if(rw){ui.sel=ui.sel||{};if(t.checked)ui.sel[rw.dataset.f]=1;else delete ui.sel[rw.dataset.f];if(ui.portDel&&ui.portDel.kind==='sel')ui.portDel=null;var y2=window.scrollY;render();window.scrollTo(0,y2);}}
+  else if(c==='pselall'){ui.sel={};if(t.checked){pending().forEach(function(f){ui.sel[f.id]=1;});ui.readyOpen=true;}ui.portDel=null;var y3=window.scrollY;render();window.scrollTo(0,y3);}
   else{
     var row=t.closest('[data-f]'),f=row&&fileById(row.dataset.f);if(!f)return;
     var patch={};
@@ -2429,7 +2501,8 @@ function accountCard(){
      +(SYNC.kind==='code'&&!SYNC.newCode&&codeStored()?(SYNC.showCode?'<p style="margin:0;font:700 1.1rem ui-monospace,Consolas,monospace;letter-spacing:.06em;word-break:break-all">'+esc(codeStored())+("</p><div class=\"row\"><button class=\"btn small ghost\" data-a=\"sycopy\">"+_t("Copy code")+"</button><button class=\"btn small ghost\" data-a=\"syhide\">"+_t("Hide")+"</button></div>"):("<div class=\"row\"><button class=\"btn small ghost\" data-a=\"syshow\">"+_t("Show my sync code")+"</button></div>")):'')
      +(SYNC.msg?'<p class="foot" role="status">'+esc(SYNC.msg)+'</p>':'')+pkSectionHTML()
      +'<label class="check"><input type="checkbox" data-c="aiopt" '+(state.aiOpt?'checked':'')+("><div><div class=\"t\">"+_t("Let an AI write extra questions")+"</div><div class=\"s\">"+_t("Short text excerpts of your files (a few pages at a time) are sent to Cloudflare Workers AI. It reads the excerpt, writes questions and checks them before you see them. Files are never sent whole or stored. Off by default. Without it, Booklyn only asks about clear definitions it finds in your files, and says so when there is not enough material.")+"</div></div></label>")
-     +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+(">"+_t("Sync now")+"</button>")+(ui.confirm==='logout'?("<button class=\"btn small danger\" data-a=\"sylogout2\">"+_t("Sign out and forget the code here")+"</button><button class=\"btn small ghost\" data-a=\"del0\">"+_t("Cancel")+"</button>"):("<button class=\"btn small ghost\" data-a=\"sylogout\">"+_t("Sign out")+"</button>"))+'</div>'
+     +'<div class="row"><button class="btn small" data-a="sysync" '+(SYNC.pushing||SYNC.busy?'disabled':'')+(">"+_t("Sync now")+"</button>")+(ui.confirm==='logout'?'':("<button class=\"btn small ghost\" data-a=\"sylogout\">"+_t("Sign out")+"</button>"))+'</div>'
+     +(ui.confirm==='logout'?signOutPanel():'')
      +'<div class="row">'+(ui.confirm==='acct'?("<button class=\"btn small danger\" data-a=\"sydel2\">"+_t("Yes, delete my cloud data")+"</button><button class=\"btn small ghost\" data-a=\"del0\">"+_t("Cancel")+"</button>"):("<button class=\"btn small ghost\" data-a=\"sydel1\">"+_t("Delete my cloud data…")+"</button>"))+'</div>';
   } else {
     h+=("<p class=\"lede\">"+_t("Optional. Keep your progress safe and use it on your phone and your computer. We recommend a passkey. No email and no password.")+"</p>")
@@ -2515,10 +2588,44 @@ function pkSectionHTML(){
   h+='<div class="row"><input type="text" id="pkname" maxlength="40" placeholder="'+esc(_t("e.g. My phone"))+'" style="flex:1 1 180px" aria-label="'+esc(_t("Name for this passkey (optional)"))+'"><button class="btn small" data-a="pkadd" '+(SYNC.busy?'disabled':'')+'>'+_t("Add a passkey on this device")+'</button></div></div>';
   return h;
 }
+function signOutPanel(){
+  var off=(SYNC.busy||portBusy())?' disabled':'';
+  return '<div class="notice warn stack" role="alert"><p style="margin:0"><strong>'+_t("Sign out of this device?")+'</strong></p>'
+    +'<p style="margin:0">'+_t("Your progress is saved to the cloud first. Imported files exist only on this device.")+'</p>'
+    +'<div class="stack"><button class="btn small danger" data-a="sylogout3"'+off+'>'+_t("Sign out and clear this device")+'</button><p class="foot" style="margin:0">'+_t("Removes your semesters, progress and imported files from this device. Sign in again to get your progress back. You will have to import your files again.")+(SYNC.kind==='code'?' '+_t("You need your sync code to sign in again."):'')+'</p></div>'
+    +'<div class="stack"><button class="btn small ghost" data-a="sylogout2"'+off+'>'+_t("Sign out, keep data here")+'</button><p class="foot" style="margin:0">'+_t("Your data stays on this device without an account.")+(SYNC.kind==='code'?' '+_t("The sync code is forgotten on this device."):'')+'</p></div>'
+    +'<div class="row"><button class="btn small ghost" data-a="del0">'+_t("Cancel")+'</button></div></div>';
+}
+function signedOutReset(){
+  SYNC.me=null;SYNC.pks=null;SYNC.kind='';SYNC.uid='';SYNC.conflict=null;SYNC.msg='';SYNC.newCode='';SYNC.showCode=false;SYNC.link='';ui.confirm=null;
+}
+function signOutKeep(){
+  var code=SYNC.kind==='code';
+  api('POST','/api/auth/logout',{}).then(function(){if(code)codeStore('');signedOutReset();render();toast(_t("Signed out. Your progress stays on this device."));});
+}
+/* Sign out and leave the device empty. Nothing is deleted unless the cloud copy was saved first and the files were really deleted. */
+async function signOutWipe(){
+  if(SYNC.busy||portBusy()){toast(_t("Wait until the files finish adding or importing, then try again."));return;}
+  if(SYNC.conflict){toast(_t("Your cloud copy and this device differ. Choose which one to keep first. Nothing was deleted."));return;}
+  SYNC.busy=true;SYNC.msg=_t("Saving your progress to the cloud first…");render();
+  for(var w=0;w<50&&SYNC.pushing;w++)await new Promise(function(r){setTimeout(r,100);});
+  var t0=Date.now();
+  await syncPush();
+  var saved=SYNC.me&&!SYNC.conflict&&SYNC.last>=t0;
+  if(!saved){SYNC.busy=false;SYNC.msg=_t("Your progress could not be saved to the cloud, so nothing was deleted and you are still signed in. Try again, or choose to keep the data here.");render();return;}
+  var rr=await IM.removeFiles(fileStore,FILES.map(function(f){return f.id;}));
+  if(!rr.ok){SYNC.busy=false;SYNC.msg=_t("Could not delete the files. ")+ST.explainStorageError(rr.error)+_t(" Nothing was changed.");render();return;}
+  try{await api('POST','/api/auth/logout',{});}catch(e){}
+  codeStore('');FILES=[];clearBanks();
+  var th=state.theme;state=blank();state.theme=th;
+  signedOutReset();SYNC.busy=false;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.dirty=false;syncMeta();
+  ui.setup=null;ui.failed=null;ui.restore=null;ui.sel={};ui.portDel=null;ui.portRes=null;study=null;
+  save();go('#/');toast(_t("Signed out. This device is empty. Sign in again to get your progress back."));
+}
 function acctBtn(){
   if(SYNC.na)return '';
-  var on=!!SYNC.me;
-  return '<button type="button" class="acctbtn'+(on?' on':'')+'" data-a="go" data-to="#/account"><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON.acct+'</svg><span>'+(on||!SYNC.checked?_t("Account"):_t("Sign in"))+'</span></button>';
+  var on=route().name==='account',signed=!!SYNC.me;
+  return '<button type="button" class="acctbtn'+(on?' on':'')+(signed?' signed':'')+'"'+(on?' aria-current="page"':'')+' data-a="go" data-to="#/account"><svg viewBox="0 0 24 24" aria-hidden="true">'+ICON.acct+'</svg><span>'+(signed||on||!SYNC.checked?_t("Account"):_t("Sign in"))+'</span></button>';
 }
 function acctPaint(){
   var els=document.querySelectorAll('.acctbtn');if(!els.length)return;

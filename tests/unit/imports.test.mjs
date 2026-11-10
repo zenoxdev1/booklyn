@@ -101,3 +101,32 @@ test('removeFiles reports failure instead of pretending', async () => {
   assert.equal((await removeFiles(store, ['x'])).ok, true);
   assert.equal(store.metas.size, 0);
 });
+
+import { planDelete, removeEach, orphanedDups } from '../../app/js/imports.js';
+const pf = (id, status = 'pending', extra = {}) => ({ id, name: id + '.pdf', status, ...extra });
+
+test('port clean-up only plans pending files; imported or missing ones are skipped and named', () => {
+  const files = [pf('a'), pf('b', 'imported'), pf('c')];
+  const p = planDelete(files, ['a', 'b', 'x', 'a', 'c']);
+  assert.deepEqual(p.ok.map((f) => f.id), ['a', 'c']);
+  assert.deepEqual(p.skipped.map((s) => s.reason + ':' + s.id), ['imported:b', 'missing:x']);
+});
+
+test('removing many files: all or nothing first, then one by one to find the ones that fail', async () => {
+  const store = fakeStore(); ['a', 'b', 'c'].forEach((i) => store.metas.set(i, { rec: pf(i) }));
+  let r = await removeEach(store, ['a', 'b']);
+  assert.deepEqual(r, { removed: ['a', 'b'], failed: [] }); assert.deepEqual([...store.metas.keys()], ['c']);
+  /* storage refuses one particular file */
+  const s2 = fakeStore(); ['a', 'b', 'c'].forEach((i) => s2.metas.set(i, { rec: pf(i) }));
+  s2.delMany = async (ids) => { if (ids.includes('b')) throw new Error('locked'); ids.forEach((i) => s2.metas.delete(i)); };
+  r = await removeEach(s2, ['a', 'b', 'c']);
+  assert.deepEqual(r.removed, ['a', 'c']); assert.equal(r.failed.length, 1); assert.equal(r.failed[0].id, 'b');
+  assert.deepEqual([...s2.metas.keys()], ['b'], 'the failed file is still stored, so it is not reported as deleted');
+  /* nothing to do */
+  assert.deepEqual(await removeEach(store, []), { removed: [], failed: [] });
+});
+
+test('a copy loses its duplicate mark when the original in the Port is deleted', () => {
+  const files = [pf('b', 'pending', { dup: 'a' }), pf('c', 'pending', { dup: 'z' }), pf('d', 'imported', { dup: 'a' })];
+  assert.deepEqual(orphanedDups(files, ['a']).map((f) => f.id), ['b']);
+});

@@ -57,3 +57,40 @@ export async function ingest(list, o) {
   }
   return { added: added, dups: dups, failed: failed, hashes: hashes };
 }
+
+/* ---------- deleting files that wait in the Port ----------
+   Only files that are STILL pending are deleted. A file that was imported meanwhile (or is gone) is skipped and reported,
+   so a house and floor are never touched by a Port clean-up. */
+export function planDelete(files, ids) {
+  var byId = {}, seen = {}, ok = [], skipped = [];
+  files.forEach(function (f) { byId[f.id] = f; });
+  ids.forEach(function (id) {
+    if (seen[id]) return; seen[id] = 1;
+    var f = byId[id];
+    if (!f) skipped.push({ id: id, name: '', reason: 'missing' });
+    else if (f.status !== 'pending') skipped.push({ id: id, name: f.name, reason: 'imported' });
+    else ok.push(f);
+  });
+  return { ok: ok, skipped: skipped };
+}
+
+/* Deletes record and stored content of each file together (one transaction per try).
+   First all at once; if that fails nothing was deleted, so every file is tried alone to find out which ones can go.
+   A file is listed in `removed` only when the storage confirmed it. */
+export async function removeEach(store, ids) {
+  if (!ids.length) return { removed: [], failed: [] };
+  var all = await removeFiles(store, ids);
+  if (all.ok) return { removed: ids.slice(), failed: [] };
+  var removed = [], failed = [];
+  for (var i = 0; i < ids.length; i++) {
+    var r = await removeFiles(store, [ids[i]]);
+    if (r.ok) removed.push(ids[i]); else failed.push({ id: ids[i], error: r.error });
+  }
+  return { removed: removed, failed: failed };
+}
+
+/* Files that were marked as a duplicate of a file that has just been deleted are not duplicates any more. */
+export function orphanedDups(files, goneIds) {
+  var gone = {}; goneIds.forEach(function (id) { gone[id] = 1; });
+  return files.filter(function (f) { return f.status === 'pending' && f.dup && gone[f.dup]; });
+}
