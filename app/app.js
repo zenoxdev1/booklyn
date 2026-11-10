@@ -13,6 +13,7 @@ import * as V from './js/versions.js';
 import * as OB from './js/objectives.js';
 import * as FN from './js/final.js';
 import * as VY from './js/voyage.js';
+import * as LOT from './js/lot.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -243,9 +244,12 @@ function uStatus(m,u){
   return 'ready';
 }
 /* ---- lights, rent and coins ---- */
-var LV=[7,14,30], FADE=7, RENT_CAP=25, RENT_STORE=3, PRICE={tree:30,lamp:50,garden:80,paint:120,shield:40,pool:90,fountain:70,flowers:40,fence:35,roofpool:110,helipad:140,solar:90,scene:150};
-var SCENES={park:_t("Evening park"),autumn:_t("Autumn"),blossom:_t("Cherry blossom"),snow:_t("Snow"),desert:_t("Desert")};
-function sceneKey(){var sm=curSem();var k=sm&&state.scenery[sm.id];return SCENES[k]?k:'park';}
+var LV=[7,14,30], FADE=7, RENT_CAP=25, RENT_STORE=3, PRICE={tree:30,lamp:50,garden:80,paint:120,shield:40,pool:90,fountain:70,flowers:40,fence:35,roofpool:110,helipad:140,solar:90,scene:150,statue:100,bench:45,dish:70,tank:80};
+var SCENES={park:1,autumn:1,blossom:1,snow:1,desert:1,rain:1,firefly:1,fog:1,sunset:1};
+function sceneName(k){return {park:_t("Evening park"),autumn:_t("Autumn"),blossom:_t("Cherry blossom"),snow:_t("Snow"),desert:_t("Desert"),rain:_t("Rain"),firefly:_t("Fireflies"),fog:_t("Mist"),sunset:_t("Golden hour")}[k]||k;}
+function sceneInfo(k){return {park:_t("The default look: a calm evening."),autumn:_t("Falling leaves and warm colours over the whole island."),blossom:_t("Cherry petals drift across the island."),snow:_t("Snowfall over every district and white lawns."),desert:_t("Warm sand, cacti and drifting dust."),rain:_t("A soft rain over the whole island."),firefly:_t("Fireflies glow over a warm summer night."),fog:_t("Slow mist rolls over the water."),sunset:_t("A golden evening sky with seagulls.")}[k]||'';}
+/* one look for the whole island (it used to be one per semester: the old choice is still honoured until a new one is made) */
+function sceneKey(){var k=state.scenery['*'];if(!SCENES[k]){var sm=curSem();k=sm&&state.scenery[sm.id];}return SCENES[k]?k:'park';}
 function roofOf(d){return (d&&(d.roof||(d.garden?'garden':'')))||'';}
 var GUESTS=['Mira','Jonas','Ana','Lukas','Sofia','Elias','Lena','Marco','Nora','Tim','Chiara','Noah','Ida','Leo','Emma','Aron'];
 function litTs(k){var t=state.lit[k];return t?(typeof t==='number'&&t>1e12?t:Date.now()):0;}
@@ -397,6 +401,8 @@ function chip(st){var t={lit:_t("Lights on"),fading:_t("Fading"),progress:_t("In
 
 /* ================= isometric city ================= */
 var CITY={TW:32,TH:16,P:4.2,F:1.8,ZB:2.4};
+/* a well mixed 0..1 number from a text (hashStr alone gives nearly equal numbers for names that differ in the last character) */
+function rnd(s){var h=hashStr(s);h^=h>>>16;h=Math.imul(h,0x45d9f3b);h^=h>>>16;h=Math.imul(h,0x45d9f3b);h^=h>>>16;return (h>>>0)/4294967296;}
 function hashStr(s){var h=7;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;}
 function iso(x,y,z){return [(x-y)*CITY.TW,(x+y)*CITY.TH-(z||0)];}
 function pts(a){return a.map(function(p){return p[0].toFixed(1)+','+p[1].toFixed(1);}).join(' ');}
@@ -446,6 +452,24 @@ function treeSVG(x,y,s,z){
   var p=iso(x,y,z||0);
   return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><ellipse class="ts" cx="3" cy="1" rx="'+(7*s).toFixed(1)+'" ry="'+(3.2*s).toFixed(1)+'"/><rect class="tk" x="-1" y="'+(-7*s).toFixed(1)+'" width="2" height="'+(7*s).toFixed(1)+'"/><circle class="tc1" cy="'+(-12*s).toFixed(1)+'" r="'+(7*s).toFixed(1)+'"/><circle class="tc2" cx="-1.6" cy="'+(-14.2*s).toFixed(1)+'" r="'+(4.6*s).toFixed(1)+'"/></g>';
 }
+/* one decoration of the lot plan (lot.js), placed at the lot whose corner is (ox, oy) */
+function decoSVG(it,ox,oy,add,m){
+  var x=ox+it.x,y=oy+it.y,d=x+y;
+  if(it.k==='tree')add(d,treeSVG(x,y,it.s));
+  else if(it.k==='lamp')add(d+.05,lampSVG(x,y));
+  else if(it.k==='fountain')add(d,fountainSVG(x,y));
+  else if(it.k==='pool')add(d,poolSVG(ox+it.x0,oy+it.y0,ox+it.x1,oy+it.y1,0));
+  else if(it.k==='flowers')add(d,flowersSVG(ox+it.x0+.05,oy+it.y0+.05,ox+it.x1-.05,oy+it.y1-.05,it.seed));
+  else if(it.k==='statue')add(d,statueSVG(x,y));
+  else if(it.k==='bench')add(d,benchSVG(x,y));
+}
+function statueSVG(x,y){
+  var h=iso(x,y,12.5),r=iso(x,y,13);
+  return boxP(x-.2,y-.2,x+.2,y+.2,0,3,['st-l','st-r','st-t'])+boxP(x-.1,y-.1,x+.1,y+.1,3,10,['sf-l','sf-r','sf-t'])+'<circle class="sf-h" cx="'+h[0].toFixed(1)+'" cy="'+(h[1]-2).toFixed(1)+'" r="2.6"/>';
+}
+function benchSVG(x,y){
+  return boxP(x-.18,y-.28,x+.18,y+.28,0,2.2,['bn-l','bn-r','bn-t'])+boxP(x-.22,y-.28,x-.1,y+.28,2.2,5.6,['bn-l','bn-r','bn-t']);
+}
 function lampSVG(x,y){
   var p=iso(x,y,0);
   return '<g transform="translate('+p[0].toFixed(1)+' '+p[1].toFixed(1)+')"><line class="lp" x1="0" y1="0" x2="0" y2="-15"/><circle class="lamph" cy="-16" r="7"/><circle class="lamp" cy="-16" r="2.6" filter="url(#cglow)"/></g>';
@@ -457,7 +481,7 @@ function poolSVG(x0,y0,x1,y1,z){
 }
 function fountainSVG(x,y){
   var t=iso(x,y,9),b=iso(x,y,3);
-  return boxP(x-.4,y-.4,x+.4,y+.4,0,2.4,['pool-rl','pool-rr','pool-r'])+flatP(x-.32,y-.32,x+.32,y+.32,2.6,'pool-w')
+  return boxP(x-.3,y-.3,x+.3,y+.3,0,2.4,['pool-rl','pool-rr','pool-r'])+flatP(x-.23,y-.23,x+.23,y+.23,2.6,'pool-w')
    +'<line class="fnj" x1="'+b[0].toFixed(1)+'" y1="'+b[1].toFixed(1)+'" x2="'+t[0].toFixed(1)+'" y2="'+t[1].toFixed(1)+'"/><circle class="fnd" cx="'+(t[0]-3).toFixed(1)+'" cy="'+(t[1]+3).toFixed(1)+'" r="1.2"/><circle class="fnd" cx="'+(t[0]+3).toFixed(1)+'" cy="'+(t[1]+3).toFixed(1)+'" r="1.2"/><circle class="fnd" cx="'+t[0].toFixed(1)+'" cy="'+(t[1]-1).toFixed(1)+'" r="1.4"/>';
 }
 function flowersSVG(x0,y0,x1,y1,seed){
@@ -469,6 +493,16 @@ function fenceSVG(x0,y0,x1,y1){
   var o='',n=Math.max(2,Math.round(Math.hypot(x1-x0,y1-y0)/.38)),a=iso(x0,y0,5.5),b=iso(x1,y1,5.5);
   for(var i=0;i<=n;i++){var fx=x0+(x1-x0)*i/n,fy=y0+(y1-y0)*i/n,p=iso(fx,fy,0),q=iso(fx,fy,6);o+='<line class="fp" x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'"/>';}
   return o+'<line class="fr" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/>';
+}
+function dishSVG(cx,cy,z){
+  var t=iso(cx,cy,z+9),f=iso(cx+.18,cy+.18,z+15);
+  return boxP(cx-.1,cy-.1,cx+.1,cy+.1,z,z+6,['rb-l','rb-r','rb-t'])+'<ellipse class="dsh" cx="'+t[0].toFixed(1)+'" cy="'+t[1].toFixed(1)+'" rx="9" ry="5.5" transform="rotate(-24 '+t[0].toFixed(1)+' '+t[1].toFixed(1)+')"/><line class="dshf" x1="'+t[0].toFixed(1)+'" y1="'+t[1].toFixed(1)+'" x2="'+f[0].toFixed(1)+'" y2="'+f[1].toFixed(1)+'"/><circle class="dshh" cx="'+f[0].toFixed(1)+'" cy="'+f[1].toFixed(1)+'" r="1.4"/>';
+}
+function tankSVG(cx,cy,z){
+  var a=[[-.32,-.32],[.32,-.32],[-.32,.32],[.32,.32]],s='',pk=iso(cx,cy,z+25);
+  a.forEach(function(q){var p=iso(cx+q[0],cy+q[1],z),r=iso(cx+q[0]*.9,cy+q[1]*.9,z+10);s+='<line class="wtl" x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+r[0].toFixed(1)+'" y2="'+r[1].toFixed(1)+'"/>';});
+  var l=iso(cx-.4,cy+.4,z+10),r2=iso(cx+.4,cy-.4,z+10),b1=iso(cx-.4,cy+.4,z+19),b2=iso(cx+.4,cy-.4,z+19);
+  return s+boxP(cx-.4,cy-.4,cx+.4,cy+.4,z+10,z+19,['wt-l','wt-r','wt-t'])+'<polygon class="wt-c" points="'+pts([iso(cx-.46,cy+.46,z+19),iso(cx+.46,cy+.46,z+19),iso(cx+.46,cy-.46,z+19)])+' '+pk[0].toFixed(1)+','+pk[1].toFixed(1)+'"/>';
 }
 function helipadSVG(cx,cy,z){
   var ring=[],i;for(i=0;i<24;i++){var an=i/24*Math.PI*2;ring.push(iso(cx+Math.cos(an)*.78,cy+Math.sin(an)*.78,z+.3));}
@@ -529,6 +563,8 @@ function bldgSVG(m,x0,y0,x1,y1,idx,I){
   else if(rf==='roofpool'){s+=poolSVG(cx-.7,cy-.7,cx+.7,cy+.7,HT);top=HT+3;}
   else if(rf==='helipad'){s+=helipadSVG(cx,cy,HT);top=HT+3;}
   else if(rf==='solar'){s+=solarSVG(cx,cy,HT);top=HT+5;}
+  else if(rf==='dish'){s+=dishSVG(cx,cy,HT);top=HT+16;}
+  else if(rf==='tank'){s+=tankSVG(cx,cy,HT);top=HT+26;}
   else if(v===0){s+=boxP(cx-.3,cy-.3,cx+.3,cy+.3,HT,HT+7,['rb-l','rb-r','rb-t']);top=HT+7;}
   else if(v===1){var a=iso(cx,cy,HT),b=iso(cx,cy,HT+18);s+='<line class="ant" x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+b[0].toFixed(1)+'" y2="'+b[1].toFixed(1)+'"/><circle class="beacon" cx="'+b[0].toFixed(1)+'" cy="'+b[1].toFixed(1)+'" r="1.8"/>';top=HT+18;}
   else{s+=boxP(cx-.45,cy-.2,cx+.1,cy+.35,HT,HT+4,['rb-l','rb-r','rb-t']);s+=boxP(cx+.05,cy-.5,cx+.45,cy-.1,HT,HT+8,['rb-l','rb-r','rb-t']);top=HT+8;}
@@ -545,8 +581,10 @@ function islandLayer(C,R,P,ex,TH,I,deep){
   var sx0=-1.7,sy0=-1.7,sx1=XP1+3.5,sy1=Math.max(Y1+(deep?3.2:1.3),cy+3.3);
   var bot=-TH-8,g='',f='';
   function poly(cl,a){return '<polygon class="'+cl+'" points="'+pts(a)+'"/>';}
-  /* sea: a block with water-coloured sides and a few slow wave lines */
-  g+=poly('sea-l',[iso(sx0,sy1,SEA),iso(sx1,sy1,SEA),iso(sx1,sy1,bot),iso(sx0,sy1,bot)])+poly('sea-r',[iso(sx1,sy1,SEA),iso(sx1,sy0,SEA),iso(sx1,sy0,bot),iso(sx1,sy1,bot)])+poly('sea-t',[iso(sx0,sy0,SEA),iso(sx1,sy0,SEA),iso(sx1,sy1,SEA),iso(sx0,sy1,SEA)]);
+  /* sea: only its surface is drawn here (the water itself goes to the horizon, see backdropSVG), plus shallows and slow waves */
+  g+=poly('sea-t',[iso(sx0,sy0,SEA),iso(sx1,sy0,SEA),iso(sx1,sy1,SEA),iso(sx0,sy1,SEA)]);
+  var sh=function(d,c){return poly(c,[iso(-ex-rm-d,-ex-rm-d,SEA),iso(X1+rm+d,-ex-rm-d,SEA),iso(X1+rm+d,Y1+rm+d,SEA),iso(-ex-rm-d,Y1+rm+d,SEA)]);};
+  g+=sh(1.5,'shal2')+sh(.7,'shal1');
   for(var w=0;w<9;w++){
     var wx=sx0+.8+(hashStr('wx'+w)%1000)/1000*(sx1-sx0-2.4),wy=sy0+.8+(hashStr('wy'+w)%1000)/1000*(sy1-sy0-1.6);
     if(wx<X1+rm+.4&&wy<Y1+rm+.4&&wx>-rm-.4&&wy>-rm-.4)continue;
@@ -555,7 +593,13 @@ function islandLayer(C,R,P,ex,TH,I,deep){
   }
   /* island rim (sand), then the lawn slab sits on it */
   g+=poly('rim-l',[iso(-ex-rm,Y1+rm,RIM),iso(X1+rm,Y1+rm,RIM),iso(X1+rm,Y1+rm,SEA),iso(-ex-rm,Y1+rm,SEA)])+poly('rim-r',[iso(X1+rm,Y1+rm,RIM),iso(X1+rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,SEA),iso(X1+rm,Y1+rm,SEA)])+poly('rim-t',[iso(-ex-rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,RIM),iso(X1+rm,Y1+rm,RIM),iso(-ex-rm,Y1+rm,RIM)]);
-  g+='<polyline class="foam" points="'+pts([iso(-ex-rm,Y1+rm,SEA),iso(X1+rm,Y1+rm,SEA),iso(X1+rm,-ex-rm,SEA)])+'"/>';
+  g+='<polyline class="foam" points="'+pts([iso(-ex-rm,Y1+rm,SEA),iso(X1+rm,Y1+rm,SEA),iso(X1+rm,-ex-rm,SEA)])+'"/>'
+   +'<polyline class="foam" points="'+pts([iso(-ex-rm,Y1+rm,RIM),iso(-ex-rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,RIM)])+'"/>';
+  /* rocks on the back shore, away from the bridge and the piers */
+  [[.18,-ex-rm-.15,1],[.42,-ex-rm-.2,.7],[-ex-rm-.2,.55,.8],[-ex-rm-.15,.3,1.1]].forEach(function(r,i){
+    var rx=r[0]<1?r[0]*C*P:r[0],ry=r[1]<0?r[1]:(r[1]<1?r[1]*R*P:r[1]),sz=r[2];
+    g+=boxP(rx-.3*sz,ry-.25*sz,rx+.3*sz,ry+.25*sz,SEA,SEA+5*sz+i,['rk-l','rk-r','rk-t']);
+  });
   /* bridge: two pylons, deck, back rail (front rail is added after the deck) */
   var by0=cy-.55,by1=cy+.55;
   [X1+1.2,X1+3.0].forEach(function(px){g+=boxP(px-.12,by0+.1,px+.12,by1-.1,SEA,-3,['br-l','br-r','br-t']);});
@@ -601,7 +645,7 @@ function islandLayer(C,R,P,ex,TH,I,deep){
       +'<g class="plabel"><rect x="'+(lx[0]-21).toFixed(1)+'" y="'+(lx[1]-9).toFixed(1)+'" width="42" height="14" rx="7"/><text x="'+lx[0].toFixed(1)+'" y="'+(lx[1]+1.2).toFixed(1)+'" text-anchor="middle">'+esc(_t("Port"))+'</text></g></g>';
   }
   return {back:g,front:f,items:it,geo:{C:C,R:R,P:P,cy:cy,X1:X1,XP1:XP1,py0:py0,sx1:sx1,sy1:sy1},
-    left:iso(sx0,sy1,0)[0],right:iso(sx1,sy0,0)[0],bottom:iso(sx1,sy1,bot)[1],top:iso(sx0,sy0,SEA)[1]};
+    left:iso(sx0,sy1,0)[0],right:iso(sx1,sy0,0)[0],bottom:iso(sx1,sy1,SEA)[1]+34,top:iso(sx0,sy0,SEA)[1]};
 }
 function citySVG(mods,o){
   o=o||{};var I=!!o.interactive,P=CITY.P,F=CITY.F,items=[],ex=.35,minY=iso(-ex,-ex,0)[1];
@@ -622,16 +666,8 @@ function citySVG(mods,o){
         minY=Math.min(minY,iso(x0,y0,H)[1]-50);
         add((x0+x1+y0+y1)/2-.01,bldgSVG(m,x0,y0,x1,y1,slot,I&&act));
         var dc=m.d||{};
-        for(var q=0;q<(dc.tree||0)&&q<3;q++){var tp=[[P/2+.5,.7],[.7,P/2+.5],[P-.8,.9]][q];add(ox+tp[0]+oy+tp[1],treeSVG(ox+tp[0],oy+tp[1],1.05));}
-        if(dc.pool)add(ox+3.5+oy+2.2,poolSVG(ox+3.1,oy+1.5,ox+3.8,oy+2.9,0));
-        if(dc.fountain)add(ox+2.1+oy+3.5,fountainSVG(ox+2.1,oy+3.5));
-        if(dc.flowers){add(ox+.7+oy+1.7,flowersSVG(ox+.45,oy+1.2,ox+1.0,oy+2.2,hashStr(m.code)));add(ox+3.4+oy+3.2,flowersSVG(ox+2.6,oy+3.3,ox+3.4,oy+3.8,hashStr(m.code)>>3));}
+        LOT.plan(dc,hashStr(m.code+slot)).forEach(function(it){decoSVG(it,ox,oy,add,m);});
         if(dc.fence){add(ox+oy+P-.3+P-.3+.2,fenceSVG(ox+.3,oy+P-.3,ox+P-.3,oy+P-.3));add(ox+oy+P-.3+P-.3+.1,fenceSVG(ox+P-.3,oy+.3,ox+P-.3,oy+P-.3));}
-        if(dc.lamp){[[x0-.2,y1+.4],[x1+.4,y1+.4]].forEach(function(lp){add(lp[0]+lp[1]+.05,lampSVG(lp[0],lp[1]));});}
-        var hs=hashStr(m.code+slot);
-        [[.7,.7],[P-.7,.7],[.7,P-.7],[P-.7,P-.7]].forEach(function(sp,j){
-          if(j===3||((hs>>j)&1)) add(ox+sp[0]+oy+sp[1],treeSVG(ox+sp[0],oy+sp[1],.8+((hs>>(j+4))&3)*.12));
-        });
       } else {
         [[1.2,1.3],[3.0,1.0],[1.8,2.9],[3.2,3.1]].forEach(function(sp,j){add(ox+sp[0]+oy+sp[1],treeSVG(ox+sp[0],oy+sp[1],.9+(j%2)*.2));});
       }
@@ -642,6 +678,8 @@ function citySVG(mods,o){
   var ISL=o.island===false?null:islandLayer(C,R,P,ex,TH,I,multi);
   voyGeo=ISL?Object.assign({F:F},ISL.geo):null;
   if(ISL){left=ISL.left;right=ISL.right;bottom=ISL.bottom;minY=Math.min(minY,ISL.top);items=items.concat(ISL.items);}
+  var hz=ISL&&o.backdrop!==false?ISL.top-52:null;
+  if(hz!==null)minY=Math.min(minY,hz-82);
   var vb=[left-pad,minY-pad,right-left+2*pad,bottom-minY+2*pad];
   ui.cityVB=vb;
   /* where each district is on the screen (for focusing it) */
@@ -649,6 +687,7 @@ function citySVG(mods,o){
     var xa=a[0]-6,xb=b[0]+6,ya=t[1]-30,yb=u[1]+30;return {id:d.id,cx:(xa+xb)/2,cy:(ya+yb)/2,w:xb-xa,h:yb-ya};});
   if(I){ui.cityDist=dist;if(ui.cityAuto){ui.cityT=cityFocusT(state.activeSem);ui.cityAuto=false;}}
   var T=I?ui.cityT:{x:0,y:0,k:1},g='';
+  if(hz!==null)g+=backdropSVG(vb,hz);
   if(ISL)g+=ISL.back;
   g+='<polygon class="slab-l" points="'+pts([iso(X0,Y1,0),iso(X1,Y1,0),iso(X1,Y1,-TH),iso(X0,Y1,-TH)])+'"/><polygon class="slab-r" points="'+pts([iso(X1,Y1,0),iso(X1,Y0,0),iso(X1,Y0,-TH),iso(X1,Y1,-TH)])+'"/><polygon class="slab-t" points="'+pts([iso(X0,Y0,0),iso(X1,Y0,0),iso(X1,Y1,0),iso(X0,Y1,0)])+'"/>';
   dl.forEach(function(d,k){
@@ -660,9 +699,63 @@ function citySVG(mods,o){
   g+='<g id="deptg">'+items.sort(function(a,b){return a.d-b.d;}).map(function(it){return '<g data-d="'+it.d.toFixed(2)+'">'+it.html+'</g>';}).join('')+'</g>';
   if(multi)g+=waterfrontSVG(dl,R,P,ex);
   if(ISL)g+=ISL.front;
-  if(SCENE==='snow'){for(var fk=0;fk<46;fk++){var fx=(hashStr('f'+fk)%1000)/1000*C*P,fy=(hashStr('g'+fk)%1000)/1000*R*P,fp=iso(fx,fy,(hashStr('h'+fk)%60)+4);g+='<circle class="flake" style="animation-delay:-'+((fk%9)*.7).toFixed(1)+'s" cx="'+fp[0].toFixed(1)+'" cy="'+fp[1].toFixed(1)+'" r="'+(1+(fk%3)*.5)+'"/>';}}
   var nb=0;dl.forEach(function(d){if(d.active!==false)nb+=d.mods.length;});
-  return '<svg class="cityv sc-'+SCENE+(I&&T.k>=2.3?' zin':'')+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+_tf('Your semester as a city: {b} buildings, {l} of {t} floors have their lights on',{b:nb,l:lit,t:tot})+'"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
+  return '<svg class="cityv sc-'+SCENE+(I&&T.k>=2.3?' zin':'')+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+_tf('Your semester as a city: {b} buildings, {l} of {t} floors have their lights on',{b:nb,l:lit,t:tot})+'"><defs><linearGradient id="hzg" gradientUnits="userSpaceOnUse" x1="0" y1="'+(hz||0).toFixed(1)+'" x2="0" y2="'+((hz||0)+130).toFixed(1)+'"><stop class="hz0" offset="0"/><stop class="hz1" offset="1"/></linearGradient><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g>'+ambSVG(SCENE,vb,SCENE)+'</svg>';
+}
+/* ---- the far horizon: water all the way out, two low mountain ranges, a couple of tiny sailboats ---- */
+function ridgeSVG(key,xl,xr,hz,hMin,hMax,step,cls,capCls){
+  var p=[[xl,hz]],pk=[],x=xl,i=0;
+  while(x<xr){
+    var r=rnd(key+'|h|'+i),h=hMin+r*(hMax-hMin),w=step*(.7+rnd(key+'|w|'+i)*.6);
+    var vx=x+w*.5,vy=hz-h*(.28+rnd(key+'|v|'+i)*.2);
+    p.push([vx,vy]);pk.push({x:x+w,y:hz-h,l:[vx,vy],i:i,h:h});
+    p.push([x+w,hz-h]);x+=w;i++;
+    var nx=x+w*.5;p.push([nx,hz-h*.3]);pk[pk.length-1].r=[nx,hz-h*.3];x=nx;
+  }
+  p.push([x,hz]);
+  var o='<polygon class="'+cls+'" points="'+pts(p)+'"/>',tall=hMin+(hMax-hMin)*.55;
+  pk.forEach(function(q,k){
+    var nxt=q.r;
+    /* shadow side (the right slope) */
+    o+='<polygon class="mts" points="'+pts([[q.x,q.y],nxt,[q.x+(nxt[0]-q.x)*.35,hz],[q.x,hz]])+'"/>';
+    if(q.h>tall){
+      var lt=.7,a=[q.l[0]+(q.x-q.l[0])*lt,q.l[1]+(q.y-q.l[1])*lt],b=[q.x+(nxt[0]-q.x)*(1-lt),q.y+(nxt[1]-q.y)*(1-lt)];
+      o+='<polygon class="'+capCls+'" points="'+pts([[q.x,q.y],b,[q.x+(b[0]-q.x)*.45,q.y+(b[1]-q.y)*.75],[q.x,q.y+(a[1]-q.y)*.9],a])+'"/>';
+    }
+  });
+  return o;
+}
+function backdropSVG(vb,hz){
+  var xl=vb[0]-vb[2]*1.1,xr=vb[0]+vb[2]*2.1,yb=vb[1]+vb[3]*2.6,o='';
+  o+='<rect class="hzsea" x="'+xl.toFixed(0)+'" y="'+hz.toFixed(1)+'" width="'+(xr-xl).toFixed(0)+'" height="'+(yb-hz).toFixed(0)+'" fill="url(#hzg)"/>';
+  o+=ridgeSVG('mtb',xl,xr,hz+3,34,66,150,'mt1','mtc');
+  o+=ridgeSVG('mtf',xl,xr,hz+9,20,40,110,'mt2','mtc');
+  /* tiny far-away sailboats */
+  [[.28,.24,26],[.74,.5,40]].forEach(function(b,i){
+    var bx=vb[0]+vb[2]*b[0],by=hz+14+b[1]*30;
+    o+='<g class="fboat" style="animation-duration:'+b[2]+'s;animation-delay:-'+(i*9)+'s"><polygon class="fb-h" points="'+(bx-7)+','+by+' '+(bx+7)+','+by+' '+(bx+4)+','+(by+3)+' '+(bx-4)+','+(by+3)+'"/><polygon class="fb-s" points="'+bx+','+(by-1)+' '+bx+','+(by-12)+' '+(bx+6)+','+(by-1)+'"/></g>';
+  });
+  return o;
+}
+/* weather and mood over the whole picture: the particles live in the picture's own space, not on one building */
+var AMB={snow:{n:120,k:'flake'},blossom:{n:90,k:'petal'},autumn:{n:80,k:'leaf'},rain:{n:170,k:'drop'},firefly:{n:46,k:'fly'},desert:{n:50,k:'dust'},fog:{n:9,k:'mist'},sunset:{n:5,k:'gull'}};
+function ambSVG(scene,vb,seed){
+  var cf=AMB[scene];if(!cf)return '';
+  var x0=vb[0]-vb[2]*.4,W=vb[2]*1.8,y0=vb[1]-vb[3]*.15,H=vb[3]*1.4,o='<g class="amb" aria-hidden="true" pointer-events="none">';
+  function R(k,i){return rnd(seed+'|'+k+'|'+i);}
+  for(var i=0;i<cf.n;i++){
+    var x=x0+R('x',i)*W,y=y0+R('y',i)*H,dur=0,st='',el='';
+    if(cf.k==='flake'){dur=9+R('d',i)*8;st='--dx:'+(R('s',i)*50-25).toFixed(0)+'px;--dy:'+H.toFixed(0)+'px';el='<circle class="am-fl" cx="'+x.toFixed(0)+'" cy="'+y0.toFixed(0)+'" r="'+(1+R('r',i)*1.5).toFixed(1)+'"/>';}
+    else if(cf.k==='petal'){dur=11+R('d',i)*8;st='--dx:'+(40+R('s',i)*90).toFixed(0)+'px;--dy:'+H.toFixed(0)+'px';el='<ellipse class="am-pe" cx="'+x.toFixed(0)+'" cy="'+y0.toFixed(0)+'" rx="2.4" ry="1.3" transform="rotate('+(R('t',i)*160-80).toFixed(0)+' '+x.toFixed(0)+' '+y0.toFixed(0)+')"/>';}
+    else if(cf.k==='leaf'){dur=8+R('d',i)*7;st='--dx:'+(-60+R('s',i)*120).toFixed(0)+'px;--dy:'+H.toFixed(0)+'px';el='<polygon class="am-lf am-lf'+(i%3)+'" points="'+(x-2.6).toFixed(0)+','+y0.toFixed(0)+' '+x.toFixed(0)+','+(y0-1.8).toFixed(0)+' '+(x+2.6).toFixed(0)+','+y0.toFixed(0)+' '+x.toFixed(0)+','+(y0+1.8).toFixed(0)+'"/>';}
+    else if(cf.k==='drop'){dur=.8+R('d',i)*.6;st='--dx:'+(-H*.22).toFixed(0)+'px;--dy:'+H.toFixed(0)+'px';el='<line class="am-dr" x1="'+(x+H*.22*0).toFixed(0)+'" y1="'+y0.toFixed(0)+'" x2="'+(x-2.5).toFixed(1)+'" y2="'+(y0+9).toFixed(0)+'"/>';}
+    else if(cf.k==='fly'){dur=5+R('d',i)*6;st='--dx:'+(R('s',i)*70-35).toFixed(0)+'px;--dy:'+(R('t',i)*50-25).toFixed(0)+'px;--bl:'+(1.6+R('b',i)*2).toFixed(1)+'s';el='<circle class="am-ff" cx="'+x.toFixed(0)+'" cy="'+(vb[1]+vb[3]*(.35+R('y',i)*.6)).toFixed(0)+'" r="1.7"/>';}
+    else if(cf.k==='dust'){dur=7+R('d',i)*6;st='--dx:'+(W*.7).toFixed(0)+'px;--dy:'+(R('s',i)*14-7).toFixed(0)+'px';el='<line class="am-du" x1="'+x0.toFixed(0)+'" y1="'+y.toFixed(0)+'" x2="'+(x0+10+R('r',i)*14).toFixed(0)+'" y2="'+y.toFixed(0)+'"/>';}
+    else if(cf.k==='mist'){dur=40+R('d',i)*40;st='--dx:'+(vb[2]*.5).toFixed(0)+'px;--dy:0px';el='<ellipse class="am-mi" cx="'+(x0+R('x',i)*W*.7).toFixed(0)+'" cy="'+(vb[1]+vb[3]*(.3+R('y',i)*.65)).toFixed(0)+'" rx="'+(130+R('r',i)*120).toFixed(0)+'" ry="'+(14+R('s',i)*14).toFixed(0)+'"/>';}
+    else if(cf.k==='gull'){dur=34+R('d',i)*24;st='--dx:'+(W*.6).toFixed(0)+'px;--dy:'+(R('s',i)*40-20).toFixed(0)+'px';var gy=vb[1]+vb[3]*(.06+R('y',i)*.18);el='<polyline class="am-gl" points="'+(x0).toFixed(0)+','+(gy).toFixed(0)+' '+(x0+4).toFixed(0)+','+(gy-3).toFixed(0)+' '+(x0+8).toFixed(0)+','+gy.toFixed(0)+' '+(x0+12).toFixed(0)+','+(gy-3).toFixed(0)+' '+(x0+16).toFixed(0)+','+gy.toFixed(0)+'"/>';}
+    o+='<g class="am am-'+cf.k+'" style="'+st+';animation-duration:'+dur.toFixed(1)+'s;animation-delay:-'+(R('l',i)*dur).toFixed(1)+'s">'+el+'</g>';
+  }
+  return o+'</g>';
 }
 /* the south shore of the island: a pier, a beach spot and the name of each district (only when several semesters share the island) */
 function waterfrontSVG(dl,R,P,ex){
@@ -708,7 +801,7 @@ function cityGoto(to){
 function cityBox(mods,o){
   o=o||{};var I=!!o.interactive,lit=0,tot=0;
   mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});});
-  var cls='city'+(o.full?' full':'')+(o.build?' build':'')+(I?'':' static');
+  var cls='city'+(o.full?' full':'')+(o.build?' build':'')+(I?'':' static')+' bg-'+(o.scene||sceneKey());
   var h='<section class="'+cls+'" aria-label="'+esc(o.label||_t("Your district"))+'"><div class="cityvp"'+(I?' data-pz="1"':'')+'>'+citySVG(mods,o)+'</div>';
   if(o.title) h+='<div class="cstat"><span>'+esc(o.title)+'</span><b>'+_tf('{l} of {t} floors lit',{l:lit,t:tot})+'</b><i class="cbar"><u style="width:'+(tot?Math.round(lit/tot*100):0)+'%"></u></i>'+(o.coins!==undefined?'<button class="ccoin" data-a="go" data-to="#/shop"><i class="cdot"></i>'+o.coins+_t(" coins")+(o.rent?' · +'+o.rent+_t("/day · next in ")+cdSpan((state.rentAt||Date.now())+864e5,true):'')+(_t(" · Shop")+"</button>"):'')+'</div>';
   if(I) h+=("<div class=\"cctl\"><button class=\"cbtn\" data-a=\"czoom\" data-d=\"1\" aria-label=\""+_t("Zoom in")+"\">＋</button><button class=\"cbtn\" data-a=\"czoom\" data-d=\"-1\" aria-label=\""+_t("Zoom out")+"\">−</button><button class=\"cbtn\" data-a=\"creset\" aria-label=\""+_t("Reset the view")+"\">⌖</button>")
@@ -1684,38 +1777,90 @@ function finDone(m){
   fp.step='result';save();
 }
 
-function shopItem(name,desc,price,control){return '<div class="shopitem"><div class="grow"><div class="t">'+name+'</div><div class="s">'+desc+'</div></div><div class="shopbuy">'+(price?'<span class="price"><i class="cdot"></i>'+price+'</span>':'')+control+'</div></div>';}
+var SHOP_ICON={
+  tree:'<circle cx="12" cy="9" r="6"/><rect x="11" y="14" width="2" height="7"/>',
+  lamp:'<rect x="11" y="10" width="2" height="11"/><circle cx="12" cy="7" r="4.2"/>',
+  pool:'<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M6 12q2-2 4 0t4 0 4 0" fill="none" stroke="#fff" stroke-width="1.6"/>',
+  fountain:'<rect x="5" y="16" width="14" height="4" rx="1.5"/><path d="M12 15V6M12 6q-3 1-4 5M12 6q3 1 4 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  flowers:'<circle cx="7" cy="8" r="3"/><circle cx="14" cy="6" r="3"/><circle cx="17" cy="12" r="3"/><path d="M7 11v9M14 9v11M17 15v5" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+  fence:'<rect x="3" y="7" width="3" height="13"/><rect x="9" y="7" width="3" height="13"/><rect x="15" y="7" width="3" height="13"/><rect x="2" y="10" width="19" height="2"/><rect x="2" y="15" width="19" height="2"/>',
+  statue:'<rect x="6" y="17" width="12" height="4"/><rect x="10" y="9" width="4" height="8"/><circle cx="12" cy="6" r="3"/>',
+  bench:'<rect x="3" y="11" width="18" height="3" rx="1"/><rect x="4" y="5" width="16" height="4" rx="1"/><rect x="5" y="14" width="2" height="6"/><rect x="17" y="14" width="2" height="6"/>',
+  garden:'<rect x="4" y="15" width="16" height="5" rx="1"/><circle cx="9" cy="10" r="4"/><circle cx="15" cy="11" r="3.5"/>',
+  roofpool:'<rect x="3" y="12" width="18" height="8" rx="2"/><rect x="2" y="9" width="20" height="3"/>',
+  helipad:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 7v10M15 7v10M9 12h6" stroke="currentColor" stroke-width="2.2" fill="none"/>',
+  solar:'<path d="M3 17l3-9h12l3 9z"/><path d="M8 8l-1 9M12 8v9M16 8l1 9M5 12.5h14" stroke="#fff" stroke-width=".9" fill="none"/>',
+  dish:'<ellipse cx="12" cy="10" rx="8" ry="5" transform="rotate(-24 12 10)"/><rect x="11" y="12" width="2" height="8"/><circle cx="17" cy="5" r="1.6"/>',
+  tank:'<rect x="6" y="6" width="12" height="8" rx="1.5"/><path d="M6 6l6-4 6 4z"/><path d="M8 14l-2 7M16 14l2 7" stroke="currentColor" stroke-width="1.6"/>',
+  paint:'<path d="M12 3c3 4 6 7 6 11a6 6 0 0 1-12 0c0-4 3-7 6-11z"/>',
+  shield:'<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/>'
+};
+function shopIcon(k){return '<span class="sicon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor">'+(SHOP_ICON[k]||'')+'</svg></span>';}
+function shopItem(name,desc,price,control,icon){return '<div class="shopitem">'+(icon?shopIcon(icon):'')+'<div class="grow"><div class="t">'+name+'</div><div class="s">'+desc+'</div></div><div class="shopbuy">'+(price?'<span class="price"><i class="cdot"></i>'+price+'</span>':'')+control+'</div></div>';}
+function tryDeco(d,t){
+  d=Object.assign({},d);if(!t||!t.item)return d;var k=t.item;
+  if(k==='tree')d.tree=Math.min(3,(d.tree|0)+1);
+  else if(['lamp','pool','fountain','flowers','fence','statue','bench'].indexOf(k)>=0)d[k]=true;
+  else if(['garden','roofpool','helipad','solar','dish','tank'].indexOf(k)>=0){d.roof=k;delete d.garden;}
+  else if(k==='paint')d.hue=t.hue;
+  return d;
+}
 function vShop(){
   var sem=curSem();if(!sem)return vWelcome();
-  var mods=sem.modules;if(!ui.shopMod||!mods.some(function(x){return x.id===ui.shopMod;}))ui.shopMod=mods[0].id;
-  var sm=M(ui.shopMod),d=state.deco[sm.id]||{},co=state.coins;
+  var mods=sem.modules,tab=ui.shopTab||'bld',co=state.coins;
+  if(!ui.shopMod||!mods.some(function(x){return x.id===ui.shopMod;}))ui.shopMod=mods[0].id;
+  var sm=M(ui.shopMod),d=state.deco[sm.id]||{},tr=ui.shopTry&&ui.shopTry.mod===sm.id?ui.shopTry:null;
   function bb(item,label,off,extra){return '<button class="btn small" data-a="buy" data-item="'+item+'" '+(extra||'')+(off?' disabled':'')+'>'+label+'</button>';}
+  function tryB(item,extra){var on=tr&&tr.item===item&&(!extra||tr.hue===+extra);return '<button class="btn small ghost" data-a="shoptry" data-item="'+item+'"'+(extra?' data-hue="'+extra+'"':'')+' aria-pressed="'+(on?'true':'false')+'">'+(on?_t("Previewing"):_t("Try"))+'</button>';}
+  function need(p){return !canPay(p)?'<span class="foot need">'+_tf('{n} more coins needed',{n:p-co})+'</span>':'';}
   var h=("<header class=\"stack\"><p class=\"eyebrow\">"+_t("Shop")+"</p><h1 tabindex=\"-1\" id=\"h1\">"+_t("Decorate your city")+"</h1><p class=\"lede\">"+_t("Earn coins by lighting floors, and from the rent your guests pay each day. Everything here is for looks, except the shield.")+"</p><div class=\"coinline\"><i class=\"cdot\"></i><b>")+co+(_t(" coins")+"</b><span>"+_t("Rent right now: +"))+rentPerDay()+(_t(" a day")+"</span></div></header>");
-  h+=("<label class=\"f\">"+_t("Place items at")+"<select data-c=\"shopmod\">")+mods.map(function(x){return '<option value="'+x.id+'"'+(x.id===sm.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>';
-  h+='<div id="shopcity">'+cityBox(cityMods(sem).filter(function(x){return x.id===sm.id;}),{interactive:false,legend:false,island:false,label:_t("Your building")})+'</div>';
-  function own(k,t,desc,price){return shopItem(t,desc,price,d[k]?("<span class=\"foot\">"+_t("Owned")+"</span>"):bb(k,_t("Buy"),!canPay(price)));}
-  function roof(k,t,desc,price){var on=roofOf(d)===k;return shopItem(t,desc,price,on?("<span class=\"foot\">"+_t("On the roof")+"</span>"):bb(k,roofOf(d)?_t("Swap"):_t("Buy"),!canPay(price)));}
-  var c=esc(sm.code),sk=sceneKey();
-  h+=("<section class=\"stack\"><h3>"+_t("Around "))+c+'</h3>'
-   +shopItem(_t("Tree"),_t("Plant a tree next to ")+c+' ('+(d.tree||0)+' of 3).',PRICE.tree,bb('tree',_t("Plant"),!canPay(PRICE.tree)||(d.tree||0)>=3))
-   +own('lamp',_t("Street lamps"),_t("Two glowing lamps in front of ")+c+'.',PRICE.lamp)
-   +own('pool',_t("Swimming pool"),_t("A pool in the garden of ")+c+'.',PRICE.pool)
-   +own('fountain',_t("Fountain"),_t("A small fountain at the front door."),PRICE.fountain)
-   +own('flowers',_t("Flower beds"),_t("Colourful flower beds around the garden."),PRICE.flowers)
-   +own('fence',_t("Fence"),_t("A low white fence around the plot."),PRICE.fence)
-   +("<h3>"+_t("On the roof of "))+c+'</h3>'
-   +roof('garden',_t("Rooftop garden"),_t("Green planters and small trees."),PRICE.garden)
-   +roof('roofpool',_t("Rooftop pool"),_t("A pool with a view. Swapping replaces the current roof item."),PRICE.roofpool)
-   +roof('helipad',_t("Helipad"),_t("A landing pad for important guests."),PRICE.helipad)
-   +roof('solar',_t("Solar panels"),_t("Two rows of panels catching the moonlight."),PRICE.solar)
-   +("<h3>"+_t("Colour")+"</h3>")
-   +shopItem(_t("Paint"),_t("Repaint ")+c+_t(" in another colour."),PRICE.paint,'<div class="swatches">'+[20,45,95,165,215,270,330].map(function(hu){return '<button class="sw'+(d.hue===hu?' on':'')+'" style="background:hsl('+hu+' 45% 48%)" data-a="buy" data-item="paint" data-hue="'+hu+("\" aria-label=\""+_t("Paint in colour "))+hu+'" '+(!canPay(PRICE.paint)?'disabled':'')+'></button>';}).join('')+(d.hue!=null?("<button class=\"btn small ghost\" data-a=\"buy\" data-item=\"unpaint\">"+_t("Original")+"</button>"):'')+'</div>')
-   +("<h3>"+_t("Scenery for the whole district")+"</h3><p class=\"foot\">"+_t("Buy a look once, then switch between the ones you own for free.")+"</p>")
-   +Object.keys(SCENES).map(function(k){var owned=k==='park'||state.sceneOwn[k];return shopItem(SCENES[k],k==='park'?_t("The default look."):_t("Changes the ground, the trees and the mood of the district."),owned?0:PRICE.scene,sk===k?("<span class=\"foot\">"+_t("In use")+"</span>"):'<button class="btn small" data-a="buy" data-item="scene" data-scene="'+k+'" '+(!owned&&!canPay(PRICE.scene)?'disabled':'')+'>'+(owned?_t("Use"):_t("Buy"))+'</button>');}).join('')
-   +("<h3>"+_t("Useful")+"</h3>")
-   +shopItem(_t("Shield"),_t("Saves one fading light, any floor, without a check. You can hold 2 (")+state.shields+_t(" now)."),PRICE.shield,bb('shield',_t("Buy"),!canPay(PRICE.shield)||state.shields>=2))
-   +'</section>'
-   +("<section class=\"card stack\"><h3>"+_t("How coins work")+"</h3><p class=\"lede\">"+_t("First light on a floor +10. Saving a fading light +5. A week lit in every module +15. A finished building +50. Each lit floor pays 1 coin of rent a day (up to 25), stored for 3 days at most. Floors you keep on for good pay no rent.")+"</p></section>")+foot();
+  h+='<div class="shoptabs" role="group" aria-label="'+_t("Shop sections")+'">'+[['bld',_t("For buildings")],['look',_t("Island looks")],['use',_t("Useful")]].map(function(t){return '<button class="chip fchip" data-a="shoptab" data-tab="'+t[0]+'" aria-pressed="'+(tab===t[0]?'true':'false')+'">'+t[1]+'</button>';}).join('')+'</div>';
+  if(tab==='bld'){
+    h+=("<label class=\"f\">"+_t("Place items at")+"<select data-c=\"shopmod\">")+mods.map(function(x){return '<option value="'+x.id+'"'+(x.id===sm.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>';
+    var pm=cityMods(sem).filter(function(x){return x.id===sm.id;});
+    if(tr){pm.forEach(function(x){x.d=tryDeco(x.d,tr);if(tr.item==='paint')x.h=tr.hue;});}
+    h+='<div id="shopcity">'+cityBox(pm,{interactive:false,legend:false,island:false,label:_t("Your building")})+'</div>';
+    if(tr)h+='<p class="foot tryline" role="status">'+_t("Previewing on ")+esc(sm.code)+_t(". Nothing is bought yet.")+' <button class="link" data-a="shoptry" data-item="">'+_t("Stop previewing")+'</button></p>';
+    var c=esc(sm.code);
+    function own(k,t,desc,price){return shopItem(t,desc,d[k]?0:price,d[k]?("<span class=\"foot\">"+_t("Owned")+"</span>"):tryB(k)+bb(k,_t("Buy"),!canPay(price))+(canPay(price)?'':need(price)),k);}
+    function roof(k,t,desc,price){var on=roofOf(d)===k;return shopItem(t,desc,on?0:price,on?("<span class=\"foot\">"+_t("On the roof")+"</span>"):tryB(k)+bb(k,roofOf(d)?_t("Swap"):_t("Buy"),!canPay(price))+(canPay(price)?'':need(price)),k);}
+    h+=("<section class=\"stack\"><h3>"+_t("Around "))+c+'</h3>'
+     +shopItem(_t("Tree"),_t("Plant a tree next to ")+c+' ('+(d.tree||0)+' of 3).',(d.tree||0)>=3?0:PRICE.tree,((d.tree||0)>=3?'<span class="foot">'+_t("All planted")+'</span>':tryB('tree')+bb('tree',_t("Plant"),!canPay(PRICE.tree))+(canPay(PRICE.tree)?'':need(PRICE.tree))),'tree')
+     +own('lamp',_t("Street lamps"),_t("Two glowing lamps in front of ")+c+'.',PRICE.lamp)
+     +own('pool',_t("Swimming pool"),_t("A pool in the garden of ")+c+'.',PRICE.pool)
+     +own('fountain',_t("Fountain"),_t("A small fountain at the front door."),PRICE.fountain)
+     +own('flowers',_t("Flower beds"),_t("A colourful flower bed next to the entrance."),PRICE.flowers)
+     +own('statue',_t("Statue"),_t("A stone statue on a pedestal."),PRICE.statue)
+     +own('bench',_t("Bench"),_t("A wooden bench in a quiet corner."),PRICE.bench)
+     +own('fence',_t("Fence"),_t("A low white fence around the plot."),PRICE.fence)
+     +("<h3>"+_t("On the roof of "))+c+'</h3>'
+     +roof('garden',_t("Rooftop garden"),_t("Green planters and small trees."),PRICE.garden)
+     +roof('roofpool',_t("Rooftop pool"),_t("A pool with a view. Swapping replaces the current roof item."),PRICE.roofpool)
+     +roof('helipad',_t("Helipad"),_t("A landing pad for important guests."),PRICE.helipad)
+     +roof('solar',_t("Solar panels"),_t("Two rows of panels catching the moonlight."),PRICE.solar)
+     +roof('dish',_t("Satellite dish"),_t("A dish pointing at the stars."),PRICE.dish)
+     +roof('tank',_t("Water tower"),_t("A little wooden water tower."),PRICE.tank)
+     +("<h3>"+_t("Colour")+"</h3>")
+     +shopItem(_t("Paint"),_t("Repaint ")+c+_t(" in another colour."),PRICE.paint,'<div class="swatches">'+[20,45,95,165,215,270,330].map(function(hu){return '<button class="sw'+(d.hue===hu?' on':'')+(tr&&tr.item==='paint'&&tr.hue===hu?' try':'')+'" style="background:hsl('+hu+' 45% 48%)" data-a="shoptry" data-item="paint" data-hue="'+hu+("\" aria-label=\""+_t("Preview colour "))+hu+'"></button>';}).join('')+(d.hue!=null?("<button class=\"btn small ghost\" data-a=\"buy\" data-item=\"unpaint\">"+_t("Original")+"</button>"):'')+'</div>'+(tr&&tr.item==='paint'?bb('paint',_t("Buy this colour"),!canPay(PRICE.paint),'data-hue="'+tr.hue+'"'):'')+(canPay(PRICE.paint)?'':need(PRICE.paint)),'paint')
+     +'</section>';
+  }
+  else if(tab==='look'){
+    var sk=sceneKey(),pv=SCENES[ui.shopPrev]?ui.shopPrev:'';
+    var dls=state.sems.length>1?state.sems.map(function(x){return {id:x.id,name:x.name,mods:cityMods(x),active:x.id===sem.id};}):null;
+    h+=("<p class=\"foot\">"+_t("Buy a look once, then switch between the ones you own for free. A look covers the whole island, with its weather.")+"</p>");
+    h+='<div id="shopcity">'+cityBox(cityMods(sem),{interactive:false,legend:false,scene:pv||sk,districts:dls,label:_t("Your island")})+'</div>';
+    if(pv)h+='<p class="foot tryline" role="status">'+_t("Previewing ")+esc(sceneName(pv))+_t(". Nothing is bought yet.")+' <button class="link" data-a="shopprev" data-scene="">'+_t("Stop previewing")+'</button></p>';
+    h+='<section class="stack">'+Object.keys(SCENES).map(function(k){
+      var owned=k==='park'||state.sceneOwn[k],inuse=sk===k,pr=owned?0:PRICE.scene;
+      var ctl=(inuse?("<span class=\"foot\">"+_t("In use")+"</span>"):((pv===k?'':'<button class="btn small ghost" data-a="shopprev" data-scene="'+k+'">'+_t("Preview")+'</button>')+'<button class="btn small" data-a="buy" data-item="scene" data-scene="'+k+'" '+(!owned&&!canPay(PRICE.scene)?'disabled':'')+'>'+(owned?_t("Use"):_t("Buy"))+'</button>'+(!owned&&!canPay(PRICE.scene)?need(PRICE.scene):'')));
+      return '<div class="shopitem"><span class="city static scthumb bg-'+k+'" aria-hidden="true"></span><div class="grow"><div class="t">'+esc(sceneName(k))+'</div><div class="s">'+esc(sceneInfo(k))+'</div></div><div class="shopbuy">'+(pr?'<span class="price"><i class="cdot"></i>'+pr+'</span>':'')+ctl+'</div></div>';
+    }).join('')+'</section>';
+  }
+  else {
+    h+='<section class="stack"><h3>'+_t("Useful")+'</h3>'
+     +shopItem(_t("Shield"),_t("Saves one fading light, any floor, without a check. You can hold 2 (")+state.shields+_t(" now)."),PRICE.shield,bb('shield',_t("Buy"),!canPay(PRICE.shield)||state.shields>=2)+(canPay(PRICE.shield)?'':need(PRICE.shield)),'shield')+'</section>';
+  }
+  h+=("<section class=\"card stack\"><h3>"+_t("How coins work")+"</h3><p class=\"lede\">"+_t("First light on a floor +10. Saving a fading light +5. A week lit in every module +15. A finished building +50. Each lit floor pays 1 coin of rent a day (up to 25), stored for 3 days at most. Floors you keep on for good pay no rent.")+"</p></section>")+foot();
   return h;
 }
 function vDeadlines(){
@@ -2378,14 +2523,17 @@ document.addEventListener('click',function(e){
   if(a==='go'){go(b.dataset.to);}
   else if(a==='lang'){setLang(b.dataset.l);render(false);}
   else if(a==='czoom'){var cv=ui.cityVB;if(cv){ui.cityT=zoomAt({x:ui.cityT.x,y:ui.cityT.y,k:ui.cityT.k},[cv[0]+cv[2]/2,cv[1]+cv[3]/2],ui.cityT.k*(+b.dataset.d>0?1.4:1/1.4));applyCity();}}
+  else if(a==='shoptab'){ui.shopTab=b.dataset.tab;ui.shopTry=null;ui.shopPrev='';render();}
+  else if(a==='shoptry'){ui.shopTry=b.dataset.item?{item:b.dataset.item,hue:+b.dataset.hue||0,mod:ui.shopMod}:null;render();}
+  else if(a==='shopprev'){ui.shopPrev=b.dataset.scene||'';render();}
   else if(a==='buy'){
     var it=b.dataset.item,sm2=M(ui.shopMod),dd;
     if(it==='unpaint'){if(sm2&&state.deco[sm2.id]){delete state.deco[sm2.id].hue;save();render();}return;}
     if(it==='scene'){
-      var sk2=b.dataset.scene,sem2=curSem();if(!sem2||!SCENES[sk2])return;
-      if(sk2==='park'||state.sceneOwn[sk2]){state.scenery[sem2.id]=sk2;save();render();return;}
+      var sk2=b.dataset.scene;if(!SCENES[sk2])return;
+      if(sk2==='park'||state.sceneOwn[sk2]){state.scenery['*']=sk2;ui.shopPrev='';save();render();return;}
       if(!canPay(PRICE.scene)){toast(_t("Not enough coins yet."));return;}
-      pay(PRICE.scene);state.sceneOwn[sk2]=true;state.scenery[sem2.id]=sk2;save();render();toast(_t("Your district has a new look."));return;
+      pay(PRICE.scene);state.sceneOwn[sk2]=true;state.scenery['*']=sk2;ui.shopPrev='';save();render();toast(_t("Your island has a new look."));return;
     }
     var cost=PRICE[it];if(!cost)return;
     if(!canPay(cost)){toast(_t("Not enough coins yet."));return;}
@@ -2393,11 +2541,11 @@ document.addEventListener('click',function(e){
     else{
       if(!sm2)return;dd=state.deco[sm2.id]=state.deco[sm2.id]||{};
       if(it==='tree'){if((dd.tree||0)>=3){toast(_t("This building has all its trees."));return;}dd.tree=(dd.tree||0)+1;}
-      else if(['lamp','pool','fountain','flowers','fence'].indexOf(it)>=0){if(dd[it])return;dd[it]=true;}
-      else if(['garden','roofpool','helipad','solar'].indexOf(it)>=0){if(roofOf(dd)===it)return;dd.roof=it;delete dd.garden;}
+      else if(['lamp','pool','fountain','flowers','fence','statue','bench'].indexOf(it)>=0){if(dd[it])return;dd[it]=true;}
+      else if(['garden','roofpool','helipad','solar','dish','tank'].indexOf(it)>=0){if(roofOf(dd)===it)return;dd.roof=it;delete dd.garden;}
       else if(it==='paint'){dd.hue=+b.dataset.hue;}
     }
-    pay(cost);save();render();toast(_t("Bought. It is already in your city."));
+    pay(cost);ui.shopTry=null;save();render();toast(_t("Bought. It is already in your city."));
   }
   else if(a==='shield'){var sk=b.dataset.k,sli=litInfo(sk);if(state.shields>0&&sli&&sli.state==='fading'){state.shields--;state.lit[sk]=Date.now();save();render();toast(_t("Shield used. The light is back to full."));}}
   else if(a==='tcoinsset'){if(!isAdminNow())return;var inp=document.getElementById('admcoins'),nv=Math.floor(+(inp&&inp.value));if(!isFinite(nv)||nv<0||nv>99999999){toast(_t("Enter a number from 0 to 99,999,999."));return;}state.coins=nv;save();render();toast(_t("Coins: ")+state.coins);}
@@ -2582,7 +2730,7 @@ document.addEventListener('change',function(e){
   if(c==='sem'){if(t.value==='__new'){ui.setup=null;go('#/setup');}else{state.activeSem=t.value;ui.cityAll=false;save();render();cityGoto(cityFocusT(state.activeSem));}}
   else if(c==='seen'){if(t.checked)state.seen[t.dataset.id]=true;else delete state.seen[t.dataset.id];save();render();}
   else if(c==='dead'){if(t.checked)state.tasksDone[t.dataset.id]=true;else delete state.tasksDone[t.dataset.id];save();render();}
-  else if(c==='shopmod'){ui.shopMod=t.value;render();}
+  else if(c==='shopmod'){ui.shopMod=t.value;ui.shopTry=null;render();}
   else if(c==='pin'){var pk=t.dataset.k;if(t.checked)state.pin[pk]=true;else delete state.pin[pk];save();render();toast(t.checked?_t("Pinned. This light stays on and pays no rent."):_t("Unpinned. The light follows the normal rules again."));}
   else if(c==='aiopt'){state.aiOpt=t.checked;save();}
   else if(c==='unl'){if(!isAdminNow())return;try{if(t.checked)localStorage.setItem('booklyn:unl','1');else localStorage.removeItem('booklyn:unl');}catch(e){}if(t.checked&&state.coins<999999){state.coins=999999;save();}render();toast(t.checked?_t("Unlimited coins on."):_t("Unlimited coins off."));}

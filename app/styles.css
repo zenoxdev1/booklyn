@@ -480,3 +480,79 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .cityv .dlabel text{fill:#cfd3ee;font:600 9.5px system-ui,sans-serif}
 .cityv .dlabel.on rect{stroke:#ffd166;stroke-width:1}.cityv .dlabel.on text{fill:#ffd166}
 .cityrow{margin-top:10px}
+/* decorations */
+.cityv .st-t{fill:#cfd3e4}.cityv .st-l{fill:#9aa0ba}.cityv .st-r{fill:#7a809c}
+.cityv .sf-t{fill:#e6e9f4}.cityv .sf-l{fill:#c3c8dc}.cityv .sf-r{fill:#9fa5bf}.cityv .sf-h{fill:#e6e9f4;stroke:#9fa5bf;stroke-width:.6}
+.cityv .bn-t{fill:#b98a58}.cityv .bn-l{fill:#8d6639}.cityv .bn-r{fill:#6d4c2a}
+.cityv .dsh{fill:#dfe3f2;stroke:#8d93ad;stroke-width:.8}.cityv .dshf{stroke:#8d93ad;stroke-width:.8}.cityv .dshh{fill:#e8674f}
+.cityv .wtl{stroke:#6a5a48;stroke-width:1.2}.cityv .wt-t{fill:#b9764f}.cityv .wt-l{fill:#94583a}.cityv .wt-r{fill:#744530}.cityv .wt-c{fill:#7a4630;stroke:#4a2a1e;stroke-width:.5}
+/* horizon, mountains, shallows */
+.cityv .hz0{stop-color:#5f78b0}.cityv .hz1{stop-color:#1f4b7a}
+.cityv.sc-snow .hz1{stop-color:#38557f}.cityv.sc-snow .hz0{stop-color:#7f93c0}
+.cityv.sc-desert .hz1{stop-color:#1f7b86}.cityv.sc-desert .hz0{stop-color:#d9a36a}
+.cityv.sc-autumn .hz1{stop-color:#2b4468}.cityv.sc-autumn .hz0{stop-color:#8c6a62}
+.cityv.sc-blossom .hz1{stop-color:#2f5f7f}.cityv.sc-blossom .hz0{stop-color:#a8749b}
+.cityv.sc-sunset .hz0{stop-color:#e59a62}.cityv.sc-sunset .hz1{stop-color:#2d4f7e}
+.cityv.sc-rain .hz1{stop-color:#2a3f5c}.cityv.sc-rain .hz0{stop-color:#59698a}
+.cityv.sc-fog .hz0{stop-color:#8d9bb8}.cityv.sc-fog .hz1{stop-color:#3e5878}
+.cityv .mt1{fill:#4a5a9a;stroke:#1a2050;stroke-width:1.3;stroke-linejoin:round}
+.cityv .mt2{fill:#37457f;stroke:#141a44;stroke-width:1.3;stroke-linejoin:round}
+.cityv .mts{fill:#10163f;opacity:.28;stroke:none}
+.cityv .mtc{fill:#eef2ff;stroke:#1a2050;stroke-width:.9;stroke-linejoin:round}
+.cityv.sc-autumn .mt1{fill:#7a5a64}.cityv.sc-autumn .mt2{fill:#5e4552}
+.cityv.sc-blossom .mt1{fill:#7a6aa8}.cityv.sc-blossom .mt2{fill:#5f5390}
+.cityv.sc-snow .mt1{fill:#7487b8}.cityv.sc-snow .mt2{fill:#5a6d9f}
+.cityv.sc-desert .mt1{fill:#b0785a}.cityv.sc-desert .mt2{fill:#8a5a45}
+.cityv.sc-sunset .mt1{fill:#8a5a86}.cityv.sc-sunset .mt2{fill:#6a4474}
+.cityv.sc-rain .mt1,.cityv.sc-fog .mt1{fill:#58648a}.cityv.sc-rain .mt2,.cityv.sc-fog .mt2{fill:#454f76}
+.cityv.sc-fog .mt1{opacity:.7}.cityv.sc-fog .mt2{opacity:.85}
+.cityv .fb-h{fill:#2b2438}.cityv .fb-s{fill:#f2efe6}
+.cityv .fboat{animation:fboat 30s ease-in-out infinite alternate}
+@keyframes fboat{from{transform:translateX(-30px)}to{transform:translateX(38px)}}
+.cityv .shal1{fill:#6fb4e8;opacity:.16}.cityv .shal2{fill:#6fb4e8;opacity:.1}
+.cityv .rk-t{fill:#8a8f9e}.cityv .rk-l{fill:#6a6f80}.cityv .rk-r{fill:#4d5163}
+/* weather over the whole island */
+.cityv .amb{pointer-events:none}
+.cityv .am{animation-name:ambmove;animation-timing-function:linear;animation-iteration-count:infinite}
+@keyframes ambmove{from{transform:translate(0,0)}to{transform:translate(var(--dx),var(--dy))}}
+.cityv .am-fly{animation-name:ambdrift;animation-timing-function:ease-in-out;animation-direction:alternate}
+@keyframes ambdrift{from{transform:translate(0,0)}to{transform:translate(var(--dx),var(--dy))}}
+.cityv .am-fl{fill:#fff;opacity:.85}
+.cityv .am-pe{fill:#f4abcb;opacity:.9}
+.cityv .am-lf0{fill:#dc8a2e}.cityv .am-lf1{fill:#b4561f}.cityv .am-lf2{fill:#e8b04a}
+.cityv .am-dr{stroke:#b9d4ff;stroke-width:.9;stroke-opacity:.5;stroke-linecap:round}
+.cityv .am-ff{fill:#ffe66d;filter:url(#cglow);animation:ffblink var(--bl,2.4s) ease-in-out infinite}
+@keyframes ffblink{0%,100%{opacity:.2}50%{opacity:1}}
+.cityv .am-du{stroke:#e8c892;stroke-width:1;stroke-opacity:.3;stroke-linecap:round}
+.cityv .am-mi{fill:#e8eefc;opacity:.1;filter:blur(6px)}
+.cityv .am-gl{fill:none;stroke:#f6efe6;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){.cityv .amb{display:none}.cityv .fboat{animation:none}}
+/* the sky follows the look */
+.city.bg-snow,.scthumb.bg-snow{background:radial-gradient(900px 340px at 50% 108%,rgba(200,220,255,.3),transparent 64%),linear-gradient(180deg,#27335c 0%,#445688 55%,#7d8fb9 100%)}
+.city.bg-desert,.scthumb.bg-desert{background:radial-gradient(900px 340px at 50% 108%,rgba(255,180,90,.4),transparent 64%),linear-gradient(180deg,#3a2c52 0%,#8a4a58 55%,#e89a5a 100%)}
+.city.bg-autumn,.scthumb.bg-autumn{background:radial-gradient(900px 340px at 50% 108%,rgba(255,150,70,.3),transparent 64%),linear-gradient(180deg,#201a38 0%,#4a2f4a 55%,#8a5446 100%)}
+.city.bg-blossom,.scthumb.bg-blossom{background:radial-gradient(900px 340px at 50% 108%,rgba(255,170,200,.3),transparent 64%),linear-gradient(180deg,#1d1c46 0%,#4a3470 55%,#9a6aa0 100%)}
+.city.bg-sunset,.scthumb.bg-sunset{background:radial-gradient(900px 340px at 50% 108%,rgba(255,170,80,.5),transparent 64%),linear-gradient(180deg,#2a2150 0%,#a04a68 50%,#f2a65a 100%)}
+.city.bg-rain,.scthumb.bg-rain{background:linear-gradient(180deg,#141a2a 0%,#27324a 55%,#4a5a78 100%)}
+.city.bg-fog,.scthumb.bg-fog{background:linear-gradient(180deg,#2a3350 0%,#5a6a8c 55%,#9aa8c4 100%)}
+.city.bg-firefly,.scthumb.bg-firefly{background:radial-gradient(900px 340px at 50% 108%,rgba(120,220,140,.2),transparent 64%),linear-gradient(180deg,#0a1628 0%,#12304a 55%,#1f4a4a 100%)}
+.city.bg-rain::before,.city.bg-fog::before,.city.bg-sunset::before{opacity:.2}
+.city.bg-rain::after,.city.bg-fog::after{opacity:.25}
+.cityv.sc-rain .sea-t{fill:#2a3f5c}.cityv.sc-sunset .sea-t{fill:#2d4f7e}.cityv.sc-fog .sea-t{fill:#3e5878}
+.cityv.sc-rain .lawn{fill:#244240}.cityv.sc-rain .road{stroke:#9fb4ff;stroke-opacity:.6}
+.cityv.sc-sunset .lawn{fill:#3b5a45}.cityv.sc-sunset .road{stroke:#ffd9a0;stroke-opacity:.55}
+.cityv.sc-fog .lawn{fill:#3a5654}.cityv.sc-fog .road{stroke:#cfd8ee;stroke-opacity:.4}
+.cityv.sc-firefly .lawn{fill:#1f4a3c}.cityv.sc-firefly .road{stroke:#8fd9a8;stroke-opacity:.45}
+/* shop */
+.shoptabs{display:flex;gap:8px;flex-wrap:wrap}
+.sicon{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--lit-soft,rgba(0,0,0,.06));color:var(--ink)}
+.sicon svg{width:24px;height:24px}
+.scthumb.city{flex:none;width:76px;height:50px;border-radius:12px;box-shadow:none;border:1px solid var(--line)}
+.scthumb.city::before{opacity:.5}
+.scthumb.city::after{top:14%;right:14%;width:8px;height:8px;box-shadow:0 0 6px 2px rgba(255,244,207,.3)}
+.tryline{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.need{font-size:.8rem;color:var(--muted)}
+.sw.try{outline:3px solid var(--lit,#ffd166);outline-offset:2px}
+.shopbuy .need{flex-basis:100%}
+#shopcity{position:sticky;top:8px;z-index:5}
+#shopcity .cityvp{height:clamp(200px,32vw,300px)}

@@ -13,6 +13,7 @@ Unofficial student project, not affiliated with HSLU. Files stay on the device (
       js/storage.js     IndexedDB access: every write resolves only after the browser confirmed it
       js/imports.js     when a file counts as "added" or "imported" (failed writes never count)
       js/final.js       whole-house final practice: balanced sessions, missed questions, review plan (kept apart from floor status)
+      js/lot.js         where each decoration of a building stands (no overlaps)
       js/voyage.js      import voyage: ship and delivery-boat routes and timing (pure maths)
       js/quiz-core.js   chunking with headings and pages, definition questions, quality rules, question bank, 5-question and 80 % rules
       js/backup.js      progress backup, full backup, checked restore, merge rules
@@ -77,6 +78,12 @@ The port in the city is a button: tapping it opens the Learning Port, and the Po
 ## One island for all semesters
 
 With more than one semester, every semester is a district of the same island, side by side, with a shared port at the east end (the port button opens the Learning Port from any semester, and "← Campus" brings you back). The semester dropdown picks the district: the view glides to it, only that district is clickable, the others stay visible but dimmed. "See all semesters" shows the whole island, "Focus on this semester" goes back. Each district has its own pier, beach spot and name label on the south shore; the sand rim and the streets run through the whole island. With a single semester nothing changes. Anything that moves through the city (the import boats now, pedestrians and cars later) is placed among the buildings by depth (`moverPlace` in `app.js`), so it is never drawn over a building in front of it.
+
+## Look of the island: horizon, weather, shop, decorations
+
+The island sits in open water that reaches a hazy horizon with two low mountain ranges and a few tiny sailboats (`backdropSVG`); there is no floating slab any more, the shore has sand, shallows, foam and rocks. A look (Evening park, Autumn, Cherry blossom, Snow, Desert, Rain, Fireflies, Mist, Golden hour) is chosen once for the whole island (`state.scenery['*']`; an older per-semester choice is still used until a new one is made) and brings its own sky, colours and weather. The weather particles (`ambSVG`) live in the picture's own space, so they cover every district; they are hidden when the device asks for reduced motion. The Shop has three sections (for buildings, island looks, useful), icons, a "Try" button that previews an item on the building (or a look on the whole island) before anything is paid, and shows how many coins are missing.
+
+Decorations never overlap: `app/js/lot.js` gives every item its own fixed spot around the building (16 spots; what you buy goes to the spots the front of the building shows, plain trees fill the rest). `tests/unit/lot.test.mjs` checks every combination of items for overlaps and for staying on the lawn. Cars and pedestrians are not part of this step.
 
 ## ILIAS import
 
