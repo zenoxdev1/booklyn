@@ -539,10 +539,10 @@ function bldgSVG(m,x0,y0,x1,y1,idx,I){
   return s+'</g>';
 }
 /* ---- island, bridge and port: the city no longer floats in empty space ---- */
-function islandLayer(C,R,P,ex,TH,I){
+function islandLayer(C,R,P,ex,TH,I,deep){
   var X1=C*P+ex,Y1=R*P+ex,cy=R*P/2,SEA=-TH+2,RIM=-3,rm=.75;
   var LB=4.2,XP0=X1+LB,XP1=XP0+3.4,py0=cy-1.9,py1=cy+1.9;
-  var sx0=-1.7,sy0=-1.7,sx1=XP1+3.5,sy1=Math.max(Y1+1.3,cy+3.3);
+  var sx0=-1.7,sy0=-1.7,sx1=XP1+3.5,sy1=Math.max(Y1+(deep?3.2:1.3),cy+3.3);
   var bot=-TH-8,g='',f='';
   function poly(cl,a){return '<polygon class="'+cl+'" points="'+pts(a)+'"/>';}
   /* sea: a block with water-coloured sides and a few slow wave lines */
@@ -593,7 +593,6 @@ function islandLayer(C,R,P,ex,TH,I){
   /* a lamp at the foot of the bridge */
   add(XP0+.2,py1-.3,'<polyline class="lp" points="'+pts([iso(XP0+.2,py1-.3,0),iso(XP0+.2,py1-.3,15)])+'"/><circle class="lampg" cx="'+iso(XP0+.2,py1-.3,16)[0].toFixed(1)+'" cy="'+iso(XP0+.2,py1-.3,16)[1].toFixed(1)+'" r="2"/>');
   it.sort(function(a,b){return a.d-b.d;});
-  it.forEach(function(o){f+=o.html;});
   /* the whole port (platform, ship, crane) opens the Learning Port page */
   if(I){
     var lx=iso(XP0+2.3,py0+.2,58);
@@ -601,53 +600,110 @@ function islandLayer(C,R,P,ex,TH,I){
       +'<polygon class="phit" points="'+pts([iso(XP0-.1,py0-.1,50),iso(XP1+.1,py0-.1,50),iso(XP1+1.3,py1+1.75,-5),iso(XP0,py1+1.75,-5)])+'"/>'
       +'<g class="plabel"><rect x="'+(lx[0]-21).toFixed(1)+'" y="'+(lx[1]-9).toFixed(1)+'" width="42" height="14" rx="7"/><text x="'+lx[0].toFixed(1)+'" y="'+(lx[1]+1.2).toFixed(1)+'" text-anchor="middle">'+esc(_t("Port"))+'</text></g></g>';
   }
-  return {back:g,front:f,geo:{C:C,R:R,P:P,cy:cy,X1:X1,XP1:XP1,py0:py0,sx1:sx1,sy1:sy1},
+  return {back:g,front:f,items:it,geo:{C:C,R:R,P:P,cy:cy,X1:X1,XP1:XP1,py0:py0,sx1:sx1,sy1:sy1},
     left:iso(sx0,sy1,0)[0],right:iso(sx1,sy0,0)[0],bottom:iso(sx1,sy1,bot)[1],top:iso(sx0,sy0,SEA)[1]};
 }
 function citySVG(mods,o){
-  o=o||{};var I=!!o.interactive,n=mods.length||1,lay=cityLayout(n),C=lay.c,R=lay.r,P=CITY.P,F=CITY.F,items=[],ex=.35,minY=iso(-ex,-ex,0)[1];
-  var occupied=mods.length;SCENE=o.scene||sceneKey();
-  for(var slot=0;slot<C*R;slot++){
-    var cx=slot%C,cy=Math.floor(slot/C),ox=cx*P,oy=cy*P;
-    if(slot<occupied){
-      var m=mods[slot],x0=ox+(P-F)/2,y0=oy+(P-F)/2,x1=x0+F,y1=y0+F,H=CITY.ZB+m.N*clamp(96/m.N,4,9);
-      minY=Math.min(minY,iso(x0,y0,H)[1]-50);
-      items.push({d:(x0+x1+y0+y1)/2-.01,html:bldgSVG(m,x0,y0,x1,y1,slot,I)});
-      var dc=m.d||{};
-      for(var q=0;q<(dc.tree||0)&&q<3;q++){var tp=[[P/2+.5,.7],[.7,P/2+.5],[P-.8,.9]][q];items.push({d:ox+tp[0]+oy+tp[1],html:treeSVG(ox+tp[0],oy+tp[1],1.05)});}
-      if(dc.pool)items.push({d:ox+3.5+oy+2.2,html:poolSVG(ox+3.1,oy+1.5,ox+3.8,oy+2.9,0)});
-      if(dc.fountain)items.push({d:ox+2.1+oy+3.5,html:fountainSVG(ox+2.1,oy+3.5)});
-      if(dc.flowers){items.push({d:ox+.7+oy+1.7,html:flowersSVG(ox+.45,oy+1.2,ox+1.0,oy+2.2,hashStr(m.code))});items.push({d:ox+3.4+oy+3.2,html:flowersSVG(ox+2.6,oy+3.3,ox+3.4,oy+3.8,hashStr(m.code)>>3)});}
-      if(dc.fence){items.push({d:ox+oy+P-.3+P-.3+.2,html:fenceSVG(ox+.3,oy+P-.3,ox+P-.3,oy+P-.3)});items.push({d:ox+oy+P-.3+P-.3+.1,html:fenceSVG(ox+P-.3,oy+.3,ox+P-.3,oy+P-.3)});}
-      if(dc.lamp){[[x0-.2,y1+.4],[x1+.4,y1+.4]].forEach(function(lp){items.push({d:lp[0]+lp[1]+.05,html:lampSVG(lp[0],lp[1])});});}
-      var hs=hashStr(m.code+slot);
-      [[.7,.7],[P-.7,.7],[.7,P-.7],[P-.7,P-.7]].forEach(function(sp,j){
-        if(j===3||((hs>>j)&1)) items.push({d:ox+sp[0]+oy+sp[1],html:treeSVG(ox+sp[0],oy+sp[1],.8+((hs>>(j+4))&3)*.12)});
-      });
-    } else {
-      [[1.2,1.3],[3.0,1.0],[1.8,2.9],[3.2,3.1]].forEach(function(sp,j){items.push({d:ox+sp[0]+oy+sp[1],html:treeSVG(ox+sp[0],oy+sp[1],.9+(j%2)*.2)});});
+  o=o||{};var I=!!o.interactive,P=CITY.P,F=CITY.F,items=[],ex=.35,minY=iso(-ex,-ex,0)[1];
+  SCENE=o.scene||sceneKey();
+  /* districts: one per semester, side by side on one island (a single district when there is only one semester) */
+  var dl=(o.districts&&o.districts.length>1)?o.districts:[{id:null,name:'',mods:mods,active:true}],multi=dl.length>1,Rm=1,CW=0;
+  dl.forEach(function(d){d.lay=cityLayout(d.mods.length||1);Rm=Math.max(Rm,d.lay.r);});
+  dl.forEach(function(d){d.C=d.lay.c;d.R=multi?Rm:d.lay.r;d.x0=CW;CW+=d.C*P;});
+  var C=CW/P,R=multi?Rm:dl[0].R,lit=0,tot=0,occupiedAll=0;
+  dl.forEach(function(d){
+    var act=d.active!==false,dm=multi&&!act,occupied=d.mods.length;
+    function add(dd,html){items.push({d:dd,html:dm?'<g class="dim">'+html+'</g>':html});}
+    d.mods.forEach(function(m){if(act){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});}});
+    for(var slot=0;slot<d.C*d.R;slot++){
+      var cx=slot%d.C,cy=Math.floor(slot/d.C),ox=d.x0+cx*P,oy=cy*P;
+      if(slot<occupied){
+        var m=d.mods[slot],x0=ox+(P-F)/2,y0=oy+(P-F)/2,x1=x0+F,y1=y0+F,H=CITY.ZB+m.N*clamp(96/m.N,4,9);
+        minY=Math.min(minY,iso(x0,y0,H)[1]-50);
+        add((x0+x1+y0+y1)/2-.01,bldgSVG(m,x0,y0,x1,y1,slot,I&&act));
+        var dc=m.d||{};
+        for(var q=0;q<(dc.tree||0)&&q<3;q++){var tp=[[P/2+.5,.7],[.7,P/2+.5],[P-.8,.9]][q];add(ox+tp[0]+oy+tp[1],treeSVG(ox+tp[0],oy+tp[1],1.05));}
+        if(dc.pool)add(ox+3.5+oy+2.2,poolSVG(ox+3.1,oy+1.5,ox+3.8,oy+2.9,0));
+        if(dc.fountain)add(ox+2.1+oy+3.5,fountainSVG(ox+2.1,oy+3.5));
+        if(dc.flowers){add(ox+.7+oy+1.7,flowersSVG(ox+.45,oy+1.2,ox+1.0,oy+2.2,hashStr(m.code)));add(ox+3.4+oy+3.2,flowersSVG(ox+2.6,oy+3.3,ox+3.4,oy+3.8,hashStr(m.code)>>3));}
+        if(dc.fence){add(ox+oy+P-.3+P-.3+.2,fenceSVG(ox+.3,oy+P-.3,ox+P-.3,oy+P-.3));add(ox+oy+P-.3+P-.3+.1,fenceSVG(ox+P-.3,oy+.3,ox+P-.3,oy+P-.3));}
+        if(dc.lamp){[[x0-.2,y1+.4],[x1+.4,y1+.4]].forEach(function(lp){add(lp[0]+lp[1]+.05,lampSVG(lp[0],lp[1]));});}
+        var hs=hashStr(m.code+slot);
+        [[.7,.7],[P-.7,.7],[.7,P-.7],[P-.7,P-.7]].forEach(function(sp,j){
+          if(j===3||((hs>>j)&1)) add(ox+sp[0]+oy+sp[1],treeSVG(ox+sp[0],oy+sp[1],.8+((hs>>(j+4))&3)*.12));
+        });
+      } else {
+        [[1.2,1.3],[3.0,1.0],[1.8,2.9],[3.2,3.1]].forEach(function(sp,j){add(ox+sp[0]+oy+sp[1],treeSVG(ox+sp[0],oy+sp[1],.9+(j%2)*.2));});
+      }
     }
-  }
-  items.sort(function(a,b){return a.d-b.d;});
+  });
   var X0=-ex,Y0=-ex,X1=C*P+ex,Y1=R*P+ex,TH=10;
   var left=iso(X0,Y1,0)[0],right=iso(X1,Y0,0)[0],bottom=iso(X1,Y1,0)[1]+TH,pad=26;
-  var ISL=o.island===false?null:islandLayer(C,R,P,ex,TH,I);
+  var ISL=o.island===false?null:islandLayer(C,R,P,ex,TH,I,multi);
   voyGeo=ISL?Object.assign({F:F},ISL.geo):null;
-  if(ISL){left=ISL.left;right=ISL.right;bottom=ISL.bottom;minY=Math.min(minY,ISL.top);}
+  if(ISL){left=ISL.left;right=ISL.right;bottom=ISL.bottom;minY=Math.min(minY,ISL.top);items=items.concat(ISL.items);}
   var vb=[left-pad,minY-pad,right-left+2*pad,bottom-minY+2*pad];
   ui.cityVB=vb;
+  /* where each district is on the screen (for focusing it) */
+  var dist=dl.map(function(d){var W=d.C*P,a=iso(d.x0,d.R*P,0),b=iso(d.x0+W,0,0),t=iso(d.x0,0,100),u=iso(d.x0+W,d.R*P,0);
+    var xa=a[0]-6,xb=b[0]+6,ya=t[1]-30,yb=u[1]+30;return {id:d.id,cx:(xa+xb)/2,cy:(ya+yb)/2,w:xb-xa,h:yb-ya};});
+  if(I){ui.cityDist=dist;if(ui.cityAuto){ui.cityT=cityFocusT(state.activeSem);ui.cityAuto=false;}}
   var T=I?ui.cityT:{x:0,y:0,k:1},g='';
   if(ISL)g+=ISL.back;
   g+='<polygon class="slab-l" points="'+pts([iso(X0,Y1,0),iso(X1,Y1,0),iso(X1,Y1,-TH),iso(X0,Y1,-TH)])+'"/><polygon class="slab-r" points="'+pts([iso(X1,Y1,0),iso(X1,Y0,0),iso(X1,Y0,-TH),iso(X1,Y1,-TH)])+'"/><polygon class="slab-t" points="'+pts([iso(X0,Y0,0),iso(X1,Y0,0),iso(X1,Y1,0),iso(X0,Y1,0)])+'"/>';
-  for(var i=1;i<C;i++) g+='<polyline class="road" points="'+pts([iso(P*i,0,0),iso(P*i,R*P,0)])+'"/>';
-  for(var j=1;j<R;j++) g+='<polyline class="road" points="'+pts([iso(0,P*j,0),iso(C*P,P*j,0)])+'"/>';
-  for(var s2=0;s2<C*R;s2++){var qx=(s2%C)*P,qy=Math.floor(s2/C)*P;g+='<polygon class="lawn" points="'+pts([iso(qx+.3,qy+.3,0),iso(qx+P-.3,qy+.3,0),iso(qx+P-.3,qy+P-.3,0),iso(qx+.3,qy+P-.3,0)])+'"/>';}
-  items.forEach(function(it){g+=it.html;});
+  dl.forEach(function(d,k){
+    var W=d.C*P,dmc=multi&&d.active===false?' dimr':'';
+    for(var i=(k?0:1);i<d.C;i++) g+='<polyline class="road'+dmc+'" points="'+pts([iso(d.x0+P*i,0,0),iso(d.x0+P*i,R*P,0)])+'"/>';
+    for(var j=1;j<R;j++) g+='<polyline class="road'+dmc+'" points="'+pts([iso(d.x0,P*j,0),iso(d.x0+W,P*j,0)])+'"/>';
+    for(var s2=0;s2<d.C*R;s2++){var qx=d.x0+(s2%d.C)*P,qy=Math.floor(s2/d.C)*P;g+='<polygon class="lawn" points="'+pts([iso(qx+.3,qy+.3,0),iso(qx+P-.3,qy+.3,0),iso(qx+P-.3,qy+P-.3,0),iso(qx+.3,qy+P-.3,0)])+'"/>';}
+  });
+  g+='<g id="deptg">'+items.sort(function(a,b){return a.d-b.d;}).map(function(it){return '<g data-d="'+it.d.toFixed(2)+'">'+it.html+'</g>';}).join('')+'</g>';
+  if(multi)g+=waterfrontSVG(dl,R,P,ex);
   if(ISL)g+=ISL.front;
-  if(o.voyage&&ISL)g+='<g id="voyageg" pointer-events="none"></g>';
   if(SCENE==='snow'){for(var fk=0;fk<46;fk++){var fx=(hashStr('f'+fk)%1000)/1000*C*P,fy=(hashStr('g'+fk)%1000)/1000*R*P,fp=iso(fx,fy,(hashStr('h'+fk)%60)+4);g+='<circle class="flake" style="animation-delay:-'+((fk%9)*.7).toFixed(1)+'s" cx="'+fp[0].toFixed(1)+'" cy="'+fp[1].toFixed(1)+'" r="'+(1+(fk%3)*.5)+'"/>';}}
-  var lit=0,tot=0;mods.forEach(function(m){tot+=m.N;m.st.forEach(function(s){if(isOn(s))lit++;});});
-  return '<svg class="cityv sc-'+SCENE+(I&&T.k>=2.3?' zin':'')+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+_tf('Your semester as a city: {b} buildings, {l} of {t} floors have their lights on',{b:mods.length,l:lit,t:tot})+'"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
+  var nb=0;dl.forEach(function(d){if(d.active!==false)nb+=d.mods.length;});
+  return '<svg class="cityv sc-'+SCENE+(I&&T.k>=2.3?' zin':'')+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+_tf('Your semester as a city: {b} buildings, {l} of {t} floors have their lights on',{b:nb,l:lit,t:tot})+'"><defs><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g></svg>';
+}
+/* the south shore of the island: a pier, a beach spot and the name of each district (only when several semesters share the island) */
+function waterfrontSVG(dl,R,P,ex){
+  var s='',yb=R*P,rz=-3;
+  dl.forEach(function(d,k){
+    var W=d.C*P,act=d.active!==false,px=d.x0+Math.min(W*.22,1.6)+.4,ux=d.x0+W*.58,lx=d.x0+W*.5,h='';
+    /* pier: posts, deck and a rail, from the lawn edge out to the water */
+    [[px-.3,yb+1.5],[px+.3,yb+1.5],[px-.3,yb+.7],[px+.3,yb+.7]].forEach(function(p){h+=boxP(p[0]-.08,p[1]-.08,p[0]+.08,p[1]+.08,-8,-2.5,['br-l','br-r','br-t']);});
+    h+=boxP(px-.4,yb-.1,px+.4,yb+1.9,-3,0,['bd-l','bd-r','bd-t']);
+    for(var q=1;q<6;q++)h+='<polyline class="plank" points="'+pts([iso(px-.4,yb+q*.3,0),iso(px+.4,yb+q*.3,0)])+'"/>';
+    h+='<polyline class="rail" points="'+pts([iso(px+.4,yb+.2,5),iso(px+.4,yb+1.9,5)])+'"/><polyline class="rail" points="'+pts([iso(px+.4,yb+.2,0),iso(px+.4,yb+.2,5)])+'"/><polyline class="rail" points="'+pts([iso(px+.4,yb+1.9,0),iso(px+.4,yb+1.9,5)])+'"/>';
+    /* beach: a towel and an umbrella on the sand */
+    h+='<polygon class="towel" points="'+pts([iso(ux-.35,yb+.35,rz),iso(ux+.35,yb+.35,rz),iso(ux+.35,yb+.65,rz),iso(ux-.35,yb+.65,rz)])+'"/>';
+    var ub=iso(ux+.55,yb+.45,rz),ut=iso(ux+.55,yb+.45,rz+15);
+    h+='<polyline class="umbp" points="'+pts([ub,ut])+'"/><ellipse class="umb" cx="'+ut[0].toFixed(1)+'" cy="'+(ut[1]-.5).toFixed(1)+'" rx="8" ry="3.6"/>';
+    /* the name of the district, on the water below the island */
+    var lp=iso(lx,yb+2.7,0),nm=String(d.name||'').slice(0,16),wd=Math.max(44,nm.length*6.4+14);
+    h+='<g class="dlabel'+(act?' on':'')+'"><rect x="'+(lp[0]-wd/2).toFixed(1)+'" y="'+(lp[1]-8).toFixed(1)+'" width="'+wd.toFixed(0)+'" height="15" rx="7.5"/><text x="'+lp[0].toFixed(1)+'" y="'+(lp[1]+2.4).toFixed(1)+'" text-anchor="middle">'+esc(nm)+'</text></g>';
+    s+='<g class="'+(act?'':'dim')+'">'+h+'</g>';
+  });
+  return s;
+}
+function cityFocusT(id){
+  var v=ui.cityVB,ds=ui.cityDist||[],idt={x:0,y:0,k:1};
+  if(!v||ds.length<2||ui.cityAll)return idt;
+  var d=ds.filter(function(x){return x.id===id;})[0];if(!d)return idt;
+  var k=clamp(Math.min(v[2]/d.w,v[3]/d.h),1,3.2);
+  return clampT({x:v[0]+v[2]/2-k*d.cx,y:v[1]+v[3]/2-k*d.cy,k:k});
+}
+/* glide the view to a place (jumps when the device asks for reduced motion) */
+function cityGoto(to){
+  var from={x:ui.cityT.x,y:ui.cityT.y,k:ui.cityT.k},calm=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(ui.cityTw)cancelAnimationFrame(ui.cityTw);ui.cityTw=0;
+  if(calm||!$('#cityg')){ui.cityT=to;applyCity();return;}
+  var t0=null;
+  function step(now){
+    if(t0===null)t0=now;var u=Math.min(1,(now-t0)/450),e=u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2;
+    ui.cityT={x:from.x+(to.x-from.x)*e,y:from.y+(to.y-from.y)*e,k:from.k+(to.k-from.k)*e};applyCity();
+    ui.cityTw=u<1?requestAnimationFrame(step):0;
+  }
+  ui.cityTw=requestAnimationFrame(step);
 }
 function cityBox(mods,o){
   o=o||{};var I=!!o.interactive,lit=0,tot=0;
@@ -672,6 +728,19 @@ function boatSVG(p,h,big){
   } else s+=boxP(x-a*.6,y-b*.6,x+a*.6,y+b*.6,z1,z1+3.5,['vc-l','vc-r','vc-t']);
   return s+'</g>';
 }
+/* things that move through the city sit among the buildings by depth, so a boat or car is never drawn over a building in front of it */
+function moverPlace(list){
+  var root=document.getElementById('deptg');if(!root)return;
+  var old=root.querySelectorAll(':scope > .mv');for(var i=0;i<old.length;i++)old[i].remove();
+  if(!list.length)return;
+  list.sort(function(a,b){return a.d-b.d;});
+  var kids=Array.prototype.slice.call(root.children),j=0;
+  list.forEach(function(m){
+    while(j<kids.length&&+kids[j].getAttribute('data-d')<=m.d)j++;
+    var el=document.createElementNS('http://www.w3.org/2000/svg','g');el.setAttribute('class','mv');el.innerHTML=m.html;
+    root.insertBefore(el,kids[j]||null);
+  });
+}
 function voyageFrame(v,t){
   var out=[];
   v.tl.forEach(function(e){
@@ -679,20 +748,19 @@ function voyageFrame(v,t){
     if(st.big)out.push({d:st.big.x+st.big.y,html:boatSVG(st.big,h,true)});
     if(st.small)out.push({d:st.small.x+st.small.y,html:boatSVG(st.small,h,false)});
     if(st.arrived&&!v.hit[e.i]){
-      v.hit[e.i]=1;var bg=document.querySelector('#voyageg')&&document.querySelector('.voy .bgrp[data-s="'+e.b.slot+'"]');
+      v.hit[e.i]=1;var bg=document.querySelector('.voy .bgrp[data-s="'+e.b.slot+'"]');
       if(bg){bg.classList.add('arrive');setTimeout(function(){bg.classList.remove('arrive');},1100);}
     }
   });
-  out.sort(function(a,b){return a.d-b.d;});
-  return out.map(function(o){return o.html;}).join('');
+  return out;
 }
 function voyageKick(){
-  var v=ui.voyage;if(!v||v.done||v.raf||!voyGeo||!$('#voyageg'))return;
+  var v=ui.voyage;if(!v||v.done||v.raf||!voyGeo||!$('.voy #deptg'))return;
   if(!v.tl){v.tl=VY.timeline(v.boats,voyGeo);v.T=VY.totalTime(v.tl);v.st=performance.now();v.hit={};}
   function frame(now){
     if(ui.voyage!==v)return;
-    var t=(now-v.st)/1000,g=$('#voyageg');
-    if(g&&!document.hidden)g.innerHTML=voyageFrame(v,t);
+    var t=(now-v.st)/1000;
+    if(!document.hidden)moverPlace(voyageFrame(v,t));
     if(t>=v.T+.9){v.raf=0;v.done=true;render();return;}
     v.raf=requestAnimationFrame(frame);
   }
@@ -723,6 +791,7 @@ var cityPtrs={},cityGest=null,citySupp=0;
 document.addEventListener('click',function(e){if(Date.now()-citySupp<400){e.stopPropagation();e.preventDefault();}},true);
 document.addEventListener('pointerdown',function(e){
   var vp=e.target.closest&&e.target.closest('.cityvp[data-pz]');if(!vp)return;
+  if(ui.cityTw){cancelAnimationFrame(ui.cityTw);ui.cityTw=0;}
   if(e.pointerType==='mouse'&&e.button!==0)return;
   cityPtrs[e.pointerId]={x:e.clientX,y:e.clientY};
   var ids=Object.keys(cityPtrs),T=ui.cityT;
@@ -762,7 +831,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&ui.cityFull
 
 /* ================= routing ================= */
 var memHash='#/';try{memHash=location.hash||'#/';}catch(e){}
-var voyGeo=null, lastRendered=null, study=null, ui={voyage:null,pkDel:'',tab:'units',q:'',gIdx:{},gMod:'',gUnit:0,goalOpen:'',goalDel:'',goalGaps:false,ver:{},verPick:{},snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
+var voyGeo=null, lastRendered=null, study=null, ui={voyage:null,cityAuto:true,cityAll:false,cityDist:[],cityTw:0,pkDel:'',tab:'units',q:'',gIdx:{},gMod:'',gUnit:0,goalOpen:'',goalDel:'',goalGaps:false,ver:{},verPick:{},snDel:null,qMod:'',qUnit:0,qFilter:'',qDel:null,todayPick:'',sq:'',smod:'',sIdx:{run:false,done:0,total:0,tried:{}},preset:null,setup:null,dl:null,confirm:null,cityT:{x:0,y:0,k:1},cityFull:false,cityBuild:false,cityVB:null,readyOpen:false,failed:null,restore:null,bk:null,busyImport:false,ilias:{busy:false,items:[],status:'',scanned:false,filter:'todo',skipped:[]}};
 var iliasBridge=false, iliasVersion='', iliasRequests={}, CONNECTOR_LATEST='0.4.0', CONNECTOR_MIN_SCAN='0.4.0';
 function verNum(v){var p=String(v||'0').split('.');return (+p[0]||0)*1e6+(+p[1]||0)*1e3+(+p[2]||0);}
 var READABLE_RX=/\.(pdf|docx|pptx|txt|md|csv|tex|html?|py|java|js|json|sql)$/i,UNREADABLE_RX=/\.(mp4|m4v|mov|mkv|avi|webm|wmv|mpe?g|mp3|m4a|aac|wav|ogg|flac|png|jpe?g|gif|bmp|svg|webp|tiff?|zip|rar|7z|tar|gz|doc|ppt|pps|xls|xlsx|xlsm|ods|odp|odt|exe|dmg|iso|jar|pkt)$/i;
@@ -1110,7 +1179,9 @@ function vCampus(){
    +'<h1 tabindex="-1" id="h1">'+(state.name?_t("Hello, ")+esc(state.name):_t("Keep your lights on"))+'</h1>'
    +("<p class=\"lede\">"+_t("Tap a building to open its weeks, or pick a module below.")+"</p></header>");
   var bld=ui.cityBuild;if(bld)setTimeout(function(){ui.cityBuild=false;},4500);
-  h+=cityBox(cityMods(sem),{interactive:true,build:bld,full:ui.cityFull,title:sem.name,coins:state.coins,rent:rentPerDay()});
+  var dls=state.sems.length>1?state.sems.map(function(x){return {id:x.id,name:x.name,mods:cityMods(x),active:x.id===sem.id};}):null;
+  h+=cityBox(cityMods(sem),{interactive:true,build:bld,full:ui.cityFull,title:sem.name,coins:state.coins,rent:rentPerDay(),districts:dls});
+  if(dls)h+='<div class="row cityrow"><button class="btn small ghost" data-a="cityall" aria-pressed="'+(ui.cityAll?'true':'false')+'">'+(ui.cityAll?_t("Focus on this semester"):_t("See all semesters"))+'</button></div>';
   if(n) h+=("<section class=\"card accent stack\"><p class=\"eyebrow\">"+_t("Next up")+"</p><h2>")+esc(n.m.code)+' · '+esc(n.m.titles[n.u-1])+'</h2><p class="lede">'+esc(n.why)+'</p><div class="row"><button class="btn light" data-a="go" data-to="#/m/'+n.m.id+'/'+n.u+("/study\">"+_t("Start block")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/m/")+n.m.id+'/'+n.u+("\">"+_t("Open unit")+"</button><button class=\"btn ghost\" data-a=\"go\" data-to=\"#/today\">"+_t("Study today")+"</button></div></section>");
   else if(!pending().length&&!FILES.some(function(f){return f.sem===sem.id;})&&!sem.demo) h+=("<section class=\"card stack\"><h3>"+_t("Add your first files")+"</h3><p class=\"lede\">"+_t("Drop your slides and scripts into the Port. Booklyn suggests where each one belongs.")+"</p><div class=\"row\"><button class=\"btn\" data-a=\"go\" data-to=\"#/port\">"+_t("Open the Port")+"</button></div></section>");
   h+=qCardHTML(sem,3);
@@ -2333,7 +2404,8 @@ document.addEventListener('click',function(e){
   else if(a==='tcoins'){if(!devOn())return;state.coins=Math.max(0,state.coins+(+b.dataset.n||0));save();render();toast(_t("Coins: ")+state.coins);}
   else if(a==='tage'){Object.keys(state.lit).forEach(function(k){state.lit[k]=litTs(k)-(+b.dataset.n||0)*864e5;});save();render();toast(_t("Lights aged. Open Campus to see them fade."));}
   else if(a==='trent'){state.rentAt=Date.now()-3*864e5;save();toast(_t("Open Campus to collect the rent."));}
-  else if(a==='creset'){ui.cityT={x:0,y:0,k:1};applyCity();}
+  else if(a==='creset'){cityGoto(cityFocusT(state.activeSem));}
+  else if(a==='cityall'){ui.cityAll=!ui.cityAll;render();cityGoto(cityFocusT(state.activeSem));var ca=$('[data-a="cityall"]');if(ca)ca.focus({preventScroll:true});}
   else if(a==='cfull'){ui.cityFull=true;render();var cb=$('[data-a="cclose"]');if(cb)cb.focus();}
   else if(a==='cclose'){ui.cityFull=false;render();}
   else if(a==='addfloor'){var am=M(b.dataset.m);if(am){if(am.units>=MAXU)toast(_t("A module can have up to ")+MAXU+_t(" floors."));else{ensureUnits(am,am.units+1);render();}}}
@@ -2348,7 +2420,7 @@ document.addEventListener('click',function(e){
   else if(a==='leave'){pauseTimer();study=null;go(b.dataset.to);}
   else if(a==='tab'){ui.tab=b.dataset.v;render();}
   else if(a==='newsem'){ui.setup=null;go('#/setup');}
-  else if(a==='demo'){seedDemo();ui.cityBuild=true;ui.cityT={x:0,y:0,k:1};save();go('#/');}
+  else if(a==='demo'){seedDemo();ui.cityBuild=true;ui.cityAuto=true;ui.cityT={x:0,y:0,k:1};save();go('#/');}
   else if(a==='addmod'){ui.setup.mods.push({code:'',name:'',units:14,kw:''});render();}
   else if(a==='rmmod'){ui.setup.mods.splice(+b.dataset.i,1);render();}
   else if(a==='buildsem'){
@@ -2361,7 +2433,7 @@ document.addEventListener('click',function(e){
       sem.modules.push({id:uid(),code:code,name:String(m.name).trim(),h:HUES[(state.sems.length*3+i)%HUES.length],units:n,kw:String(m.kw).trim()||ALIASES[code]||'',titles:t,base:{}});
     });
     if(S.name)state.name=S.name;
-    state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;ui.cityBuild=true;ui.cityT={x:0,y:0,k:1};save();go('#/');toast(_t("Your district is ready. Tap a building to add its first files."));
+    state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;ui.cityBuild=true;ui.cityAuto=true;ui.cityT={x:0,y:0,k:1};save();go('#/');toast(_t("Your district is ready. Tap a building to add its first files."));
   }
   else if(a==='pknew'){pkCreate('create');}
   else if(a==='pkin'){pkLogin();}
@@ -2483,7 +2555,7 @@ document.addEventListener('click',function(e){
       Object.keys(state.lit).forEach(function(k){if(ids[k.split(':')[0]])delete state.lit[k];});
       Object.keys(state.how).forEach(function(k){if(ids[k.split(':')[0]])delete state.how[k];});
       state.deadlines=state.deadlines.filter(function(d){return !ids[d.mod];});state.questions=state.questions.filter(function(q){return !ids[q.mod];});state.goals=state.goals.filter(function(o){return !ids[o.mod];});Object.keys(ids).forEach(function(k){delete state.final[k];});
-      state.sems=state.sems.filter(function(x){return x.id!==sm.id;});state.activeSem=state.sems.length?state.sems[0].id:null;
+      state.sems=state.sems.filter(function(x){return x.id!==sm.id;});state.activeSem=state.sems.length?state.sems[0].id:null;ui.cityAuto=true;
       ui.confirm=null;save();go('#/');toast(_t("Semester removed."));
     });
   }
@@ -2507,7 +2579,7 @@ document.addEventListener('change',function(e){
   if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;return;}
   if(!c)return;
   if(c==='lang'){setLang(t.value);render(false);return;}
-  if(c==='sem'){if(t.value==='__new'){ui.setup=null;go('#/setup');}else{state.activeSem=t.value;ui.cityT={x:0,y:0,k:1};save();render();}}
+  if(c==='sem'){if(t.value==='__new'){ui.setup=null;go('#/setup');}else{state.activeSem=t.value;ui.cityAll=false;save();render();cityGoto(cityFocusT(state.activeSem));}}
   else if(c==='seen'){if(t.checked)state.seen[t.dataset.id]=true;else delete state.seen[t.dataset.id];save();render();}
   else if(c==='dead'){if(t.checked)state.tasksDone[t.dataset.id]=true;else delete state.tasksDone[t.dataset.id];save();render();}
   else if(c==='shopmod'){ui.shopMod=t.value;render();}

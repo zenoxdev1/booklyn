@@ -74,6 +74,10 @@ What they cover: failed imports and retries without duplicates, import confirmat
 
 The port in the city is a button: tapping it opens the Learning Port, and the Port page has a "← Campus" button to go back. When you import files, a card on the Port page shows the island: one ship per subject (in the colour of that subject) sails to the port, unloads, and a small boat carries the files over the bridge and along the streets to that subject's building, which lights up when it arrives. At most 8 ships are shown, the whole thing takes under 20 seconds, there is a "Skip the animation" button, and it is not shown at all when the device asks for reduced motion. Paths and timing are in `app/js/voyage.js` (pure maths, tested in `tests/unit/voyage.test.mjs`); the browser test is `tests/e2e/voyage.py`.
 
+## One island for all semesters
+
+With more than one semester, every semester is a district of the same island, side by side, with a shared port at the east end (the port button opens the Learning Port from any semester, and "← Campus" brings you back). The semester dropdown picks the district: the view glides to it, only that district is clickable, the others stay visible but dimmed. "See all semesters" shows the whole island, "Focus on this semester" goes back. Each district has its own pier, beach spot and name label on the south shore; the sand rim and the streets run through the whole island. With a single semester nothing changes. Anything that moves through the city (the import boats now, pedestrians and cars later) is placed among the buildings by depth (`moverPlace` in `app.js`), so it is never drawn over a building in front of it.
+
 ## ILIAS import
 
 The scan knows which ILIAS course every file comes from. The module is taken from the course: automatically when the course name contains the module code (e.g. `I.BA_CONWB.H2601` and module `CONWB`), otherwise Booklyn asks once and remembers (`iliasCourseMap`). The week comes from the folder or file name; if there is none the file is marked "Check this". Ready files are collapsed in the Port: open the list to review or correct each file's module and week, or import directly.

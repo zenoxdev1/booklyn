@@ -51,8 +51,8 @@ with sync_playwright() as p:
     seen = {'boat': 0, 'colors': set(), 'small': 0, 'arrive': 0}
     for _ in range(120):
         pg.wait_for_timeout(120)
-        r = pg.evaluate("""()=>({n:document.querySelectorAll('#voyageg .vboat').length,
-          h:[...document.querySelectorAll('#voyageg .vboat')].map(e=>e.getAttribute('style')),
+        r = pg.evaluate("""()=>({n:document.querySelectorAll('.voy #deptg .mv .vboat').length,
+          h:[...document.querySelectorAll('.voy #deptg .mv .vboat')].map(e=>e.getAttribute('style')),
           a:document.querySelectorAll('.voy .bgrp.arrive').length,done:!!document.querySelector('.voy [data-a="go"][data-to="#/"]')})""")
         seen['boat'] = max(seen['boat'], r['n']); seen['arrive'] = max(seen['arrive'], r['a'])
         for s in r['h']:
@@ -72,9 +72,9 @@ with sync_playwright() as p:
     # skip while sailing
     add_files(pg, [('NET_week2_x.txt', 'x net'), ('LAW_week1_y.txt', 'y law')])
     pg.click('[data-a="import"]'); pg.wait_for_timeout(500)
-    check('card is there while sailing', pg.locator('.voy #voyageg').count() == 1)
+    check('card is there while sailing', pg.locator('.voy #deptg').count() == 1)
     pg.click('.voy [data-a="vskip"]'); pg.wait_for_timeout(300)
-    check('skip stops everything', pg.locator('.voy').count() == 0 and pg.locator('#voyageg').count() == 0)
+    check('skip stops everything', pg.locator('.voy').count() == 0 and pg.locator('.voy #deptg').count() == 0)
     check('the files are imported anyway', pg.evaluate("JSON.parse(localStorage.getItem('booklyn:state')).lastImport.length") == 2)
     # leaving the page ends the voyage cleanly
     add_files(pg, [('NET_week3_z.txt', 'z net')])

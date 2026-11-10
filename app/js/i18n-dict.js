@@ -1027,6 +1027,8 @@ export const DICT = {
 "Your files sailing to their buildings": "Deine Dateien segeln zu ihren Gebäuden",
 "See your campus": "Zum Campus",
 "Tap a building to open it, or the port to add files. Drag to look around.": "Tippe auf ein Gebäude, um es zu öffnen, oder auf den Hafen, um Dateien hinzuzufügen. Ziehe, um dich umzusehen.",
+"See all semesters": "Alle Semester zeigen",
+"Focus on this semester": "Auf dieses Semester zoomen",
 },
 "es": {
 "Week ": "Semana ",
@@ -2054,6 +2056,8 @@ export const DICT = {
 "Your files sailing to their buildings": "Tus archivos navegan hacia sus edificios",
 "See your campus": "Ver tu campus",
 "Tap a building to open it, or the port to add files. Drag to look around.": "Toca un edificio para abrirlo, o el puerto para añadir archivos. Arrastra para mirar alrededor.",
+"See all semesters": "Ver todos los semestres",
+"Focus on this semester": "Centrar en este semestre",
 },
 "fr": {
 "Week ": "Semaine ",
@@ -3081,5 +3085,7 @@ export const DICT = {
 "Your files sailing to their buildings": "Tes fichiers naviguent vers leurs bâtiments",
 "See your campus": "Voir ton campus",
 "Tap a building to open it, or the port to add files. Drag to look around.": "Touche un bâtiment pour l’ouvrir, ou le port pour ajouter des fichiers. Fais glisser pour regarder autour.",
+"See all semesters": "Voir tous les semestres",
+"Focus on this semester": "Se concentrer sur ce semestre",
 }
 };
