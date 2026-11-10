@@ -460,3 +460,13 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .psel input{width:20px;height:20px;accent-color:var(--accent);flex:none}
 /* account button: lit only on the account page; a small dot shows that you are signed in */
 .acctbtn.signed span::after{content:"";display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:50%;background:var(--ok,#2e9e5b);vertical-align:middle}
+/* import voyage */
+.cityv .vb-t{fill:hsl(var(--h) 55% 62%)}.cityv .vb-l{fill:hsl(var(--h) 52% 46%)}.cityv .vb-r{fill:hsl(var(--h) 50% 32%)}
+.cityv .vc-t{fill:hsl(var(--h) 72% 80%)}.cityv .vc-l{fill:hsl(var(--h) 66% 64%)}.cityv .vc-r{fill:hsl(var(--h) 60% 48%)}
+.cityv .vboat{pointer-events:none}
+.cityv .bgrp.arrive{animation:arrive 1s ease-out}
+@keyframes arrive{0%{filter:brightness(1)}30%{filter:brightness(1.55) drop-shadow(0 0 5px hsl(var(--h) 85% 70%))}100%{filter:none}}
+.cityv .portbtn{cursor:pointer}.cityv .phit{fill:transparent}.cityv .portbtn:hover .phit{fill:rgba(255,255,255,.14)}
+.cityv .plabel{pointer-events:none}.cityv .plabel rect{fill:rgba(10,14,32,.78);stroke:#ffd166;stroke-width:.8}.cityv .plabel text{fill:#ffd166;font:700 10px system-ui,sans-serif}
+.voy .cityvp{height:clamp(240px,40vw,380px)}
+.vleg{display:inline-flex;gap:6px;align-items:center;font-size:.82rem;font-weight:600}.vleg i{width:12px;height:12px;border-radius:4px;background:hsl(var(--h) 52% 46%);display:inline-block}

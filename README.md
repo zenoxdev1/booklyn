@@ -13,6 +13,7 @@ Unofficial student project, not affiliated with HSLU. Files stay on the device (
       js/storage.js     IndexedDB access: every write resolves only after the browser confirmed it
       js/imports.js     when a file counts as "added" or "imported" (failed writes never count)
       js/final.js       whole-house final practice: balanced sessions, missed questions, review plan (kept apart from floor status)
+      js/voyage.js      import voyage: ship and delivery-boat routes and timing (pure maths)
       js/quiz-core.js   chunking with headings and pages, definition questions, quality rules, question bank, 5-question and 80 % rules
       js/backup.js      progress backup, full backup, checked restore, merge rules
       js/search.js      search across modules, floors, files and notes
@@ -68,6 +69,10 @@ What they cover: failed imports and retries without duplicates, import confirmat
 - **Without AI**: only clear definitions found in the files ("X is …", "X ist …") become questions, with the definitions or terms of other concepts as wrong options. Random-word blanks are no longer made.
 - Each question can be reported as unclear, wrong or not relevant (kept on the device, nothing is sent).
 - Limits: 30 AI requests per user and 250 in total per day (`AI_DAILY_CAP`), each request makes 3 to 5 model calls. The model is `AI_MODEL` (default Llama 3.1 8B on Workers AI).
+
+## Import voyage (Port and campus)
+
+The port in the city is a button: tapping it opens the Learning Port, and the Port page has a "← Campus" button to go back. When you import files, a card on the Port page shows the island: one ship per subject (in the colour of that subject) sails to the port, unloads, and a small boat carries the files over the bridge and along the streets to that subject's building, which lights up when it arrives. At most 8 ships are shown, the whole thing takes under 20 seconds, there is a "Skip the animation" button, and it is not shown at all when the device asks for reduced motion. Paths and timing are in `app/js/voyage.js` (pure maths, tested in `tests/unit/voyage.test.mjs`); the browser test is `tests/e2e/voyage.py`.
 
 ## ILIAS import
 
