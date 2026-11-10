@@ -31,7 +31,7 @@ with sync_playwright() as p:
     check('mountains and open sea behind the island', pg.locator('#citysvg .mt1').count() >= 1 and pg.locator('#citysvg .mt2').count() >= 1 and pg.locator('#citysvg .hzsea').count() == 1)
     check('no slab sides under the sea (the island is not floating)', pg.locator('#citysvg .sea-l').count() == 0 and pg.locator('#citysvg .sea-r').count() == 0)
     pg.goto(URL + '#/shop'); pg.wait_for_timeout(500)
-    check('shop has three sections', pg.locator('.shoptabs button').count() == 3)
+    check('shop has four sections', pg.locator('.shoptabs button').count() == 4)
     check('building items come with icons and a Try button', pg.locator('.shopitem .sicon').count() >= 10 and pg.locator('[data-a="shoptry"]').count() >= 10)
     # try before buying: nothing is paid, the preview changes
     coins0 = stored(pg)['coins']

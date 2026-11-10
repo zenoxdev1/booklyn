@@ -556,3 +556,15 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .shopbuy .need{flex-basis:100%}
 #shopcity{position:sticky;top:8px;z-index:5}
 #shopcity .cityvp{height:clamp(200px,32vw,300px)}
+/* cars and people */
+.city .vcar,.city .vped,.city .trring{pointer-events:none}
+.city .vh-t{fill:hsl(var(--h) 62% 58%)}.city .vh-l{fill:hsl(var(--h) 58% 44%)}.city .vh-r{fill:hsl(var(--h) 55% 32%)}
+.city .vg-t{fill:#cfe6f3}.city .vg-l{fill:#7fa6bd}.city .vg-r{fill:#5c8199}
+.city .vk-t{fill:#fff4b8}.city .vk-l{fill:#f2d24a}.city .vk-r{fill:#c9a82a}
+.city .vw{fill:#2b2b33}.city .vw.vw{stroke:none}
+.city .vsh{fill:rgba(0,0,0,.22)}.city .vsh2{fill:rgba(0,0,0,.2)}
+.city .vlg{stroke:#2f3140;stroke-width:1.2;stroke-linecap:round}
+.city .vbody{stroke:rgba(0,0,0,.25);stroke-width:.4}
+.city .vdog{fill:#8a6a4a}.city line.vlead{stroke:#444;stroke-width:.5}
+.city .trring{fill:none;stroke:var(--lit,#ffd166);stroke-width:1.6;stroke-dasharray:3 2}
+.swrow{align-items:center;gap:10px}
