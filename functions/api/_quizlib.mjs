@@ -74,6 +74,9 @@ function validatePrompt(material, cands) {
   return `Material:\n"""\n${material}\n"""\n\nYou are a strict reviewer of study questions. Questions:\n${JSON.stringify(list)}\n\nFor each question check: (1) it is clear and understandable on its own, (2) exactly one option is correct according to the material, (3) the other three are plausible but clearly wrong, (4) it is factually correct, (5) it tests understanding rather than trivia. Be strict: when in doubt, reject.\nReply with a JSON array only: [{"id":0,"ok":true or false,"issue":"short reason if not ok"}]`;
 }
 
+// Workers AI refuses further calls with a message about the daily free allocation of neurons once the allowance is used up.
+export function isQuotaError(e) { return /neuron|allocation|quota|daily limit|4006/i.test(String((e && e.message) || e || '')); }
+
 async function callJson(ai, model, system, user, maxTokens, temperature, open, close) {
   const res = await ai.run(model, { messages: [{ role: 'system', content: system }, { role: 'user', content: user }], max_tokens: maxTokens, temperature });
   return extractJson(res && (res.response ?? res), open, close);
@@ -110,7 +113,7 @@ export async function runPipeline({ ai, model, sections, n = 5 }) {
   const out = { questions: [], rejected: 0, reason: '', subject: '' };
 
   let analysis = null;
-  try { analysis = cleanAnalysis(await callJson(ai, model, SYS, analysePrompt(material), 900, 0.1, '{', '}'), material); } catch { analysis = null; }
+  try { analysis = cleanAnalysis(await callJson(ai, model, SYS, analysePrompt(material), 900, 0.1, '{', '}'), material); } catch (e) { if (isQuotaError(e)) throw e; analysis = null; }
   if (!analysis) { out.reason = 'The analysis step failed.'; return out; }
   out.subject = analysis.subject;
   if (!analysis.readable) { out.reason = analysis.reason || 'The material could not be read well enough.'; return out; }
@@ -120,7 +123,7 @@ export async function runPipeline({ ai, model, sections, n = 5 }) {
   let avoid = [];
   for (let round = 0; round < 2 && out.questions.length < n; round++) {
     let raw = null;
-    try { raw = await callJson(ai, model, SYS, generatePrompt(material, analysis, n + 3 - out.questions.length, avoid), 1800, 0.4, '[', ']'); } catch { raw = null; }
+    try { raw = await callJson(ai, model, SYS, generatePrompt(material, analysis, n + 3 - out.questions.length, avoid), 1800, 0.4, '[', ']'); } catch (e) { if (isQuotaError(e)) throw e; raw = null; }
     if (!Array.isArray(raw)) { avoid = ['the reply was not a valid JSON array']; continue; }
     const passed = [];
     avoid = [];
@@ -135,7 +138,7 @@ export async function runPipeline({ ai, model, sections, n = 5 }) {
     }
     if (!passed.length) continue;
     let verdicts = null;
-    try { verdicts = await callJson(ai, model, SYS, validatePrompt(material, passed), 900, 0, '[', ']'); } catch { verdicts = null; }
+    try { verdicts = await callJson(ai, model, SYS, validatePrompt(material, passed), 900, 0, '[', ']'); } catch (e) { if (isQuotaError(e)) throw e; verdicts = null; }
     if (!Array.isArray(verdicts)) { out.rejected += passed.length; avoid.push('the review step failed'); continue; }   // never show unchecked questions
     passed.forEach((c, i) => {
       const v = verdicts.find((x) => x && Number(x.id) === i);

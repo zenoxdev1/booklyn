@@ -11,6 +11,7 @@ var lang = 'en';
 
 function known(l) { for (var i = 0; i < LANGS.length; i++) if (LANGS[i][0] === l) return true; return false; }
 function detect() {
+  try { var q = new URLSearchParams(location.search).get('lang'); if (q && known(q)) { try { localStorage.setItem(KEY, q); } catch (e) {} return q; } } catch (e) {}
   try { var s = localStorage.getItem(KEY); if (s && known(s)) return s; } catch (e) {}
   try {
     var list = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'en'];

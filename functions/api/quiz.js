@@ -1,5 +1,5 @@
 import { json, currentUser, sameOrigin } from './_lib.js';
-import { runPipeline, MAX_MATERIAL } from './_quizlib.mjs';
+import { runPipeline, isQuotaError, MAX_MATERIAL } from './_quizlib.mjs';
 
 // POST /api/quiz { sections: [{ title, text, ref }], n }
 //   -> { ok, questions: [{ q, o: [4 options], a: index, e, evidence, concept, title, ref }], rejected, reason, subject }
@@ -7,7 +7,9 @@ import { runPipeline, MAX_MATERIAL } from './_quizlib.mjs';
 // so the free allowance is never exceeded; each request makes 3 to 5 model calls.
 const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
 const USER_DAILY = 30;
-const GLOBAL_DAILY = 250;
+// Cloudflare's free Workers AI allowance is 10,000 neurons a day. One request costs roughly 80 to 110 neurons, so about 90 requests
+// fit in the free allowance. Set AI_DAILY_CAP (Pages > Settings > Variables) to the number you can afford; with a paid Workers plan raise it.
+const GLOBAL_DAILY = 90;
 
 export async function onRequestPost({ request, env }) {
   if (!sameOrigin(request)) return json({ ok: false, error: 'origin' }, 403);
@@ -32,7 +34,9 @@ export async function onRequestPost({ request, env }) {
   let result;
   try {
     result = await runPipeline({ ai: env.AI, model: env.AI_MODEL || DEFAULT_MODEL, sections, n });
-  } catch {
+  } catch (e) {
+    // Workers AI answers with an error like "daily free allocation of 10,000 neurons" once the allowance is gone: report it as the limit it is.
+    if (isQuotaError(e)) return json({ ok: false, error: 'limit' }, 429);
     return json({ ok: false, error: 'ai' }, 502);
   }
   // 200 even when nothing passed: the app shows the reason instead of inventing questions.

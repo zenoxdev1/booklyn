@@ -568,3 +568,10 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .city .vdog{fill:#8a6a4a}.city line.vlead{stroke:#444;stroke-width:.5}
 .city .trring{fill:none;stroke:var(--lit,#ffd166);stroke-width:1.6;stroke-dasharray:3 2}
 .swrow{align-items:center;gap:10px}
+/* touch targets */
+.shoptabs .chip.fchip{min-height:44px;padding:0 16px;display:inline-flex;align-items:center}
+.disclaimer a{display:inline-block;padding:12px 6px}
+/* bigger tap targets */
+.matrow input[type=checkbox]{width:28px;height:28px;flex:none;margin:6px}
+.sw{min-width:40px;min-height:40px}
+button.link{min-height:44px;padding-top:10px;padding-bottom:10px}

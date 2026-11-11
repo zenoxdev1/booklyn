@@ -153,6 +153,7 @@ function clean(s){
       m.h=Math.min(360,Math.max(0,+m.h||0));m.units=Math.min(MAXU,Math.max(1,Math.floor(+m.units||1)));
       if(!Array.isArray(m.titles))m.titles=[];m.titles=m.titles.slice(0,MAXU).map(function(t){return String(t).slice(0,200);});
       if(!m.base||typeof m.base!=='object'||Array.isArray(m.base))m.base={};
+      if(m.ul!=='topic'&&m.ul!=='chapter')delete m.ul;
     });
   });
   var dk=['Exam','Test','Assignment','Project','Other'],dids={};
@@ -290,7 +291,10 @@ function collectRent(){
   state.coins+=pay;save();return pay;
 }
 var MAXU=30;
-function ensureUnits(m,n){n=clamp(n,1,MAXU);if(n<=m.units)return false;for(var u=m.units+1;u<=n;u++)m.titles[u-1]=m.titles[u-1]||(_t("Week ")+u);m.units=n;save();return true;}
+/* how a unit is called in this module: Week, Topic or Chapter */
+function UL(m){if(typeof m==='string')m=M(m);var k=m&&m.ul;return k==='topic'?_t("Topic "):k==='chapter'?_t("Chapter "):_t("Week ");}
+function ulSet(m,k){var old=UL(m),re=new RegExp('^'+old.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\d+)$');if(k==='topic'||k==='chapter')m.ul=k;else delete m.ul;var nw=UL(m);m.titles=m.titles.map(function(t){var x=re.exec(t);return x?nw+x[1]:t;});}
+function ensureUnits(m,n){n=clamp(n,1,MAXU);if(n<=m.units)return false;for(var u=m.units+1;u<=n;u++)m.titles[u-1]=m.titles[u-1]||(UL(m)+u);m.units=n;save();return true;}
 function litCount(m){var n=0;for(var u=1;u<=m.units;u++) if(isOn(uStatus(m,u))) n++;return n;}
 function totals(sem){var l=0,t=0;sem.modules.forEach(function(m){l+=litCount(m);t+=m.units;});return {l:l,t:t};}
 function pending(){var s=curSem();return FILES.filter(function(f){return f.status==='pending'&&(!s||f.sem===s.id);});}
@@ -1377,7 +1381,7 @@ function pendingRow(f){
    +'<div class="sel"><label class="sr" for="m-'+f.id+("\">"+_t("Module for "))+esc(f.name)+'</label><select id="m-'+f.id+("\" data-c=\"mod\"><option value=\"\">"+_t("Choose a module…")+"</option>")
    +sem.modules.map(function(x){return '<option value="'+x.id+'"'+(x.id===f.mod?' selected':'')+'>'+esc(x.code)+' · '+esc(x.name)+'</option>';}).join('')+'</select>'
    +'<label class="sr" for="u-'+f.id+("\">"+_t("Unit for "))+esc(f.name)+'</label><select id="u-'+f.id+'" data-c="unit">'
-   +Array.apply(null,{length:N}).map(function(_,i){return '<option value="'+(i+1)+'"'+(i+1===f.unit?' selected':'')+(">"+_t("Week "))+(i+1)+'</option>';}).join('')+'</select></div>'
+   +Array.apply(null,{length:N}).map(function(_,i){return '<option value="'+(i+1)+'"'+(i+1===f.unit?' selected':'')+(">"+UL(f.mod))+(i+1)+'</option>';}).join('')+'</select></div>'
    +(held&&!f.dup&&f.mod?'<div><button class="btn small ghost" data-a="confirm" data-id="'+f.id+("\">"+_t("Looks right")+"</button></div>"):'')
    +(held&&!f.dup&&!f.mod?("<p class=\"foot\">"+_t("Choose a module to continue.")+"</p>"):'')+verPendingHTML(f)+portRowTools(f)+'</div></li>';
 }
@@ -1509,7 +1513,7 @@ function vModule(r){
       var st=uStatus(m,u),n=mats(m,u).length;
       h+='<li><button class="item '+st+'" data-a="go" data-to="#/m/'+m.id+'/'+u+'"><span class="floor" style="--h:'+m.h+'">'+u+'</span><div class="grow"><div class="t">'+esc(m.titles[u-1])+'</div><div class="s">'+(n?n+_pl(n,' file',' files'):_t("No files yet"))+(st==='lit'||st==='fading'?' · '+esc(guestName(m.id,u))+(st==='fading'?_t(" is packing"):_t(" lives here")):'')+(function(){var q=litInfo(m.id+':'+u);return q&&q.pinned?_t(" · pinned"):q&&q.until?' · '+cdSpan(q.until,true)+_t(" left"):'';})()+'</div></div>'+chip(st)+'</button></li>';
     }
-    h+='</ul><div class="row" style="margin-top:12px"><button class="btn ghost small" data-a="addfloor" data-m="'+m.id+("\">"+_t("＋ Add a floor")+"</button>")+(m.units>1&&!mats(m,m.units).length&&!state.lit[m.id+':'+m.units]?'<button class="btn ghost small" data-a="rmfloor" data-m="'+m.id+("\">"+_t("Remove last floor (Week "))+m.units+')</button>':'')+'</div>';
+    h+='</ul><label class="f" style="margin-top:12px">'+_t("This module is organised by")+'<select data-c="ulabel" data-m="'+m.id+'">'+[['',_t("Weeks")],['topic',_t("Topics")],['chapter',_t("Chapters")]].map(function(o){return '<option value="'+o[0]+'"'+((m.ul||'')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label><p class="foot" style="margin:4px 0 0">'+_t("If this course is not taught by weeks, choose Topics or Chapters. Floors are then called Topic 1, Topic 2… You can rename every floor, and a file with no week stays in Check this until you put it on a floor.")+'</p><div class="row" style="margin-top:12px"><button class="btn ghost small" data-a="addfloor" data-m="'+m.id+("\">"+_t("＋ Add a floor")+"</button>")+(m.units>1&&!mats(m,m.units).length&&!state.lit[m.id+':'+m.units]?'<button class="btn ghost small" data-a="rmfloor" data-m="'+m.id+("\">"+_t("Remove last floor (Week "))+m.units+')</button>':'')+'</div>';
   } else {
     h+=("<label class=\"f\">"+_t("Search files")+"<input type=\"search\" id=\"q\" value=\"")+esc(ui.q)+("\" placeholder=\""+_t("Name, type or words inside the files")+"\"></label><div id=\"matlist\">")+fileList(m)+'</div>';
   }
@@ -1521,7 +1525,7 @@ function fileList(m){
   for(var u=1;u<=m.units;u++){
     var ms=mats(m,u).filter(function(x){return !q||(x.name+' '+x.type).toLowerCase().indexOf(q)>-1;});
     if(!ms.length) continue;
-    out+=("<h3 style=\"margin:14px 0 8px\">"+_t("Week "))+u+' · '+esc(m.titles[u-1])+'</h3><div class="stack">'+ms.map(function(x){return matRow(m,u,x);}).join('')+'</div>';
+    out+=("<h3 style=\"margin:14px 0 8px\">"+UL(m))+u+' · '+esc(m.titles[u-1])+'</h3><div class="stack">'+ms.map(function(x){return matRow(m,u,x);}).join('')+'</div>';
   }
   return out||("<p class=\"lede\" style=\"margin-top:12px\">"+_t("No files yet.")+"</p>");
 }
@@ -1548,7 +1552,7 @@ function vUnit(r){
   h+=qUnitHTML(m,u);
   h+=("<section class=\"stack\"><label class=\"f\" for=\"utitle\">"+_t("Unit name")+"<input type=\"text\" id=\"utitle\" data-k=\"")+k+'" value="'+esc(m.titles[u-1])+'" maxlength="80"></label>'
    +("<label class=\"f\" for=\"note\">"+_t("Notes")+"<textarea id=\"note\" data-k=\"")+k+("\" placeholder=\""+_t("Terms you could not explain, questions for the lecturer…")+"\">")+esc(state.notes[k]||'')+("</textarea></label><p class=\"foot\">"+_t("Saved on this device while you type.")+"</p></section>");
-  h+='<div class="row between">'+(u>1?'<button class="btn ghost small" data-a="go" data-to="#/m/'+m.id+'/'+(u-1)+("\">"+_t("← Week "))+(u-1)+'</button>':'<span></span>')+(u<m.units?'<button class="btn ghost small" data-a="go" data-to="#/m/'+m.id+'/'+(u+1)+("\">"+_t("Week "))+(u+1)+' →</button>':'')+'</div>';
+  h+='<div class="row between">'+(u>1?'<button class="btn ghost small" data-a="go" data-to="#/m/'+m.id+'/'+(u-1)+("\">"+("← "+UL(m)))+(u-1)+'</button>':'<span></span>')+(u<m.units?'<button class="btn ghost small" data-a="go" data-to="#/m/'+m.id+'/'+(u+1)+("\">"+UL(m))+(u+1)+' →</button>':'')+'</div>';
   return h;
 }
 
@@ -1991,6 +1995,7 @@ function vSetup(){
   h+=("<section class=\"stack\"><h2>"+_t("Modules")+"</h2>")+S.mods.map(function(m,i){
     return ("<div class=\"modrow\"><div class=\"g\"><label class=\"f\">"+_t("Code")+"<input type=\"text\" data-sb=\"mods.")+i+'.code" value="'+esc(m.code)+("\" maxlength=\"8\" placeholder=\"CNB\"></label><label class=\"f\">"+_t("Name")+"<input type=\"text\" data-sb=\"mods.")+i+'.name" value="'+esc(m.name)+("\" maxlength=\"60\" placeholder=\"Computer Networks Basics\"></label><label class=\"f\">"+_t("Units (not sure? keep 14)")+"<input type=\"number\" min=\"1\" max=\"30\" data-sb=\"mods.")+i+'.units" value="'+esc(m.units)+'"></label></div>'
      +("<label class=\"f\">"+_t("Words that help sort files (optional, comma separated)")+"<input type=\"text\" data-sb=\"mods.")+i+'.kw" value="'+esc(m.kw)+("\" placeholder=\""+_t("router, ipv4, subnet")+"\"></label>")
+     +'<label class="f">'+_t("This module is organised by")+'<select data-sb="mods.'+i+'.ul">'+[['',_t("Weeks")],['topic',_t("Topics")],['chapter',_t("Chapters")]].map(function(o){return '<option value="'+o[0]+'"'+((m.ul||'')===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select></label>'
      +(S.mods.length>1?'<div><button class="btn small ghost" data-a="rmmod" data-i="'+i+("\">"+_t("Remove module")+"</button></div>"):'')+'</div>';}).join('')
    +("<div class=\"row\"><button class=\"btn ghost\" data-a=\"addmod\">"+_t("＋ Add a module")+"</button></div></section>");
   h+=("<div class=\"row\"><button class=\"btn\" data-a=\"buildsem\">"+_t("Build my district")+"</button>")+(state.sems.length?("<button class=\"btn ghost\" data-a=\"go\" data-to=\"#/\">"+_t("Cancel")+"</button>"):'')+'</div>';
@@ -2040,7 +2045,7 @@ function verSummaryHTML(v,newName){
   if(r.removed.length)parts.push(_t("Removed: ")+W+V.listPages(r.removed)+_t(" (in the old file)"));
   return '<p class="foot">'+esc(parts.join(' · '))+'</p>';
 }
-function verWhere(f){var m=f.mod?M(f.mod):null;return m?' · '+esc(m.code)+(f.unit?' · '+esc(_t("Week "))+f.unit:''):'';}
+function verWhere(f){var m=f.mod?M(f.mod):null;return m?' · '+esc(m.code)+(f.unit?' · '+esc(UL(m))+f.unit:''):'';}
 /* In the Port, under a file that has just been added. */
 function verPendingHTML(f){
   var old=f.replaces&&fileById(f.replaces),cand=old?null:verCand(f);
@@ -2129,7 +2134,7 @@ function goalFormHTML(fixed){
     var sem=curSem(),m=M(ui.gMod)||sem.modules[0];if(!m)return '';
     var un=Math.min(+ui.gUnit||0,m.units);
     pick='<div class="row"><label class="f grow" for="gmod">'+_t("Module")+'<select id="gmod" name="mod" data-c="gmod">'+sem.modules.map(function(x){return '<option value="'+x.id+'"'+(x.id===m.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</select></label>'
-      +'<label class="f grow" for="gunit">'+_t("Applies to")+'<select id="gunit" name="unit" data-c="gunit"><option value="0"'+(un===0?' selected':'')+'>'+_t("Whole module")+'</option>'+Array.apply(null,{length:m.units}).map(function(_,i){return '<option value="'+(i+1)+'"'+(un===i+1?' selected':'')+'>'+esc(_t("Week "))+(i+1)+'</option>';}).join('')+'</select></label></div>';
+      +'<label class="f grow" for="gunit">'+_t("Applies to")+'<select id="gunit" name="unit" data-c="gunit"><option value="0"'+(un===0?' selected':'')+'>'+_t("Whole module")+'</option>'+Array.apply(null,{length:m.units}).map(function(_,i){return '<option value="'+(i+1)+'"'+(un===i+1?' selected':'')+'>'+esc(UL(m))+(i+1)+'</option>';}).join('')+'</select></label></div>';
   }
   return '<form class="stack qform" data-form="goaladd" data-focus="'+id+'"'+(fixed?' data-mod="'+esc(fixed.mod)+'" data-unit="'+fixed.unit+'"':'')+'>'+pick
     +'<label class="f" for="'+id+'">'+_t("Add objectives")+'<textarea id="'+id+'" name="text" rows="2" maxlength="6000" placeholder="'+esc(_t("One objective per line. You can paste a list from your syllabus."))+'"></textarea></label>'
@@ -2142,7 +2147,7 @@ function goalPanelHTML(o){
   var order=recs.filter(function(f){return sg[f.id];}).concat(recs.filter(function(f){return !sg[f.id];}));
   function btn(kind,ref,label,on,hint){return '<button type="button" class="btn small '+(on?'':'ghost ')+'goalpick" data-a="goallink" data-id="'+esc(o.id)+'" data-kind="'+kind+'" data-ref="'+esc(ref)+'" aria-pressed="'+on+'">'+(on?'<span class="sr">'+_t("Linked")+': </span>':'')+label+(hint?' <span class="chip">'+_t("Suggested")+'</span>':'')+'</button>';}
   var h='<div class="stack goalpanel"><p class="foot" style="margin:0">'+_t("Booklyn suggests files whose name or text contains the main words of the objective. You decide what to link.")+'</p><h4 style="margin:4px 0">'+_t("Files for this objective")+'</h4><div class="goalpicks">'
-    +order.map(function(f){return btn('file',f.id,esc(f.name)+(f.unit?' · '+esc(_t("Week "))+f.unit:''),OB.hasLink(o,'file',f.id),!!sg[f.id]);}).join('')+'</div>';
+    +order.map(function(f){return btn('file',f.id,esc(f.name)+(f.unit?' · '+esc(UL(f.mod))+f.unit:''),OB.hasLink(o,'file',f.id),!!sg[f.id]);}).join('')+'</div>';
   var rid={};recs.forEach(function(f){rid[f.id]=f;});
   var ns=state.snotes.filter(function(n){return rid[n.file];});
   h+='<h4 style="margin:4px 0">'+_t("Notes for this objective")+'</h4>';
@@ -2153,7 +2158,7 @@ function goalPanelHTML(o){
 function goalRowHTML(x,where){
   var o=x.o,open=ui.goalOpen===o.id,del=ui.goalDel===o.id,m=M(o.mod);
   return '<li class="qrow goal"><div class="grow"><textarea class="qtext" rows="1" maxlength="'+OB.MAX_TEXT+'" data-q="goaltext" data-id="'+esc(o.id)+'" aria-label="'+esc(_t("Objective"))+'">'+esc(o.text)+'</textarea>'
-    +'<div class="s">'+(where?'<span class="chip">'+esc(o.unit?_t("Week ")+o.unit:_t("Whole module"))+'</span> ':'')+goalChip(x.st,x.pr)
+    +'<div class="s">'+(where?'<span class="chip">'+esc(o.unit?UL(m)+o.unit:_t("Whole module"))+'</span> ':'')+goalChip(x.st,x.pr)
     +' <span class="chip">'+o.files.length+_pl(o.files.length,' file',' files')+'</span> <span class="chip">'+o.notes.length+_pl(o.notes.length,' note',' notes')+'</span></div>'
     +'<div class="row tight"><button class="btn small ghost" data-a="goalopen" data-id="'+esc(o.id)+'" aria-expanded="'+open+'">'+_t("Link files and notes")+'</button>'
     +(m&&o.unit?'<button class="btn small ghost" data-a="go" data-to="#/m/'+m.id+'/'+o.unit+'">'+_t("Open floor")+'</button>':'')
@@ -2229,7 +2234,7 @@ function qMat(q){
   return null;
 }
 function qSrc(q){var f=qMat(q);return f?f.name+(q.page?' · '+(/\.pptx$/i.test(f.name)?_t("Slide "):_t("Page "))+q.page:''):'';}
-function qWhere(q,hideMod){var m=M(q.mod),w=[];if(!hideMod&&m)w.push(esc(m.code));w.push(q.unit?esc(_t("Week "))+q.unit:esc(_t("Whole module")));return w.join(' · ');}
+function qWhere(q,hideMod){var m=M(q.mod),w=[];if(!hideMod&&m)w.push(esc(m.code));w.push(q.unit?esc(UL(m))+q.unit:esc(_t("Whole module")));return w.join(' · ');}
 function qLessonChip(q){return q.due?'<span class="chip'+(q.due<qToday()&&!q.done?' s-fading':'')+'">'+esc(_t("Lesson "))+esc(fmt(q.due))+'</span>':'';}
 function qRowHTML(q,hideMod){
   var src=qSrc(q),f=qMat(q);
@@ -2242,7 +2247,7 @@ function qRowHTML(q,hideMod){
 }
 function qFileOptions(m,unit){
   var o='<option value="">'+_t("No file")+'</option>';
-  for(var u=1;u<=m.units;u++){if(unit&&u!==unit)continue;mats(m,u).forEach(function(x){o+='<option value="'+esc(x.id)+'">'+esc(_t("Week ")+u+' · '+x.name)+'</option>';});}
+  for(var u=1;u<=m.units;u++){if(unit&&u!==unit)continue;mats(m,u).forEach(function(x){o+='<option value="'+esc(x.id)+'">'+esc(UL(m)+u+' · '+x.name)+'</option>';});}
   return o;
 }
 /* One form for both places: fixed = {mod,unit} on a floor page, nothing on the questions page. */
@@ -2252,7 +2257,7 @@ function qFormHTML(fixed){
   var pick='';
   if(!fixed){
     pick='<div class="grid2"><label class="f">'+_t("Module")+'<select name="mod" data-c="qmod">'+state.sems.map(function(sm){return '<optgroup label="'+esc(sm.name)+'">'+sm.modules.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===m.id?' selected':'')+'>'+esc(x.code+' · '+x.name)+'</option>';}).join('')+'</optgroup>';}).join('')+'</select></label>'
-      +'<label class="f">'+_t("Week ").trim()+'<select name="unit" data-c="qunit"><option value="0">'+_t("Whole module")+'</option>'+m.titles.slice(0,m.units).map(function(t,i){return '<option value="'+(i+1)+'"'+(unit===i+1?' selected':'')+'>'+esc(_t("Week ")+(i+1)+' · '+t)+'</option>';}).join('')+'</select></label></div>';
+      +'<label class="f">'+UL(m).trim()+'<select name="unit" data-c="qunit"><option value="0">'+_t("Whole module")+'</option>'+m.titles.slice(0,m.units).map(function(t,i){return '<option value="'+(i+1)+'"'+(unit===i+1?' selected':'')+'>'+esc(UL(m)+(i+1)+' · '+t)+'</option>';}).join('')+'</select></label></div>';
   }
   var id=fixed?'qu':'qtext';
   return '<form class="stack qform" data-form="qadd" data-focus="'+id+'"'+(fixed?' data-mod="'+esc(fixed.mod)+'" data-unit="'+fixed.unit+'"':'')+'>'+pick
@@ -2377,7 +2382,7 @@ function resultsHTML(res,opt){
     var d=r.doc,m=M(d.mod);if(!m)return;
     var sm=semOf(m.id),where=[];
     if(!opt.hideMod)where.push(esc(m.code));
-    if(d.unit){where.push(esc(_t("Week "))+d.unit);if(d.kind!=='floor'&&m.titles[d.unit-1])where.push(esc(m.titles[d.unit-1]));}
+    if(d.unit){where.push(esc(UL(m))+d.unit);if(d.kind!=='floor'&&m.titles[d.unit-1])where.push(esc(m.titles[d.unit-1]));}
     if(d.kind==='module'&&sm&&sm.name)where.push(esc(sm.name));
     if(d.loc)where.push(esc(d.loc));
     if(r.page)where.push(esc((d.label==='p.'?_t("Page "):d.label==='slide'?_t("Slide "):'')+r.page));
@@ -2679,7 +2684,7 @@ document.addEventListener('click',function(e){
   else if(a==='tab'){ui.tab=b.dataset.v;render();}
   else if(a==='newsem'){ui.setup=null;go('#/setup');}
   else if(a==='demo'){seedDemo();ui.cityBuild=true;ui.cityAuto=true;ui.cityT={x:0,y:0,k:1};save();go('#/');}
-  else if(a==='addmod'){ui.setup.mods.push({code:'',name:'',units:14,kw:''});render();}
+  else if(a==='addmod'){ui.setup.mods.push({code:'',name:'',units:14,kw:'',ul:''});render();}
   else if(a==='rmmod'){ui.setup.mods.splice(+b.dataset.i,1);render();}
   else if(a==='buildsem'){
     var S=ui.setup,mods=S.mods.filter(function(m){return String(m.code).trim()&&String(m.name).trim();});
@@ -2687,8 +2692,8 @@ document.addEventListener('click',function(e){
     var sem={id:uid(),name:String(S.sname).trim()||_t("Semester"),start:S.start||'',demo:false,finished:false,modules:[]};
     mods.forEach(function(m,i){
       var code=String(m.code).trim().toUpperCase().slice(0,8),n=clamp(parseInt(m.units,10)||14,1,MAXU),t=[];
-      for(var u=1;u<=n;u++)t.push(_t("Week ")+u);
-      sem.modules.push({id:uid(),code:code,name:String(m.name).trim(),h:HUES[(state.sems.length*3+i)%HUES.length],units:n,kw:String(m.kw).trim()||ALIASES[code]||'',titles:t,base:{}});
+      var ulk=m.ul==="topic"||m.ul==="chapter"?m.ul:"";for(var u=1;u<=n;u++)t.push(UL({ul:ulk})+u);
+      sem.modules.push({id:uid(),ul:ulk||undefined,code:code,name:String(m.name).trim(),h:HUES[(state.sems.length*3+i)%HUES.length],units:n,kw:String(m.kw).trim()||ALIASES[code]||'',titles:t,base:{}});
     });
     if(S.name)state.name=S.name;
     state.sems.push(sem);state.activeSem=sem.id;ui.setup=null;ui.cityBuild=true;ui.cityAuto=true;ui.cityT={x:0,y:0,k:1};save();go('#/');toast(_t("Your district is ready. Tap a building to add its first files."));
@@ -2837,6 +2842,7 @@ document.addEventListener('change',function(e){
   if(t.dataset.dl){ui.dl[t.dataset.dl]=t.value;return;}
   if(!c)return;
   if(c==='lang'){setLang(t.value);render(false);return;}
+  if(c==='ulabel'){var um=M(t.dataset.m);if(um){ulSet(um,t.value);save();render();}return;}
   if(c==='sem'){if(t.value==='__new'){ui.setup=null;go('#/setup');}else{state.activeSem=t.value;ui.cityAll=false;save();render();cityGoto(cityFocusT(state.activeSem));}}
   else if(c==='seen'){if(t.checked)state.seen[t.dataset.id]=true;else delete state.seen[t.dataset.id];save();render();}
   else if(c==='dead'){if(t.checked)state.tasksDone[t.dataset.id]=true;else delete state.tasksDone[t.dataset.id];save();render();}
@@ -2908,7 +2914,7 @@ document.addEventListener('toggle',function(e){var t=e.target;if(t&&t.id==='ilmg
 document.addEventListener('input',function(e){
   var t=e.target;
   if(t.id==='note'){state.notes[t.dataset.k]=t.value;save();}
-  else if(t.id==='utitle'){var p=t.dataset.k.split(':'),m=M(p[0]);if(m){m.titles[+p[1]-1]=t.value||(_t("Week ")+p[1]);save();}}
+  else if(t.id==='utitle'){var p=t.dataset.k.split(':'),m=M(p[0]);if(m){m.titles[+p[1]-1]=t.value||(UL(m)+p[1]);save();}}
   else if(t.id==='nm'){state.name=t.value;save();}
   else if(t.id==='q'){ui.q=t.value;var r=route();$('#matlist').innerHTML=fileList(r.m);if(t.value.trim())indexFiles();}
   else if(t.id==='sq'){ui.sq=t.value;paintSearch();}

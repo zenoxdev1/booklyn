@@ -99,3 +99,14 @@ test('analysis keeps only concepts with a verifiable quote', () => {
   const a = cleanAnalysis({ readable: true, concepts: [{ name: 'A', meaning: 'm', quote: 'UDP does not retransmit lost datagrams, which keeps latency low' }, { name: 'B', meaning: 'm', quote: 'completely invented sentence that is nowhere in it' }] }, MATERIAL);
   assert.deepEqual(a.concepts.map((c) => c.name), ['A']);
 });
+
+test('a used-up Workers AI allowance is reported as a quota error, not swallowed as a failed analysis', async () => {
+  const { isQuotaError } = await import('../../functions/api/_quizlib.mjs');
+  assert.equal(isQuotaError(new Error('4006: you have used up your daily free allocation of 10,000 neurons')), true);
+  assert.equal(isQuotaError(new Error('network reset')), false);
+  const ai = { async run() { throw new Error('you have used up your daily free allocation of 10,000 neurons'); } };
+  await assert.rejects(() => runPipeline({ ai, model: 'm', sections, n: 5 }), /neurons/);
+  const ai2 = { async run() { throw new Error('socket hang up'); } };
+  const r = await runPipeline({ ai: ai2, model: 'm', sections, n: 5 });
+  assert.equal(r.questions.length, 0);
+});

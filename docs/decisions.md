@@ -34,3 +34,8 @@ The ITPRB prototype and the public app are the same project.
 - Angie Born: is a coded prototype accepted instead of Figma? How should AI use be mentioned?
 - AI provider: leaning towards Cloudflare Workers AI behind a Worker with daily limits.
 - Funding: no ads at the start.
+
+## 7. Courses without weeks, landing in four languages (Nov 2026)
+- A module can be organised by Weeks, Topics or Chapters. Same floors, different label; no new data model.
+- The landing is generated from one template and one string table, so the four languages cannot drift apart. Legal pages stay English.
+- Free AI cap lowered to 90 requests a day: the free Workers AI allowance (about 10,000 neurons) is shared by everyone, and a quota error now shows the normal "limit" message.

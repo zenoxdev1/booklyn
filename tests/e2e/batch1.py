@@ -97,7 +97,9 @@ with sync_playwright() as p:
     bk = bank(pg)
     def answer_of(text):
         # options are shuffled on screen: find the button that shows the right option text
-        q = next(q for q in bk['q'] if q['q'] == text)
+        q = next((q for q in bk['q'] if q['q'] == text), None)
+        if q is None:
+            bk.update(bank(pg)); q = next(q for q in bk['q'] if q['q'] == text)
         labels = pg.locator('[data-a="pick"]').all_inner_texts()
         return next(i for i, l in enumerate(labels) if q['o'][q['a']] in l)
     def play(correct_flags):

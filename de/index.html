@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Booklyn: Lass dein Licht an</title>
+<meta name="description" content="Booklyn macht aus deinem Semester eine Stadt bei Nacht, die du beim Lernen zum Leuchten bringst. Gratis, privat und von Studierenden gemacht.">
+<meta name="theme-color" content="#1d5c58">
+<link rel="canonical" href="https://booklyn.pages.dev/de/">
+<link rel="alternate" hreflang="en" href="https://booklyn.pages.dev/">
+<link rel="alternate" hreflang="de" href="https://booklyn.pages.dev/de/">
+<link rel="alternate" hreflang="es" href="https://booklyn.pages.dev/es/">
+<link rel="alternate" hreflang="fr" href="https://booklyn.pages.dev/fr/">
+<link rel="alternate" hreflang="x-default" href="https://booklyn.pages.dev/">
+<link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/app/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/app/apple-touch-icon.png">
+<link rel="preload" href="/app/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js"></script>
+<meta property="og:title" content="Booklyn: Lass dein Licht an">
+<meta property="og:description" content="Lerne eine Einheit, bestehe einen kurzen Check, und ein Fenster deiner Stadt leuchtet auf.">
+<meta property="og:locale" content="de_CH">
+<meta property="og:image" content="/assets/city.webp">
+</head>
+<body id="top">
+<a class="skip" href="#main">Zum Inhalt springen</a>
+<div class="wrap">
+<header class="top">
+<a class="brand" href="/de/"><img src="/app/icon.svg" alt="" width="36" height="36"><span>Booklyn</span></a>
+<nav id="site-nav" aria-label="Hauptmenü"><a href="#try">Ausprobieren</a><a href="#how">So funktioniert es</a><a href="#features">Funktionen</a><a href="/connector/">ILIAS-Connector</a><a href="#faq">Fragen</a></nav>
+<div class="topact"><a class="btn small" href="/app/?lang=de">Booklyn öffnen</a><button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="site-nav" aria-label="Menü"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path class="m-close" d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>
+</header>
+<div class="langsw langtop" role="group" aria-label="Sprache"><a href="/" lang="en" hreflang="en">English</a><a href="/de/" lang="de" hreflang="de" aria-current="true">Deutsch</a><a href="/es/" lang="es" hreflang="es">Español</a><a href="/fr/" lang="fr" hreflang="fr">Français</a></div>
+<main id="main">
+<section class="hero herogrid" id="try">
+<div>
+<h1>Lass dein Licht an.</h1>
+<p class="lede">Booklyn macht aus deinem Semester eine Stadt bei Nacht. Lerne eine Einheit, bestehe einen kurzen Check zu deinem eigenen Material, und ein Fenster leuchtet auf. Lässt du eine Woche schleifen, verblasst es langsam.</p>
+<div class="cta"><a class="btn" href="/app/?lang=de">Booklyn öffnen</a><a class="btn ghost" href="#how">So funktioniert es</a></div>
+<ul class="trust" aria-label="Das Wichtigste"><li>Gratis</li><li>Kein Konto nötig</li><li>Funktioniert offline</li><li>Dateien bleiben auf deinem Gerät</li><li>Englisch, Deutsch, Spanisch, Französisch</li></ul>
+<p class="note"><strong>Probier es aus:</strong> Tippe auf ein Stockwerk, das nicht leuchtet, beantworte die Frage und spule dann eine Woche vor.</p>
+</div>
+<div class="demo" aria-label="Interaktive Booklyn-Demo">
+<svg viewBox="-225 -50 450 290" role="group" aria-label="Eine kleine Demo-Stadt. Jedes Stockwerk ist eine Woche eines Moduls."><g id="demo-city"></g></svg>
+<div class="dstats"><b id="d-stats">0</b><span class="dbar"><i id="d-bar"></i></span><span class="dchip"><span id="d-coins">0</span> Münzen</span><span class="dchip" id="d-day">1</span><span class="dchip">Nächste Miete in <span id="d-rent">--:--:--</span></span></div>
+<p class="dmsg" id="d-msg" role="status" aria-live="polite">Tippe auf ein Stockwerk, das nicht leuchtet.</p>
+<div class="dquiz" id="d-quiz" hidden></div>
+<div class="drow"><button type="button" class="btn small" id="d-ff">8 Tage vorspulen</button><button type="button" class="btn ghost small" id="d-reset">Zurücksetzen</button></div>
+<div class="legend" style="color:#cfd3ee" aria-label="Was die Fenster bedeuten"><span><i class="l-on"></i>Licht an</span><span><i class="l-prog"></i>In Arbeit</span><span><i class="l-fade"></i>Verblasst</span><span><i class="l-ready"></i>Bereit</span><span><i class="l-wait"></i>Wartet auf Dateien</span></div>
+</div>
+</section>
+
+<section class="s" id="how" aria-labelledby="how-h">
+<h2 id="how-h">So funktioniert es</h2>
+<p class="sub">Dein Studium ist die Stadt, ein Semester ein Viertel, ein Modul ein Gebäude und jede Lerneinheit ein Stockwerk.</p>
+<div class="grid">
+<div class="card"><span class="num" aria-hidden="true">1</span><h3>Material hinzufügen</h3><p>Zieh PDFs, Word- und PowerPoint-Dateien oder ganze Ordner hinein. Booklyn schlägt anhand des Dateinamens Modul und Woche vor, du bestätigst. Die Dateien bleiben in deinem Browser.</p></div>
+<div class="card"><span class="num" aria-hidden="true">2</span><h3>Ein Stockwerk lernen</h3><p>Öffne die Woche, lies, mach Notizen und nutze den Fokus-Timer. Keine Serie, die an einem schlechten Tag reisst.</p></div>
+<div class="card"><span class="num" aria-hidden="true">3</span><h3>Check bestehen</h3><p>Kurze Fragen entstehen aus deinen eigenen Dateien, auf deinem Gerät. Bestehst du, geht das Licht an und ein Gast zieht ein, der dir Miete in Münzen zahlt.</p></div>
+</div>
+<h3 style="margin:34px 0 0;font-size:1.3rem">Die Regeln in 30 Sekunden</h3>
+<div class="rules">
+<div class="rule"><span class="ico" aria-hidden="true">💡</span><b>Ein Licht hält 7 Tage</b><span>Danach verblasst es weitere 7 Tage. Bestehe den Check erneut, um es zurückzuholen. Rettest du ein Licht rechtzeitig, hält es länger (14, dann 30 Tage).</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🏠</span><b>Gäste zahlen Miete</b><span>Jedes leuchtende Stockwerk zahlt 1 Münze pro Tag. Die Miete wird beim Öffnen des Campus eingesammelt und lagert bis zu 3 Tage.</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">📌</span><b>Einfache Stockwerke anheften</b><span>Ein angeheftetes Licht verblasst nie, zahlt aber keine Miete. Gut für Einheiten, die nicht in der Prüfung vorkommen.</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🛡️</span><b>Schilde</b><span>Ein Schild rettet ein verblassendes Licht einmal. Du kannst zwei besitzen.</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🎁</span><b>Boni</b><span>+10 für das erste Licht, +15, wenn eine Woche in jedem Modul leuchtet, +50 für ein fertiges Gebäude.</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🎨</span><b>Münzen sind Kosmetik</b><span>Gib sie für Bäume, Pools, Landeplätze, Inselstile, Autos und Leute aus. Sie kosten nie echtes Geld.</span></div>
+</div>
+</section>
+
+<section class="s" id="see" aria-labelledby="see-h">
+<h2 id="see-h">So sieht es aus</h2>
+<p class="sub">Echte Bildschirme der App, mit dem Demo-Semester.</p>
+<div class="shots">
+<figure class="shot wide"><img src="/assets/shot-campus.webp" width="1100" height="720" loading="lazy" alt="Der Booklyn-Campus am Computer: eine Insel mit einem Gebäude pro Modul, leuchtenden Fenstern, Bäumen, Autos und Leuten."><figcaption>Dein Semester als Insel: ein Gebäude pro Modul, ein Stockwerk pro Woche.</figcaption></figure>
+<figure class="shot"><img src="/assets/shot-phone.webp" width="390" height="760" loading="lazy" alt="Der Booklyn-Campus auf dem Handy."><figcaption>Auch fürs Handy gemacht.</figcaption></figure>
+<figure class="shot"><img src="/assets/shot-shop.webp" width="390" height="760" loading="lazy" alt="Der Booklyn-Shop auf dem Handy, mit Autos und Leuten zum Kaufen."><figcaption>Gib Münzen für Stile, Autos und Leute aus. Vorschau vor dem Kauf.</figcaption></figure>
+</div>
+</section>
+
+<section class="s" id="features" aria-labelledby="f-h">
+<h2 id="f-h">Alles für ein echtes Semester</h2>
+<p class="sub">In Minuten eingerichtet, danach bleibt es dir aus dem Weg.</p>
+<div class="group"><h3>Lernen</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">🧠</span><h3>Fragen aus deinen Dateien</h3><p>Lückentext- und Multiple-Choice-Fragen entstehen auf deinem Gerät aus deinen Folien und Skripten. Optionale KI-Fragen sind aus, bis du sie einschaltest.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🗂️</span><h3>Intelligentes Sortieren</h3><p>Booklyn liest Modulkürzel und Wochennummer aus Dateinamen. Duplikate werden am Inhalt erkannt und übersprungen. Auch Kurse ohne Wochen funktionieren: nenne die Einheiten Themen oder Kapitel.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🏠</span><h3>Das ganze Haus üben</h3><p>Vor einer Prüfung bekommst du 20 oder 25 Fragen aus allen Stockwerken eines Moduls und wiederholst danach, was du verpasst hast.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🔎</span><h3>Alles durchsuchen</h3><p>Finde alles in Namen, Titeln, Notizen und im Text deiner PDF-, Word- und PowerPoint-Dateien.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">⏱️</span><h3>Notizen und Fokus-Timer</h3><p>Schreib eine Notiz pro Woche, verknüpfe Notizen mit einer Seite oder Folie und lerne in Zeitblöcken vor dem Check.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">📚</span><h3>Lernziele</h3><p>Schreib auf, was du können sollst, verknüpfe es mit Dateien, Notizen und Quizübungen und sieh, welche Ziele noch offen sind.</p></div>
+</div></div>
+<div class="group"><h3>Den Überblick behalten</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">📅</span><h3>Termine und Heute</h3><p>Prüfungen, Tests und Abgaben stehen neben deiner Stadt, und eine Heute-Seite sagt dir, was du zuerst lernen sollst.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🎯</span><h3>Live-Countdowns</h3><p>Jedes leuchtende Stockwerk zeigt, wie lange es noch an bleibt, und der Mietzähler zeigt, wann du das nächste Mal bezahlt wirst.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🧩</span><h3>ILIAS-Connector</h3><p>Eine optionale <a href="/connector/">Browser-Erweiterung</a> findet neue Dateien auf HSLU ILIAS und fügt sie mit einem Klick hinzu. Die Dateien kommen per Schiff an. Nichts wird hochgeladen.</p></div>
+</div></div>
+<div class="group"><h3>Mach sie zu deiner</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">🏝️</span><h3>Eine Insel, alle Semester</h3><p>Jedes Semester ist ein Viertel derselben Insel. Wechsle zwischen ihnen oder sieh die ganze Insel auf einmal.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🌦️</span><h3>Stile und Wetter</h3><p>Herbst, Kirschblüte, Schnee, Wüste, Regen, Glühwürmchen, Nebel oder goldene Stunde, mit Wetter über der ganzen Insel.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🚗</span><h3>Dekoration, Autos und Leute</h3><p>Bäume, Lampen, Pools, Statuen, Dachgärten und Landeplätze, dazu Autos auf den Strassen und Leute auf den Gehwegen. Sieh dir jedes Teil vor dem Kauf an.</p></div>
+</div></div>
+<div class="group"><h3>Privat und mobil</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">🔒</span><h3>Lokal zuerst</h3><p>Dateien, Notizen und Fortschritt liegen in deinem Browser. Installiere es als App und lerne offline.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🔑</span><h3>Sync ohne E-Mail</h3><p>Die optionale Synchronisation nutzt einen Passkey (Fingerabdruck, Gesicht oder Geräte-PIN) oder einen geheimen Code, keine E-Mail-Adresse und kein Passwort. Verlierst du den Code, kann niemand deinen Fortschritt zurückholen, auch wir nicht.</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🌍</span><h3>Vier Sprachen</h3><p>Die ganze App gibt es auf Englisch, Deutsch, Spanisch und Französisch. Wechsle jederzeit; deine Wahl wird gemerkt.</p></div>
+</div></div>
+</section>
+
+<section class="s" id="install" aria-labelledby="inst-h">
+<h2 id="inst-h">Auf Handy oder Computer installieren</h2>
+<p class="sub">Kein App-Store nötig. Booklyn wird über den Browser installiert und öffnet sich dann wie jede andere App, auch offline.</p>
+<div class="grid">
+<div class="card"><span class="num" aria-hidden="true">A</span><h3>Android (Chrome)</h3><p>Öffne Booklyn, tippe auf das ⋮-Menü und dann auf «App installieren» oder «Zum Startbildschirm hinzufügen».</p></div>
+<div class="card"><span class="num" aria-hidden="true">i</span><h3>iPhone und iPad (Safari)</h3><p>Öffne Booklyn in Safari, tippe auf «Teilen» und dann auf «Zum Home-Bildschirm».</p></div>
+<div class="card"><span class="num" aria-hidden="true">PC</span><h3>Computer (Edge oder Chrome)</h3><p>Öffne Booklyn und klicke auf das Installationssymbol in der Adressleiste oder im Browsermenü auf «Booklyn installieren».</p></div>
+</div>
+</section>
+
+<section class="s" aria-labelledby="c-h2">
+<div class="priv">
+<h2 id="c-h2">ILIAS-Dateien mit einem Klick</h2>
+<p style="margin:8px 0 0;max-width:40rem">Der optionale Connector läuft in Edge und Chrome am Computer. Er nutzt deine eigene HSLU-Anmeldung, listet die gefundenen Dateien auf und lässt dich die gewünschten hinzufügen.</p>
+<p style="margin:16px 0 0"><a class="btn" href="/connector/">Connector holen</a></p>
+</div>
+</section>
+
+<section class="s faq" id="faq" aria-labelledby="q-h">
+<h2 id="q-h">Fragen</h2>
+<details><summary>Ist es gratis?</summary><p>Ja. Booklyn ist gratis und ohne Werbung. Münzen verdienst du durch Lernen, sie kosten nie echtes Geld.</p></details>
+<details><summary>Wer kann meine Dateien sehen?</summary><p>Nur du. Die Dateien liegen im Browser auf deinem eigenen Gerät und werden nie hochgeladen. Schaltest du die Synchronisation ein, wird nur dein Fortschritt gespeichert, nie deine Dateien.</p></details>
+<details><summary>Funktioniert es auf meinem Handy?</summary><p>Ja, in jedem modernen Handy-Browser, und du kannst es auf den Startbildschirm installieren (siehe oben). Der ILIAS-Connector braucht einen Computer mit Edge oder Chrome.</p></details>
+<details><summary>Funktioniert es offline?</summary><p>Ja. Nach dem ersten Besuch öffnet es sich ohne Verbindung. Die Synchronisation holt auf, sobald du wieder online bist.</p></details>
+<details><summary>Mein Kurs ist nicht nach Wochen gegliedert. Kann ich Booklyn trotzdem nutzen?</summary><p>Ja. Wähle in einem Modul «Themen» oder «Kapitel» statt «Wochen». Die Stockwerke heissen dann Thema 1, Thema 2 … und du kannst jedes umbenennen. Eine Datei ohne Woche bleibt mit «Bitte prüfen» markiert, bis du sie einem Stockwerk zuordnest.</p></details>
+<details><summary>Was, wenn ich meinen Sync-Code verliere?</summary><p>Er lässt sich nicht wiederherstellen, weil wir nur einen Einweg-Hash speichern. Deine Daten auf dem Gerät bleiben unberührt. Schreib den Code an einem sicheren Ort auf oder nutze stattdessen einen Passkey.</p></details>
+<details><summary>Liest die KI meine Dateien?</summary><p>Standardmässig nicht. Fragen entstehen auf deinem Gerät. Schaltest du die optionale KI-Einstellung ein, werden kurze Auszüge der Einheit, die du prüfst, an Cloudflare Workers AI gesendet, um Fragen zu schreiben, und nicht gespeichert. Es gibt ein Tageslimit, damit der Dienst gratis bleibt.</p></details>
+<details><summary>Welche Sprachen gibt es?</summary><p>Englisch, Deutsch, Spanisch und Französisch, in der App und auf dieser Seite. Die rechtlichen Seiten (Datenschutz, Nutzungsbedingungen, Impressum) sind auf Englisch.</p></details>
+<details><summary>Ist das eine offizielle HSLU-App?</summary><p>Nein. Booklyn ist ein inoffizielles Studierendenprojekt und nicht mit der HSLU verbunden.</p></details>
+<details><summary>Kann ich es für andere Hochschulen nutzen?</summary><p>Ja. Du fügst deine eigenen Module und Dateien hinzu, also funktioniert es für jeden Kurs. Nur der ILIAS-Connector ist für die HSLU gemacht.</p></details>
+</section>
+
+<section class="s" aria-labelledby="p-h">
+<div class="priv">
+<h2 id="p-h">Privat von Grund auf</h2>
+<ul>
+<li>Deine Dateien, Notizen und dein Fortschritt liegen in deinem eigenen Browser.</li>
+<li>Keine Werbung, keine Analyse, keine Tracking-Cookies, keine Schriften oder Skripte von Dritten.</li>
+<li>Die Synchronisation ist optional und speichert nur deinen Fortschritt, nie deine Dateien.</li>
+<li>Du kannst eine Sicherung exportieren oder mit einem Knopf alles löschen.</li>
+</ul>
+<p style="margin:16px 0 0">Lies die vollständige <a href="/privacy/">Datenschutzerklärung</a> und die <a href="/terms/">Nutzungsbedingungen</a> (auf Englisch).</p>
+</div>
+</section>
+
+<section class="s" aria-labelledby="c-h" style="text-align:center">
+<h2 id="c-h">Bring dein erstes Fenster zum Leuchten.</h2>
+<p class="sub" style="margin:8px auto 20px">Probier das Demo-Semester mit einem Klick aus oder baue dein eigenes.</p>
+<a class="btn" href="/app/?lang=de">Booklyn öffnen</a>
+</section>
+<script src="/assets/landing.js" defer></script>
+</main>
+</div>
+<footer class="sitefoot">
+<div class="wrap">
+<div class="fgrid">
+<div class="fbrand"><a class="brand" href="/de/"><img src="/app/icon.svg" alt="" width="36" height="36"><span>Booklyn</span></a><p>Lass dein Licht an. Eine Lernstadt für Studierende, von Studierenden gemacht.</p></div>
+<nav aria-label="Produkt"><h2>Produkt</h2><a href="/app/?lang=de">Booklyn öffnen</a><a href="#try">Demo ausprobieren</a><a href="#how">So funktioniert es</a><a href="#features">Funktionen</a></nav>
+<nav aria-label="Ressourcen"><h2>Ressourcen</h2><a href="/connector/">ILIAS-Connector</a><a href="#faq">Fragen</a></nav>
+<nav aria-label="Rechtliches"><h2>Rechtliches</h2><a href="/privacy/">Datenschutz</a><a href="/terms/">Bedingungen</a><a href="/imprint/">Impressum</a></nav>
+</div>
+<div class="langsw" role="group" aria-label="Sprache"><a href="/" lang="en" hreflang="en">English</a><a href="/de/" lang="de" hreflang="de" aria-current="true">Deutsch</a><a href="/es/" lang="es" hreflang="es">Español</a><a href="/fr/" lang="fr" hreflang="fr">Français</a></div>
+<div class="fbottom"><span>Inoffizielles Studierendenprojekt. Nicht mit der HSLU verbunden und nicht von ihr unterstützt.</span><span>Keine Werbung. Kein Tracking.</span><span>Die rechtlichen Seiten sind auf Englisch.</span><a href="#top">Nach oben &uarr;</a></div>
+</div>
+</footer>
+</body>
+</html>

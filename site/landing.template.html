@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{meta.title}}</title>
+<meta name="description" content="{{meta.desc}}">
+<meta name="theme-color" content="#1d5c58">
+<link rel="canonical" href="{{canon}}">
+{{hreflang}}
+<link rel="icon" href="/app/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/app/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/app/apple-touch-icon.png">
+<link rel="preload" href="/app/fonts/hanken-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app/fonts/fonts.css">
+<link rel="stylesheet" href="/assets/site.css">
+<script src="/assets/site.js"></script>
+<meta property="og:title" content="{{meta.title}}">
+<meta property="og:description" content="{{og.desc}}">
+<meta property="og:locale" content="{{ogLocale}}">
+<meta property="og:image" content="/assets/city.webp">
+</head>
+<body id="top">
+<a class="skip" href="#main">{{skip}}</a>
+<div class="wrap">
+<header class="top">
+<a class="brand" href="{{home}}"><img src="/app/icon.svg" alt="" width="36" height="36"><span>Booklyn</span></a>
+<nav id="site-nav" aria-label="{{nav.aria}}"><a href="#try">{{nav.try}}</a><a href="#how">{{nav.how}}</a><a href="#features">{{nav.features}}</a><a href="/connector/">{{nav.connector}}</a><a href="#faq">{{nav.faq}}</a></nav>
+<div class="topact"><a class="btn small" href="{{app}}">{{cta.open}}</a><button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="site-nav" aria-label="{{nav.menu}}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path class="m-close" d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>
+</header>
+<div class="langsw langtop" role="group" aria-label="{{lang.aria}}">{{switcher}}</div>
+<main id="main">
+<section class="hero herogrid" id="try">
+<div>
+<h1>{{hero.h1}}</h1>
+<p class="lede">{{hero.lede}}</p>
+<div class="cta"><a class="btn" href="{{app}}">{{cta.open}}</a><a class="btn ghost" href="#how">{{nav.how}}</a></div>
+<ul class="trust" aria-label="{{trust.aria}}"><li>{{trust.free}}</li><li>{{trust.noacct}}</li><li>{{trust.offline}}</li><li>{{trust.files}}</li><li>{{trust.lang}}</li></ul>
+<p class="note"><strong>{{hero.try}}</strong> {{hero.note}}</p>
+</div>
+<div class="demo" aria-label="{{demo.aria}}">
+<svg viewBox="-225 -50 450 290" role="group" aria-label="{{demo.svg}}"><g id="demo-city"></g></svg>
+<div class="dstats"><b id="d-stats">0</b><span class="dbar"><i id="d-bar"></i></span><span class="dchip"><span id="d-coins">0</span> {{d.coins}}</span><span class="dchip" id="d-day">1</span><span class="dchip">{{d.rent}} <span id="d-rent">--:--:--</span></span></div>
+<p class="dmsg" id="d-msg" role="status" aria-live="polite">{{d.tap}}</p>
+<div class="dquiz" id="d-quiz" hidden></div>
+<div class="drow"><button type="button" class="btn small" id="d-ff">{{d.ff}}</button><button type="button" class="btn ghost small" id="d-reset">{{d.reset}}</button></div>
+<div class="legend" style="color:#cfd3ee" aria-label="{{legend.aria}}"><span><i class="l-on"></i>{{legend.on}}</span><span><i class="l-prog"></i>{{legend.prog}}</span><span><i class="l-fade"></i>{{legend.fade}}</span><span><i class="l-ready"></i>{{legend.ready}}</span><span><i class="l-wait"></i>{{legend.wait}}</span></div>
+</div>
+</section>
+
+<section class="s" id="how" aria-labelledby="how-h">
+<h2 id="how-h">{{how.h}}</h2>
+<p class="sub">{{how.sub}}</p>
+<div class="grid">
+<div class="card"><span class="num" aria-hidden="true">1</span><h3>{{step1.h}}</h3><p>{{step1.p}}</p></div>
+<div class="card"><span class="num" aria-hidden="true">2</span><h3>{{step2.h}}</h3><p>{{step2.p}}</p></div>
+<div class="card"><span class="num" aria-hidden="true">3</span><h3>{{step3.h}}</h3><p>{{step3.p}}</p></div>
+</div>
+<h3 style="margin:34px 0 0;font-size:1.3rem">{{rules.h}}</h3>
+<div class="rules">
+<div class="rule"><span class="ico" aria-hidden="true">💡</span><b>{{rule1.b}}</b><span>{{rule1.p}}</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🏠</span><b>{{rule2.b}}</b><span>{{rule2.p}}</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">📌</span><b>{{rule3.b}}</b><span>{{rule3.p}}</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🛡️</span><b>{{rule4.b}}</b><span>{{rule4.p}}</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🎁</span><b>{{rule5.b}}</b><span>{{rule5.p}}</span></div>
+<div class="rule"><span class="ico" aria-hidden="true">🎨</span><b>{{rule6.b}}</b><span>{{rule6.p}}</span></div>
+</div>
+</section>
+
+<section class="s" id="see" aria-labelledby="see-h">
+<h2 id="see-h">{{see.h}}</h2>
+<p class="sub">{{see.sub}}</p>
+<div class="shots">
+<figure class="shot wide"><img src="/assets/shot-campus.webp" width="1100" height="720" loading="lazy" alt="{{shot1.alt}}"><figcaption>{{shot1.cap}}</figcaption></figure>
+<figure class="shot"><img src="/assets/shot-phone.webp" width="390" height="760" loading="lazy" alt="{{shot2.alt}}"><figcaption>{{shot2.cap}}</figcaption></figure>
+<figure class="shot"><img src="/assets/shot-shop.webp" width="390" height="760" loading="lazy" alt="{{shot3.alt}}"><figcaption>{{shot3.cap}}</figcaption></figure>
+</div>
+</section>
+
+<section class="s" id="features" aria-labelledby="f-h">
+<h2 id="f-h">{{feat.h}}</h2>
+<p class="sub">{{feat.sub}}</p>
+<div class="group"><h3>{{g1.h}}</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">🧠</span><h3>{{f1.h}}</h3><p>{{f1.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🗂️</span><h3>{{f2.h}}</h3><p>{{f2.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🏠</span><h3>{{f3.h}}</h3><p>{{f3.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🔎</span><h3>{{f4.h}}</h3><p>{{f4.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">⏱️</span><h3>{{f5.h}}</h3><p>{{f5.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">📚</span><h3>{{f6.h}}</h3><p>{{f6.p}}</p></div>
+</div></div>
+<div class="group"><h3>{{g2.h}}</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">📅</span><h3>{{f7.h}}</h3><p>{{f7.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🎯</span><h3>{{f8.h}}</h3><p>{{f8.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🧩</span><h3>{{f9.h}}</h3><p>{{f9.p}}</p></div>
+</div></div>
+<div class="group"><h3>{{g3.h}}</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">🏝️</span><h3>{{f10.h}}</h3><p>{{f10.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🌦️</span><h3>{{f11.h}}</h3><p>{{f11.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🚗</span><h3>{{f12.h}}</h3><p>{{f12.p}}</p></div>
+</div></div>
+<div class="group"><h3>{{g4.h}}</h3><div class="grid">
+<div class="card"><span class="ico" aria-hidden="true">🔒</span><h3>{{f13.h}}</h3><p>{{f13.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🔑</span><h3>{{f14.h}}</h3><p>{{f14.p}}</p></div>
+<div class="card"><span class="ico" aria-hidden="true">🌍</span><h3>{{f15.h}}</h3><p>{{f15.p}}</p></div>
+</div></div>
+</section>
+
+<section class="s" id="install" aria-labelledby="inst-h">
+<h2 id="inst-h">{{inst.h}}</h2>
+<p class="sub">{{inst.sub}}</p>
+<div class="grid">
+<div class="card"><span class="num" aria-hidden="true">A</span><h3>{{inst.a.h}}</h3><p>{{inst.a.p}}</p></div>
+<div class="card"><span class="num" aria-hidden="true">i</span><h3>{{inst.i.h}}</h3><p>{{inst.i.p}}</p></div>
+<div class="card"><span class="num" aria-hidden="true">PC</span><h3>{{inst.d.h}}</h3><p>{{inst.d.p}}</p></div>
+</div>
+</section>
+
+<section class="s" aria-labelledby="c-h2">
+<div class="priv">
+<h2 id="c-h2">{{conn.h}}</h2>
+<p style="margin:8px 0 0;max-width:40rem">{{conn.p}}</p>
+<p style="margin:16px 0 0"><a class="btn" href="/connector/">{{conn.btn}}</a></p>
+</div>
+</section>
+
+<section class="s faq" id="faq" aria-labelledby="q-h">
+<h2 id="q-h">{{faq.h}}</h2>
+<details><summary>{{q1.q}}</summary><p>{{q1.a}}</p></details>
+<details><summary>{{q2.q}}</summary><p>{{q2.a}}</p></details>
+<details><summary>{{q3.q}}</summary><p>{{q3.a}}</p></details>
+<details><summary>{{q4.q}}</summary><p>{{q4.a}}</p></details>
+<details><summary>{{q5.q}}</summary><p>{{q5.a}}</p></details>
+<details><summary>{{q6.q}}</summary><p>{{q6.a}}</p></details>
+<details><summary>{{q7.q}}</summary><p>{{q7.a}}</p></details>
+<details><summary>{{q8.q}}</summary><p>{{q8.a}}</p></details>
+<details><summary>{{q9.q}}</summary><p>{{q9.a}}</p></details>
+<details><summary>{{q10.q}}</summary><p>{{q10.a}}</p></details>
+</section>
+
+<section class="s" aria-labelledby="p-h">
+<div class="priv">
+<h2 id="p-h">{{priv.h}}</h2>
+<ul>
+<li>{{priv.1}}</li>
+<li>{{priv.2}}</li>
+<li>{{priv.3}}</li>
+<li>{{priv.4}}</li>
+</ul>
+<p style="margin:16px 0 0">{{priv.read}}</p>
+</div>
+</section>
+
+<section class="s" aria-labelledby="c-h" style="text-align:center">
+<h2 id="c-h">{{final.h}}</h2>
+<p class="sub" style="margin:8px auto 20px">{{final.sub}}</p>
+<a class="btn" href="{{app}}">{{cta.open}}</a>
+</section>
+<script src="/assets/landing.js" defer></script>
+</main>
+</div>
+<footer class="sitefoot">
+<div class="wrap">
+<div class="fgrid">
+<div class="fbrand"><a class="brand" href="{{home}}"><img src="/app/icon.svg" alt="" width="36" height="36"><span>Booklyn</span></a><p>{{f.tag}}</p></div>
+<nav aria-label="{{f.product}}"><h2>{{f.product}}</h2><a href="{{app}}">{{cta.open}}</a><a href="#try">{{f.demo}}</a><a href="#how">{{nav.how}}</a><a href="#features">{{nav.features}}</a></nav>
+<nav aria-label="{{f.resources}}"><h2>{{f.resources}}</h2><a href="/connector/">{{nav.connector}}</a><a href="#faq">{{nav.faq}}</a></nav>
+<nav aria-label="{{f.legal}}"><h2>{{f.legal}}</h2><a href="/privacy/">{{f.privacy}}</a><a href="/terms/">{{f.terms}}</a><a href="/imprint/">{{f.imprint}}</a></nav>
+</div>
+<div class="langsw" role="group" aria-label="{{lang.aria}}">{{switcher}}</div>
+<div class="fbottom"><span>{{f.unofficial}}</span><span>{{f.noads}}</span><span>{{f.legalen}}</span><a href="#top">{{f.top}} &uarr;</a></div>
+</div>
+</footer>
+</body>
+</html>

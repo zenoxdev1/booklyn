@@ -69,7 +69,13 @@ What they cover: failed imports and retries without duplicates, import confirmat
 - **With AI** (optional, needs a sync account and the setting): a few pages at a time (with their heading and page range) go to `/api/quiz`. The server first analyses the material (subject, concepts with exact quotes, relations, objectives; it stops with a reason if the text is unreadable or too thin), then writes candidate questions, then checks each one with fixed rules (4 distinct options, no "all of the above", answer not in the question, no length giveaway, supporting quote must really occur in the material, answer words must be supported) and a second strict AI review. Failed ones are replaced once. Nothing unchecked is returned. The answer shows the explanation, the supporting quote and the source (file and page).
 - **Without AI**: only clear definitions found in the files ("X is …", "X ist …") become questions, with the definitions or terms of other concepts as wrong options. Random-word blanks are no longer made.
 - Each question can be reported as unclear, wrong or not relevant (kept on the device, nothing is sent).
-- Limits: 30 AI requests per user and 250 in total per day (`AI_DAILY_CAP`), each request makes 3 to 5 model calls. The model is `AI_MODEL` (default Llama 3.1 8B on Workers AI).
+- Limits: 30 AI requests per user and 90 in total per day (`GLOBAL_DAILY` in `functions/api/quiz.js`; the free Workers AI allowance is about 10,000 neurons a day, and one request costs roughly 400). When Cloudflare itself reports the allowance as used up, the app shows the 'limit' message instead of a generic error, each request makes 3 to 5 model calls. The model is `AI_MODEL` (default Llama 3.1 8B on Workers AI).
+
+## Courses without weeks
+Each module has a unit label: Weeks (default), Topics or Chapters (`module.ul`, set in setup or on the module page). Floors are then called Topic 1, Topic 2... Custom floor names are kept when the label changes. A file with no week stays in "Check this" until it is put on a floor.
+
+## Landing pages (4 languages)
+The public pages `index.html`, `de/`, `es/`, `fr/` are generated. Edit `site/landing.template.html` and `site/landing.strings.mjs` (one row per text: en, de, es, fr), then run `node tools/build-landing.mjs`. A unit test fails if the files on disk are out of date or a text is missing in a language. `?lang=xx` on `/app/` opens the app in that language. Screenshots in `assets/shot-*.webp` come from `python3 tools/shots.py`. Landing browser tests: `python3 tests/e2e/landing.py`.
 
 ## Import voyage (Port and campus)
 

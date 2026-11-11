@@ -2,6 +2,13 @@
    A missing key falls back to English. Keep every {placeholder} and every \u0001 marker of the key. */
 export const DICT = {
 "de": {
+"Topic ": "Thema ",
+"Chapter ": "Kapitel ",
+"This module is organised by": "Dieses Modul ist gegliedert nach",
+"Weeks": "Wochen",
+"Topics": "Themen",
+"Chapters": "Kapiteln",
+"If this course is not taught by weeks, choose Topics or Chapters. Floors are then called Topic 1, Topic 2… You can rename every floor, and a file with no week stays in Check this until you put it on a floor.": "Wird dieser Kurs nicht nach Wochen unterrichtet, wähle Themen oder Kapitel. Die Stockwerke heissen dann Thema 1, Thema 2 … Du kannst jedes Stockwerk umbenennen, und eine Datei ohne Woche bleibt unter «Bitte prüfen», bis du sie einem Stockwerk zuordnest.",
 "Week ": "Woche ",
 "The next dark floor in your district": "Die nächste dunkle Etage in deinem Viertel",
 "Matched ": "Zugeordnet: ",
@@ -1101,6 +1108,13 @@ export const DICT = {
 "Yours": "Deine",
 },
 "es": {
+"Topic ": "Tema ",
+"Chapter ": "Capítulo ",
+"This module is organised by": "Este módulo está organizado por",
+"Weeks": "Semanas",
+"Topics": "Temas",
+"Chapters": "Capítulos",
+"If this course is not taught by weeks, choose Topics or Chapters. Floors are then called Topic 1, Topic 2… You can rename every floor, and a file with no week stays in Check this until you put it on a floor.": "Si esta asignatura no se imparte por semanas, elige Temas o Capítulos. Las plantas se llamarán Tema 1, Tema 2… Puedes renombrar cada planta, y un archivo sin semana se queda en «Revisar esto» hasta que lo pongas en una planta.",
 "Week ": "Semana ",
 "The next dark floor in your district": "La próxima planta apagada de tu distrito",
 "Matched ": "Coincide con ",
@@ -2200,6 +2214,13 @@ export const DICT = {
 "Yours": "Los tuyos",
 },
 "fr": {
+"Topic ": "Thème ",
+"Chapter ": "Chapitre ",
+"This module is organised by": "Ce module est organisé par",
+"Weeks": "Semaines",
+"Topics": "Thèmes",
+"Chapters": "Chapitres",
+"If this course is not taught by weeks, choose Topics or Chapters. Floors are then called Topic 1, Topic 2… You can rename every floor, and a file with no week stays in Check this until you put it on a floor.": "Si ce cours n’est pas enseigné par semaines, choisis Thèmes ou Chapitres. Les étages s’appellent alors Thème 1, Thème 2… Tu peux renommer chaque étage, et un fichier sans semaine reste dans « À vérifier » jusqu’à ce que tu le places sur un étage.",
 "Week ": "Semaine ",
 "The next dark floor in your district": "Le prochain étage éteint de ton quartier",
 "Matched ": "Associé à ",
