@@ -40,3 +40,12 @@ test('service worker handles the share target and keeps shared files across vers
   assert.ok(/k !== SHARE/.test(sw), 'activate must not delete the share cache');
   assert.ok(existsSync(new URL('../../functions/app/share-target.js', import.meta.url)));
 });
+
+test('manifest screenshots exist and match their declared size', () => {
+  assert.ok(m.screenshots.length >= 2);
+  for (const s of m.screenshots) {
+    const f = new URL(s.src, dir); assert.ok(existsSync(f), s.src);
+    const b = readFileSync(f); assert.equal(b.readUInt32BE(16) + 'x' + b.readUInt32BE(20), s.sizes, s.src);
+    assert.ok(['narrow', 'wide'].includes(s.form_factor));
+  }
+});

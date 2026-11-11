@@ -104,5 +104,46 @@
         }
       ]
     }
-  }
+  },
+  "screenshots": [
+    {
+      "src": "screenshots/phone-campus.png",
+      "sizes": "1080x2160",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Your semester as a small city: lit floors show what is up to date"
+    },
+    {
+      "src": "screenshots/phone-module.png",
+      "sizes": "1080x2160",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "A module with its floors and final practice"
+    },
+    {
+      "src": "screenshots/phone-deadlines.png",
+      "sizes": "1080x2160",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Deadlines for every module"
+    },
+    {
+      "src": "screenshots/phone-shop.png",
+      "sizes": "1080x2160",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Spend the coins you earn by studying"
+    },
+    {
+      "src": "screenshots/wide-campus.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Booklyn on a computer"
+    }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ]
 }
