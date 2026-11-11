@@ -1,0 +1,10 @@
+# Android signing material and builds: never commit these
+*.keystore
+*.jks
+signing-key-info.txt
+*.aab
+*.apk
+play-package/
+# local tools
+node_modules/
+__pycache__/

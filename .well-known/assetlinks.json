@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.booklyn.app",
+      "sha256_cert_fingerprints": [
+        "4B:EA:60:C6:BF:61:8F:E0:88:84:8A:7E:17:60:58:B1:47:FA:54:3E:B2:30:0C:4C:42:65:49:C2:5D:93:9E:74"
+      ]
+    }
+  }
+]

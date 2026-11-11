@@ -49,3 +49,15 @@ test('manifest screenshots exist and match their declared size', () => {
     assert.ok(['narrow', 'wide'].includes(s.form_factor));
   }
 });
+
+test('assetlinks.json links the Android app to this site', () => {
+  const a = JSON.parse(readFileSync(new URL('../../.well-known/assetlinks.json', import.meta.url), 'utf8'));
+  assert.ok(Array.isArray(a) && a.length >= 1);
+  for (const e of a) {
+    assert.deepEqual(e.relation, ['delegate_permission/common.handle_all_urls']);
+    assert.equal(e.target.namespace, 'android_app');
+    assert.equal(e.target.package_name, 'com.booklyn.app');
+    assert.ok(e.target.sha256_cert_fingerprints.length >= 1);
+    for (const f of e.target.sha256_cert_fingerprints) assert.match(f, /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/);
+  }
+});
