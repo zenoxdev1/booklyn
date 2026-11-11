@@ -6,7 +6,6 @@ export const ROWS = [
 ['og.desc','Study a unit, pass a short check, and a window in your city lights up.','Lerne eine Einheit, bestehe einen kurzen Check, und ein Fenster deiner Stadt leuchtet auf.','Estudia una unidad, supera una comprobación corta y se enciende una ventana de tu ciudad.','Étudie une unité, réussis un court contrôle, et une fenêtre de ta ville s’allume.'],
 ['skip','Skip to content','Zum Inhalt springen','Saltar al contenido','Aller au contenu'],
 ['nav.aria','Main','Hauptmenü','Principal','Principal'],
-['nav.try','Try it','Ausprobieren','Pruébalo','Essayer'],
 ['nav.how','How it works','So funktioniert es','Cómo funciona','Comment ça marche'],
 ['nav.features','Features','Funktionen','Funciones','Fonctions'],
 ['nav.connector','ILIAS connector','ILIAS-Connector','Conector de ILIAS','Connecteur ILIAS'],

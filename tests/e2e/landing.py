@@ -41,9 +41,28 @@ with sync_playwright() as p:
                 check('%s no broken images' % lang, not imgs, imgs)
             c.close()
     # the app opens in the language the landing links to
-    c = b.new_context(viewport={'width': 400, 'height': 800}, locale='en-GB'); pg = c.new_page()
+    c = b.new_context(viewport={'width': 1100, 'height': 800}, locale='en-GB'); pg = c.new_page()
     pg.goto(BASE + '/fr/'); pg.click('.topact a.btn'); pg.wait_for_timeout(600)
     check('landing link /app/?lang=fr opens the app in French', pg.get_attribute('html', 'lang') == 'fr' and pg.evaluate("localStorage.getItem('booklyn:lang')") == 'fr')
+    c.close()
+
+    # header: few links, language menu with flags, smooth back to top
+    for w in (320, 1100):
+        c = b.new_context(viewport={'width': w, 'height': 700}); pg = c.new_page(); pg.goto(BASE + '/es/'); pg.wait_for_timeout(200)
+        check('@%d nav has at most 4 entries' % w, pg.locator('#site-nav a').count() <= 4, pg.locator('#site-nav a').count())
+        pg.click('#langdd summary'); pg.wait_for_timeout(150)
+        check('@%d language menu lists 4 languages with flags' % w, pg.locator('.langmenu a').count() == 4 and pg.locator('.langmenu a svg').count() == 4)
+        pg.keyboard.press('Escape'); pg.wait_for_timeout(100)
+        check('@%d Escape closes the language menu' % w, pg.evaluate("!document.getElementById('langdd').open"))
+        pg.click('#langdd summary'); pg.locator('.langmenu a[lang="de"]').click(); pg.wait_for_timeout(300)
+        check('@%d choosing German goes to /de/' % w, pg.url.endswith('/de/') and pg.get_attribute('html', 'lang') == 'de', pg.url)
+        check('@%d footer has the languages with flags' % w, pg.locator('.sitefoot .langsw a svg').count() == 4)
+        c.close()
+    c = b.new_context(viewport={'width': 1100, 'height': 700}); pg = c.new_page(); pg.goto(BASE + '/fr/')
+    check('page scrolls smoothly', pg.evaluate("getComputedStyle(document.documentElement).scrollBehavior") == 'smooth')
+    pg.evaluate("window.scrollTo({top: document.body.scrollHeight, behavior: 'instant'})"); pg.wait_for_timeout(200)
+    pg.click('.totop'); pg.wait_for_timeout(1500)
+    check('back to top gets to the top', pg.evaluate("scrollY") == 0)
     c.close()
 
     # unit labels: Topics / Chapters

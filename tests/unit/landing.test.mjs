@@ -17,7 +17,7 @@ test('every string exists in all four languages and none is blank', () => {
 
 test('the template uses only known keys and every key is used', () => {
   const keys = new Set(ROWS.map((r) => r[0]));
-  const extra = new Set(['lang', 'canon', 'hreflang', 'ogLocale', 'switcher', 'home', 'app']);
+  const extra = new Set(['lang', 'langname', 'langcur', 'canon', 'hreflang', 'ogLocale', 'switcher', 'home', 'app']);
   const used = new Set([...tpl.matchAll(/\{\{([\w.]+)\}\}/g)].map((m) => m[1]));
   for (const k of used) assert.ok(keys.has(k) || extra.has(k), 'unknown ' + k);
   for (const k of keys) assert.ok(used.has(k), 'unused ' + k);

@@ -25,10 +25,9 @@
 <div class="wrap">
 <header class="top">
 <a class="brand" href="{{home}}"><img src="/app/icon.svg" alt="" width="36" height="36"><span>Booklyn</span></a>
-<nav id="site-nav" aria-label="{{nav.aria}}"><a href="#try">{{nav.try}}</a><a href="#how">{{nav.how}}</a><a href="#features">{{nav.features}}</a><a href="/connector/">{{nav.connector}}</a><a href="#faq">{{nav.faq}}</a></nav>
-<div class="topact"><a class="btn small" href="{{app}}">{{cta.open}}</a><button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="site-nav" aria-label="{{nav.menu}}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path class="m-close" d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>
+<nav id="site-nav" aria-label="{{nav.aria}}"><a href="#how">{{nav.how}}</a><a href="#features">{{nav.features}}</a><a href="#faq">{{nav.faq}}</a><a class="btn navapp" href="{{app}}">{{cta.open}}</a></nav>
+<div class="topact"><details class="langdd" id="langdd"><summary aria-label="{{lang.aria}}: {{langname}}">{{langcur}}</summary><div class="langmenu" role="group" aria-label="{{lang.aria}}">{{switcher}}</div></details><a class="btn small" href="{{app}}">{{cta.open}}</a><button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="site-nav" aria-label="{{nav.menu}}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path class="m-open" d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path class="m-close" d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></div>
 </header>
-<div class="langsw langtop" role="group" aria-label="{{lang.aria}}">{{switcher}}</div>
 <main id="main">
 <section class="hero herogrid" id="try">
 <div>
@@ -167,7 +166,7 @@
 <nav aria-label="{{f.legal}}"><h2>{{f.legal}}</h2><a href="/privacy/">{{f.privacy}}</a><a href="/terms/">{{f.terms}}</a><a href="/imprint/">{{f.imprint}}</a></nav>
 </div>
 <div class="langsw" role="group" aria-label="{{lang.aria}}">{{switcher}}</div>
-<div class="fbottom"><span>{{f.unofficial}}</span><span>{{f.noads}}</span><span>{{f.legalen}}</span><a href="#top">{{f.top}} &uarr;</a></div>
+<div class="fbottom"><span>{{f.unofficial}}</span><span>{{f.noads}}</span><span>{{f.legalen}}</span><a class="totop" href="#top">{{f.top}} <span aria-hidden="true">&uarr;</span></a></div>
 </div>
 </footer>
 </body>
