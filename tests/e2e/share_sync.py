@@ -50,6 +50,19 @@ with sync_playwright() as p:
     pg.evaluate("caches.open('booklyn-share').then(c=>c.put('shared/keep',new Response('x',{headers:{'X-Name':'keep.txt'}})))")
     pg.evaluate("navigator.serviceWorker.getRegistration().then(r=>r.update())"); pg.wait_for_timeout(500)
     check('cache booklyn-share is not removed by SW activation', pg.evaluate("caches.keys().then(k=>k.includes('booklyn-share'))"))
+    # offline notice and the phone tip
+    c.set_offline(True); pg.wait_for_timeout(300)
+    check('offline notice appears when the connection drops', pg.is_visible('#offline') and 'offline' in pg.inner_text('#offline').lower())
+    c.set_offline(False); pg.wait_for_timeout(300)
+    check('offline notice disappears when back online', not pg.is_visible('#offline'))
+    c.close()
+    c = b.new_context(viewport={'width': 412, 'height': 900}, has_touch=True, is_mobile=True); pg = c.new_page()
+    pg.goto(URL); pg.wait_for_timeout(500); pg.evaluate("s=>localStorage.setItem('booklyn:state',JSON.stringify(s))", STATE); pg.goto(URL + '#/port'); pg.reload(); pg.wait_for_timeout(800)
+    check('phones see the Share tip in the Port', pg.locator('[data-tip="share"]').count() == 1)
+    c.close()
+    c = b.new_context(viewport={'width': 1200, 'height': 900}); pg = c.new_page()
+    pg.goto(URL); pg.wait_for_timeout(500); pg.evaluate("s=>localStorage.setItem('booklyn:state',JSON.stringify(s))", STATE); pg.goto(URL + '#/port'); pg.reload(); pg.wait_for_timeout(800)
+    check('desktop does not see the Share tip', pg.locator('[data-tip="share"]').count() == 0)
     c.close()
 
     # ---------- Combine both ----------

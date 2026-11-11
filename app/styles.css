@@ -575,3 +575,6 @@ details#ilmgr summary{cursor:pointer;font-weight:700;display:block}
 .matrow input[type=checkbox]{width:28px;height:28px;flex:none;margin:6px}
 .sw{min-width:40px;min-height:40px}
 button.link{min-height:44px;padding-top:10px;padding-bottom:10px}
+
+.offline{position:sticky;top:0;z-index:50;margin:0;padding:8px 16px;text-align:center;font-size:.85rem;line-height:1.35;background:var(--ink);color:var(--bg)}
+.offline[hidden]{display:none}

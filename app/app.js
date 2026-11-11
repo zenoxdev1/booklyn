@@ -1452,7 +1452,7 @@ function vPort(){
   var list=pending();
   var h="<div class=\"row\"><button class=\"btn ghost small\" data-a=\"go\" data-to=\"#/\">"+_t("← Campus")+"</button></div>";
   h+=("<header class=\"stack\"><p class=\"eyebrow\">"+_t("Learning Port")+"</p><h1 tabindex=\"-1\" id=\"h1\">"+_t("Add and sort files")+"</h1><p class=\"lede\">"+_t("Any file type and any size. Booklyn suggests a module and week from the file name. You decide. Files marked “Check this” stay here until you confirm them.")+"</p></header>");
-  h+=("<section class=\"drop\" data-drop><h2>"+_t("Drop files here")+"</h2><p class=\"lede\">"+_t("or choose them from your computer or phone")+"</p><div class=\"row\" style=\"justify-content:center\"><button class=\"btn\" data-a=\"pickfiles\">"+_t("Choose files")+"</button><button class=\"btn ghost\" data-a=\"pickfolder\">"+_t("Choose a folder")+"</button></div></section>");
+  h+=("<section class=\"drop\" data-drop><h2>"+_t("Drop files here")+"</h2><p class=\"lede\">"+_t("or choose them from your computer or phone")+"</p><div class=\"row\" style=\"justify-content:center\"><button class=\"btn\" data-a=\"pickfiles\">"+_t("Choose files")+"</button><button class=\"btn ghost\" data-a=\"pickfolder\">"+_t("Choose a folder")+"</button></div>"+(matchMedia('(pointer:coarse)').matches?("<p class=\"lede\" data-tip=\"share\" style=\"margin-top:12px\">"+_t("Tip: with the app installed, share files from Drive, Files or WhatsApp straight to Booklyn.")+"</p>"):'')+"</section>");
   if(ui.failed&&ui.failed.items.length){
     var fl=ui.failed.items;
     h+='<section class="card stack" role="alert"><h3>'+fl.length+_pl(fl.length,' file could not be saved',' files could not be saved')+'</h3><ul class="list">'
@@ -3208,13 +3208,21 @@ async function takeShared(){
 }
 try{var _sh=new URL(location.href);if(_sh.searchParams.has('shared')){_sh.searchParams.delete('shared');history.replaceState(null,'',_sh.pathname+(_sh.search||'')+_sh.hash);}}catch(e){}
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')takeShared();});
+/* Offline notice: the app keeps working, so say it plainly. */
+function offlineBar(){
+  var el=document.getElementById('offline');if(!el)return;
+  var off=navigator.onLine===false;
+  el.textContent=off?_t("You are offline. Everything saved on this device still works. AI questions and sync wait for the connection."):'';
+  el.hidden=!off;
+}
+window.addEventListener('online',offlineBar);window.addEventListener('offline',offlineBar);
 /* ================= boot ================= */
 try{var _u=new URL(location.href);if(_u.searchParams.get('dev')==='1'||_u.searchParams.get('dev')==='0'){localStorage.setItem('booklyn:dev',_u.searchParams.get('dev'));_u.searchParams.delete('dev');history.replaceState(null,'',_u.pathname+(_u.search||'')+_u.hash);}}catch(e){}
 var lastExpRender=0;
 setInterval(function(){var els=document.querySelectorAll('.cd[data-until]');var exp=false;for(var i=0;i<els.length;i++){var u=+els[i].dataset.until,ms=u-Date.now();if(ms<=0){exp=true;continue;}els[i].textContent=fmtLeft(ms,!!els[i].dataset.compact);}if(exp&&location.hash.indexOf('/study')<0&&!document.hidden&&Date.now()-lastExpRender>5000){lastExpRender=Date.now();render();}},1000);
 try{if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1'))window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}catch(e){}
 try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catch(e){}
-render(false);
+render(false);offlineBar();
 try{syncInit();}catch(e){}
 maybeNotify();
 dbAll().then(function(all){FILES=all||[];filesReady=true;render(false);takeShared();}).catch(function(){filesOK=false;filesReady=true;render(false);});
