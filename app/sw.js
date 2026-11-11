@@ -1,9 +1,9 @@
 /* Booklyn service worker: lets the app open without a connection.
    App files: network first, so a new version always wins when online; cached copy when offline.
    Big libraries and icons: cache first. The API is never cached. */
-const VERSION = 'booklyn-v25';
+const VERSION = 'booklyn-v26';
 const SHARE = 'booklyn-share'; /* files shared from Android; must survive version changes */
-const SHELL = ['./', 'index.html', 'app.js', 'js/storage.js', 'js/imports.js', 'js/quiz-core.js', 'js/final.js', 'js/voyage.js', 'js/lot.js', 'js/traffic.js', 'js/backup.js', 'js/search.js', 'js/today.js', 'js/questions.js', 'js/snotes.js', 'js/versions.js', 'js/objectives.js', 'js/i18n.js', 'js/i18n-dict.js', 'styles.css', 'manifest.webmanifest', 'fonts/fonts.css', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+const SHELL = ['./', 'index.html', 'app.js', 'js/storage.js', 'js/xfer.js', 'js/imports.js', 'js/quiz-core.js', 'js/final.js', 'js/voyage.js', 'js/lot.js', 'js/traffic.js', 'js/backup.js', 'js/search.js', 'js/today.js', 'js/questions.js', 'js/snotes.js', 'js/versions.js', 'js/objectives.js', 'js/i18n.js', 'js/i18n-dict.js', 'styles.css', 'manifest.webmanifest', 'fonts/fonts.css', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

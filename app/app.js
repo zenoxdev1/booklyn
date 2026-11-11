@@ -15,6 +15,7 @@ import * as FN from './js/final.js';
 import * as VY from './js/voyage.js';
 import * as LOT from './js/lot.js';
 import * as VT from './js/traffic.js';
+import * as XF from './js/xfer.js';
 import {_t,_pl,_tf,LOC,LANGS,getLang,setLang} from './js/i18n.js';
 (function(){
 'use strict';
@@ -1455,6 +1456,7 @@ function vPort(){
   var h="<div class=\"row\"><button class=\"btn ghost small\" data-a=\"go\" data-to=\"#/\">"+_t("← Campus")+"</button></div>";
   h+=("<header class=\"stack\"><p class=\"eyebrow\">"+_t("Learning Port")+"</p><h1 tabindex=\"-1\" id=\"h1\">"+_t("Add and sort files")+"</h1><p class=\"lede\">"+_t("Any file type and any size. Booklyn suggests a module and week from the file name. You decide. Files marked “Check this” stay here until you confirm them.")+"</p></header>");
   h+=("<section class=\"drop\" data-drop><h2>"+_t("Drop files here")+"</h2><p class=\"lede\">"+_t("or choose them from your computer or phone")+"</p><div class=\"row\" style=\"justify-content:center\"><button class=\"btn\" data-a=\"pickfiles\">"+_t("Choose files")+"</button><button class=\"btn ghost\" data-a=\"pickfolder\">"+_t("Choose a folder")+"</button></div>"+(matchMedia('(pointer:coarse)').matches?("<p class=\"lede\" data-tip=\"share\" style=\"margin-top:12px\">"+_t("Tip: with the app installed, share files from Drive, Files or WhatsApp straight to Booklyn.")+"</p>"):'')+"</section>");
+  h+=xferCard();
   if(ui.failed&&ui.failed.items.length){
     var fl=ui.failed.items;
     h+='<section class="card stack" role="alert"><h3>'+fl.length+_pl(fl.length,' file could not be saved',' files could not be saved')+'</h3><ul class="list">'
@@ -2720,6 +2722,12 @@ document.addEventListener('click',function(e){
   else if(a==='sydel1'){ui.confirm='acct';render();}
   else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){codeStore('');SYNC.kind='';SYNC.uid='';SYNC.me=null;SYNC.pks=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast(_t("Your cloud data was deleted. Your progress stays on this device."));}else toast(_t("Could not delete just now. Try again."));render();});}
   else if(a==='symerge'){syncMerge();}
+  else if(a==='xsend'){xfStart('send');}
+  else if(a==='xrecv'){xfStart('recv');}
+  else if(a==='xcancel'){if(ui.xfer&&ui.xfer.link)ui.xfer.link.cancel();}
+  else if(a==='xyes'){var xa=ui.xfer&&ui.xfer.ask;if(xa){ui.xfer.ask=null;ui.xfer.phase='transfer';ui.xfer.total=xa.n;ui.xfer.bytes=xa.bytes;xa.res(true);xfPaint();}}
+  else if(a==='xno'){var xb=ui.xfer&&ui.xfer.ask;if(xb){ui.xfer.ask=null;xb.res(false);}}
+  else if(a==='xclose'){ui.xfer=null;xfWake(false);render();}
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast(_t("Using the cloud copy."));else render();}
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast(_t("Using this device. The cloud copy was replaced."));render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
@@ -2952,7 +2960,7 @@ function pay(c){if(!unlOn())state.coins-=c;}
 /* Testing tools: for admin accounts, or on a local development address. A ?dev=1 link on the public site does nothing. */
 function devOn(){if(isAdminNow())return true;try{return localDev()&&localStorage.getItem('booklyn:dev')==='1';}catch(e){return false;}}
 function syncRender(){
-  acctPaint();
+  acctPaint();xfPaint();
   if(route().name!=='settings'&&route().name!=='account'&&!SYNC.conflict)return;
   var ae=document.activeElement;if(ae&&(ae.id==='sycode'||ae.id==='pkname'))return;
   render();
@@ -3182,6 +3190,58 @@ function acctPaint(){
 }
 function vAccount(){
   return '<button class="back" data-a="go" data-to="#/">'+_t("← Campus")+'</button><header class="stack"><p class="eyebrow">'+_t("Account")+'</p><h1 tabindex="-1" id="h1">'+_t("Your account")+'</h1></header>'+accountCard()+foot();
+}
+/* ================= move files between your own devices (js/xfer.js) =================
+   Direct device-to-device (WebRTC). The server only relays short-lived connection messages; no file is stored there. */
+var wakeLock=null;
+function xfWake(on){try{if(on&&navigator.wakeLock){navigator.wakeLock.request('screen').then(function(l){wakeLock=l;}).catch(function(){});}else if(!on&&wakeLock){wakeLock.release();wakeLock=null;}}catch(e){}}
+function xfErr(code){return {signin:_t("You were signed out. Sign in again to sync."),unavailable:_t("Moving files is not available right now. Try again later."),offline:_t("You are offline."),connect:_t("Could not connect to the other device. Put both devices on the same Wi-Fi and try again."),dropped:_t("The connection dropped. Files that already arrived are kept."),peerleft:_t("The other device stopped. Files that already arrived are kept."),timeout:_t("Nothing happened for 5 minutes, so this was stopped."),cancelled:_t("Cancelled."),internal:_t("Something went wrong. Try again.")}[code]||_t("Something went wrong. Try again.");}
+function xfStore(meta,blob){
+  var f=new File([blob],meta.name,{type:meta.type||blob.type,lastModified:meta.mtime||Date.now()});
+  return IM.ingest([f],{files:FILES,store:fileStore,hashOf:sha,skipDuplicates:true,isQuota:ST.isQuota,explain:ST.explainStorageError,
+    build:function(ff,h){var rec=Object.assign({},meta);rec.hash=h||meta.hash;rec.size=blob.size;rec.dup=null;return rec;}
+  }).then(function(r){return r.failed.length?{ok:false,err:r.failed[0].reason}:{ok:true};});
+}
+function xfStart(role){
+  if(!SYNC.me||!window.RTCPeerConnection||!filesReady)return;
+  if(ui.xfer&&ui.xfer.link)ui.xfer.link.cancel();
+  var X={role:role,phase:'waiting',done:0,total:0,bytes:0,bytesDone:0,name:'',ask:null,result:null,err:'',n:0};
+  ui.xfer=X;xfWake(true);
+  X.link=XF.createLink({role:role,api:api,dev:XF.deviceId(),RTC:window.RTCPeerConnection,
+    send:{files:function(){return FILES.slice();},blob:function(id){return dbBlob(id);}},
+    recv:{sems:function(){return state.sems.map(function(x){return x.id;});},have:function(){return FILES.map(function(f){return f.hash;}).filter(Boolean);},
+      hashOf:sha,store:xfStore,confirm:function(info){return new Promise(function(res){X.ask={n:info.n,bytes:info.bytes,res:res};X.n=info.n;xfPaint();});}},
+    on:function(ev,d){
+      if(ui.xfer!==X)return;
+      if(ev==='status'){X.phase=d.phase;if(d.n)X.n=d.n;if(d.bytes)X.bytes=d.bytes;}
+      else if(ev==='progress'){X.done=d.done;X.total=d.total;X.bytesDone=d.bytesDone;X.bytes=d.bytes||X.bytes;X.name=d.name||'';}
+      else if(ev==='done'){X.phase='done';X.result=d;xfWake(false);if(d.got){render();}}
+      else if(ev==='error'){X.phase='error';X.err=xfErr(d.code);xfWake(false);}
+      xfPaint();
+    }});
+  render();
+}
+function xfPaint(){var el=document.getElementById('xfer');if(!el)return;var t=document.createElement('div');t.innerHTML=xferCard();if(t.firstChild)el.outerHTML=t.firstChild.outerHTML;}
+function xferCard(){
+  var h='<section class="card stack" id="xfer"><h3>'+_t("Move files between your devices")+'</h3>';
+  if(!SYNC.me)return h+'<p class="lede">'+_t("Sign in with the same account on both devices first (Settings, Account). Then you can move files between them here.")+'</p><div class="row"><button class="btn ghost small" data-a="go" data-to="#/account">'+_t("Open Settings")+'</button></div></section>';
+  if(!window.RTCPeerConnection)return h+'<p class="lede">'+_t("This browser cannot move files between devices.")+'</p></section>';
+  var X=ui.xfer;
+  if(!X){
+    var bs='<button class="btn" data-a="xsend">'+_t("Send my files")+'</button>',br='<button class="btn'+(isMobileDevice()?'':' ghost')+'" data-a="xrecv">'+_t("Receive files")+'</button>';
+    return h+'<p class="lede">'+_t("Files go straight from one device to the other and are never stored on a server. Both devices need the same account and Booklyn open.")+'</p><div class="row">'+(isMobileDevice()?br+bs.replace('class="btn"','class="btn ghost"'):bs+br)+'</div></section>';
+  }
+  var txt='',bar='',btn='<button class="btn ghost small" data-a="xcancel">'+_t("Cancel")+'</button>';
+  if(X.phase==='waiting')txt=X.role==='recv'?_t("Now press “Send my files” on your other device."):_t("Now open Booklyn on your other device, go to the Port and press “Receive files”.");
+  else if(X.phase==='connecting'||X.phase==='connected')txt=_t("Connecting…");
+  else if(X.phase==='ask-wait')txt=_t("Waiting for the other device to accept ")+X.n+_pl(X.n,' file',' files')+' ('+size(X.bytes)+')…';
+  else if(X.phase==='ask'&&X.ask){txt=_t("The other device wants to send you ")+X.ask.n+_pl(X.ask.n,' file',' files')+' ('+size(X.ask.bytes)+_t("). Receive them?");btn='<button class="btn small" data-a="xyes">'+_t("Receive")+'</button><button class="btn ghost small" data-a="xno">'+_t("No thanks")+'</button>';}
+  else if(X.phase==='transfer'){txt=(X.role==='recv'?_t("Receiving "):_t("Sending "))+Math.min(X.done+1,Math.max(X.total,1))+_t(" of ")+X.total+(X.name?': '+esc(X.name):'');bar='<progress max="'+(X.bytes||1)+'" value="'+X.bytesDone+'" style="width:100%"></progress><p class="foot">'+size(X.bytesDone)+' / '+size(X.bytes)+_t(". Keep both screens open.")+'</p>';}
+  else if(X.phase==='done'){var r=X.result||{},n=(r.got||r.sent||0);
+    txt=r.none?_t("Nothing to move: the other device already has all your files."):r.declined?_t("The other device declined."):_t("Done. Files moved: ")+n+'.'+(r.failed?' '+_t("Could not be moved: ")+r.failed+'.':'')+(r.skipSem?' '+_t("Some files were left out because their semester is not on the other device yet. Sync your progress there first."):'');
+    btn='<button class="btn small" data-a="xclose">'+_t("OK")+'</button>';}
+  else if(X.phase==='error'){txt=X.err;btn='<button class="btn small" data-a="xclose">'+_t("OK")+'</button>';}
+  return h+'<p class="lede" role="status" aria-live="polite">'+txt+'</p>'+bar+'<div class="row">'+btn+'</div></section>';
 }
 /* ================= files shared from Android (Share > Booklyn) =================
    The service worker stores the shared files in the cache "booklyn-share" and redirects here.

@@ -5,7 +5,7 @@ Use this while filling Play Console. Texts are ready to paste. Check every claim
 ## Basics
 - App name: Booklyn (max 30 characters)
 - Category: Education. Tags: study tools, productivity
-- Contact email: tugesautomations@gmail.com (public on the store page)
+- Contact email: tugesautomation@gmail.com (public on the store page)
 - Privacy policy URL: https://booklyn.pages.dev/privacy/
 - Website: https://booklyn.pages.dev/
 - Ads: no. In-app purchases: none (coins are earned by studying; nothing is sold). Target audience: 13+ (or 18+ if you prefer less review work).

@@ -12,5 +12,7 @@ export async function onRequestDelete({ request, env }) {
     env.DB.prepare('DELETE FROM login_tokens WHERE email = ?').bind(user.email),
     env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
   ]);
+  // Temporary device-connection messages. Best effort: the table may not exist yet on an older database.
+  try { await env.DB.prepare('DELETE FROM rtc_signals WHERE user_id = ?').bind(user.id).run(); } catch { /* nothing to delete */ }
   return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie('', 0) });
 }

@@ -31,7 +31,7 @@
 <p>Your files, notes and progress live in your own browser. Booklyn does not see them unless you turn on sync, and even then only your progress is stored, never your files. There are no ads, no analytics and no tracking cookies.</p>
 
 <h2>Who is responsible</h2>
-<p>Booklyn, a private student project based in Switzerland. Contact: <a href="mailto:tugesautomations@gmail.com">tugesautomations@gmail.com</a>.</p>
+<p>Booklyn, a private student project based in Switzerland. Contact: <a href="mailto:tugesautomation@gmail.com">tugesautomation@gmail.com</a>.</p>
 
 <h2>What stays on your device</h2>
 <p>Files you add, the notes you write, your modules, deadlines, lit floors, coins and settings are stored in your browser (local storage and IndexedDB). We cannot read them. If you clear your browser data they are gone, so use the backup button in Settings from time to time.</p>
@@ -45,6 +45,9 @@
 
 <h2>ILIAS connector</h2>
 <p>The optional browser extension runs inside your browser with your own HSLU sign-in. It only talks to elearning.hslu.ch and to the Booklyn page you have open. We never receive your HSLU credentials, your course list or any file unless you choose to add it, and then it is stored only on your device.</p>
+
+<h2>Moving files between your devices</h2>
+<p>If you use “Send my files” and “Receive files”, the files travel directly from one of your devices to the other, encrypted (WebRTC). They are never stored on our servers. To let the two devices find each other, our server passes short-lived connection messages (technical details such as the network addresses of your two devices) that are tied to your account and deleted after at most 10 minutes. A public STUN service run by Cloudflare (stun.cloudflare.com) is used for this and sees the IP address of the device that asks. If a direct connection is impossible, a relay may be used; it only passes encrypted data and cannot read or keep the files.</p>
 
 <h2>Hosting and technical data</h2>
 <p>Booklyn is hosted on Cloudflare (Pages, D1 and Workers AI). Like any web host, Cloudflare processes technical data such as your IP address and browser type when you load a page or call the sync service. To limit abuse, we keep a one-way hash of your IP address for up to 24 hours. Fonts and scripts are served from Booklyn itself, so no third party receives your visit from us. Cloudflare may process data outside Switzerland, under its own data protection terms.</p>

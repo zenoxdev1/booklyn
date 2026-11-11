@@ -43,3 +43,10 @@ The ITPRB prototype and the public app are the same project.
 ## 8. Share to Booklyn and merging after offline use (Nov 2026)
 - Android "Share > Booklyn": the manifest declares a `share_target` (POST, files). The service worker keeps the files in the cache `booklyn-share` and redirects to the Port; the app imports them through the normal `addFiles` path and empties the cache only afterwards. Files stay on the device, as before. Needs the installed app (PWA/TWA).
 - Offline stays local-first: progress is saved on the device and pushed when the connection returns. If the cloud copy changed meanwhile, the student can now choose "Combine both" (same rules as restoring a backup with Merge) instead of replacing one copy. Deletions made on another device are not carried over by a merge.
+
+## 9. Moving files between your own devices (Nov 2026)
+- Problem: files live only on the device where they were added, so a phone showed "Waiting for files" for everything. Storing PDFs in D1/R2 was rejected (database size, a card for R2, and the "files never leave your device" promise).
+- Solution: direct device-to-device transfer over a WebRTC data channel (js/xfer.js). Both devices sign in with the same account; one presses "Receive files", the other "Send my files". The receiver tells the sender which files it already has (SHA-256) and which semesters it knows, the sender offers only what is missing, the receiver confirms, and every file is checked (size and SHA-256) before it is stored. File ids, module, floor and status are kept, so progress that already syncs (seen files, lit floors) matches.
+- Server: only short-lived signalling messages in the D1 table rtc_signals (functions/api/rtc, max 300 rows per account, deleted after 10 minutes and on account deletion). No file ever reaches the server.
+- Connectivity: free Cloudflare STUN. A TURN relay is optional (set TURN_KEY_ID and TURN_API_TOKEN in Pages settings); without it, the transfer needs a network path between the two devices (same Wi-Fi works almost always).
+- Run once in the D1 console: the rtc_signals block at the end of db/schema.sql.

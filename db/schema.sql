@@ -38,3 +38,16 @@ CREATE TABLE IF NOT EXISTS passkeys (
   last_used INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_passkeys_user ON passkeys(user_id);
+
+-- Moving files between your own devices (run once in the D1 console). Holds short-lived connection messages only; rows are deleted after 10 minutes.
+CREATE TABLE IF NOT EXISTS rtc_signals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  from_dev TEXT NOT NULL,
+  to_dev TEXT,
+  session TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rtc_user ON rtc_signals(user_id, id);
