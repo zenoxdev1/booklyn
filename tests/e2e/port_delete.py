@@ -102,7 +102,7 @@ with sync_playwright() as p:
     # --- empty the Port for real
     pg.click('[data-a="pdelall"]'); pg.click('[data-a="pdelyes"]'); pg.wait_for_timeout(900)
     t = port_text(pg)
-    check('port emptied', '2 files deleted' in t and 'Nothing waiting' in t, t[:500])
+    check('port emptied', '2 files deleted' in t and 'Select to delete' not in t and 'ready to import' not in t, t[:500])
     check('imported file untouched', pg.evaluate("JSON.parse(localStorage.getItem('booklyn:state')).lastImport.length") == imported)
     pg.goto(URL + '#/m/m1/1'); pg.wait_for_timeout(500)
     check('the imported file is still in its house and floor', 'NET_week1_keep.txt' in pg.inner_text('main'), pg.inner_text('main')[:400])
@@ -115,7 +115,7 @@ with sync_playwright() as p:
     pg.locator('[data-c="pselall"]').check(); pg.wait_for_timeout(250)
     check('select all selects every pending file, ready ones included', 'Delete selected (3)' in port_text(pg), port_text(pg)[:500])
     pg.click('[data-a="pdelsel"]'); pg.click('[data-a="pdelyes"]'); pg.wait_for_timeout(800)
-    check('select all + delete selected empties the Port', 'Nothing waiting' in port_text(pg) and '3 files deleted' in port_text(pg), port_text(pg)[:400])
+    check('select all + delete selected empties the Port', 'Select to delete' not in port_text(pg) and 'ready to import' not in port_text(pg) and '3 files deleted' in port_text(pg), port_text(pg)[:400])
     # blocked while importing
     add_files(pg, [('NET_week1_a.txt', 'aaa')])
     pg.set_viewport_size({'width': 375, 'height': 800}); pg.wait_for_timeout(300)

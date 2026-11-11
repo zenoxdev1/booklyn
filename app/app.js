@@ -320,8 +320,10 @@ function suggest(text,sem){
     else second=Math.max(second,sc);
   });
   var mod=best&&best.sc>second?best.m:null, unit=0;
-  var mm=/(?:^|[^a-z])(?:sw|week|woche|wk|lecture|lec|session|chapter|ch|unit|module|kapitel)[ _.\-]?0*(\d{1,2})(?![0-9])/i.exec(text);
+  var mm=/(?:^|[^a-z])(?:sw|week|woche|wk|lecture|lec|lesson|lektion|session|chapter|chapitre|capitulo|capítulo|cap|ch|kapitel|kap|topic|thema|tema|tópico|topico|sujet|unit|unidad|unité|unite|einheit|semana|semaine|teil|part|block|bloque|module)\.?[ _.\-]?0*(\d{1,2})(?![0-9])/i.exec(text);
   if(mm) unit=+mm[1];
+  /* a module that is organised by topics or chapters often has files that just start with the number: "05_Business_Cycle.pdf" */
+  if(!unit&&mod&&mod.ul){var lead=/^\s*0*(\d{1,2})(?=[\s_.\-)])/.exec(text.replace(/^.*[\\\/]/,''));if(lead)unit=+lead[1];}
   if(mod&&(unit<1||unit>MAXU)) unit=0;
   if(mod&&unit>mod.units) ensureUnits(mod,unit);
   var why;
@@ -1473,10 +1475,10 @@ function vPort(){
     +(ui.ilias.items.length?iliasListHTML():iliasCoursesHTML())+'</section>';
   if(state.lastImport.length&&!list.length){
     var by={};state.lastImport.forEach(function(id){var f=FILES.filter(function(x){return x.id===id;})[0];if(f&&f.status==='imported'){by[f.mod]=(by[f.mod]||0)+1;}});
-    h+=("<section class=\"card stack\"><h3>"+_t("Imported")+"</h3><div class=\"row tight\">")+Object.keys(by).map(function(k){var m=M(k);return m?'<button class="chip" data-a="go" data-to="#/m/'+m.id+'" style="border:0;cursor:pointer">'+esc(m.code)+' · '+by[k]+'</button>':'';}).join('')+("</div><div class=\"row\"><button class=\"btn ghost small\" data-a=\"undo\">"+_t("Undo this import")+"</button></div></section>");
+    /* lastImport is synced with the progress; on a device that does not hold those files there is nothing to show or undo */
+    if(Object.keys(by).length)h+=("<section class=\"card stack\"><h3>"+_t("Imported")+"</h3><div class=\"row tight\">")+Object.keys(by).map(function(k){var m=M(k);return m?'<button class="chip" data-a="go" data-to="#/m/'+m.id+'" style="border:0;cursor:pointer">'+esc(m.code)+' · '+by[k]+'</button>':'';}).join('')+("</div><div class=\"row\"><button class=\"btn ghost small\" data-a=\"undo\">"+_t("Undo this import")+"</button></div></section>");
   }
   if(!list.length){
-    h+=("<section class=\"card stack\"><h3>"+_t("Nothing waiting")+"</h3><p class=\"lede\">"+_t("Add files above. Want to try it first?")+"</p><div class=\"row\"><button class=\"btn ghost small\" data-a=\"samples\">"+_t("Add 6 sample files")+"</button></div></section>");
     return h;
   }
   var dupN=list.filter(isDupRow).length;

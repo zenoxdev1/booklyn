@@ -58,11 +58,34 @@ with sync_playwright() as p:
     c.close()
     c = b.new_context(viewport={'width': 412, 'height': 900}, has_touch=True, is_mobile=True); pg = c.new_page()
     pg.goto(URL); pg.wait_for_timeout(500); pg.evaluate("s=>localStorage.setItem('booklyn:state',JSON.stringify(s))", STATE); pg.goto(URL + '#/port'); pg.reload(); pg.wait_for_timeout(800)
+    t2 = dict(STATE); t2['lastImport'] = ['gone-1', 'gone-2']
+    pg.evaluate("s=>localStorage.setItem('booklyn:state',JSON.stringify(s))", t2); pg.reload(); pg.wait_for_timeout(1000)
+    txt = pg.inner_text('body')
+    check('Port has no Undo, no Imported card and no sample-files prompt when this device holds no imported files', 'Undo this import' not in txt and 'Nothing waiting' not in txt and 'sample files' not in txt, txt[-400:])
     check('phones see the Share tip in the Port', pg.locator('[data-tip="share"]').count() == 1)
     c.close()
     c = b.new_context(viewport={'width': 1200, 'height': 900}); pg = c.new_page()
     pg.goto(URL); pg.wait_for_timeout(500); pg.evaluate("s=>localStorage.setItem('booklyn:state',JSON.stringify(s))", STATE); pg.goto(URL + '#/port'); pg.reload(); pg.wait_for_timeout(800)
     check('desktop does not see the Share tip', pg.locator('[data-tip="share"]').count() == 0)
+    c.close()
+
+    # ---------- courses that are not organised by weeks: file names with topics, chapters or a leading number ----------
+    TS = copy.deepcopy(STATE)
+    em = mod('ec', 'ECON'); em['ul'] = 'topic'; em['kw'] = 'business'; em['units'] = 8; em['titles'] = ['Topic %d' % k for k in range(1, 9)]
+    wm = mod('mw', 'LAW'); wm['kw'] = 'contracts'
+    TS['sems'][0]['modules'] = [em, wm]
+    c = b.new_context(viewport={'width': 412, 'height': 900}); pg = c.new_page()
+    pg.goto(URL); pg.wait_for_timeout(600); pg.evaluate("s=>localStorage.setItem('booklyn:state',JSON.stringify(s))", TS); pg.goto(URL + '#/port'); pg.reload(); pg.wait_for_timeout(800)
+    pg.evaluate("""async()=>{const f=n=>new File(['x '+n],n,{type:'text/plain'});
+      const dt=new DataTransfer();['ECON Topic 3 inflation.txt','05_Business_Cycle.txt','Thema 2 business.txt','Kapitel 4 ECON.txt','07_contracts.txt'].forEach(n=>dt.items.add(f(n)));
+      const i=document.getElementById('fi');i.files=dt.files;i.dispatchEvent(new Event('change',{bubbles:true}));}""")
+    pg.wait_for_timeout(1500)
+    rows = pg.evaluate("new Promise(r=>{const q=indexedDB.open('booklyn');q.onsuccess=()=>{const t=q.result.transaction('meta');t.objectStore('meta').getAll().onsuccess=e=>r(Object.fromEntries(e.target.result.map(x=>[x.name,[x.mod,x.unit,x.flag]])))}})")
+    check('"Topic 3" in the name puts the file on floor 3', rows.get('ECON Topic 3 inflation.txt', [0, 0])[:2] == ['ec', 3], rows)
+    check('a leading number is the floor in a topic module', rows.get('05_Business_Cycle.txt', [0, 0])[:2] == ['ec', 5], rows)
+    check('"Thema 2" is understood', rows.get('Thema 2 business.txt', [0, 0])[:2] == ['ec', 2], rows)
+    check('"Kapitel 4" is understood', rows.get('Kapitel 4 ECON.txt', [0, 0])[:2] == ['ec', 4], rows)
+    check('a leading number is NOT used in a module organised by weeks (it goes to check)', rows.get('07_contracts.txt', [0, 0, 0])[2] is True, rows)
     c.close()
 
     # ---------- Combine both ----------
