@@ -39,3 +39,7 @@ The ITPRB prototype and the public app are the same project.
 - A module can be organised by Weeks, Topics or Chapters. Same floors, different label; no new data model.
 - The landing is generated from one template and one string table, so the four languages cannot drift apart. Legal pages stay English.
 - Free AI cap lowered to 90 requests a day: the free Workers AI allowance (about 10,000 neurons) is shared by everyone, and a quota error now shows the normal "limit" message.
+
+## 8. Share to Booklyn and merging after offline use (Nov 2026)
+- Android "Share > Booklyn": the manifest declares a `share_target` (POST, files). The service worker keeps the files in the cache `booklyn-share` and redirects to the Port; the app imports them through the normal `addFiles` path and empties the cache only afterwards. Files stay on the device, as before. Needs the installed app (PWA/TWA).
+- Offline stays local-first: progress is saved on the device and pushed when the connection returns. If the cloud copy changed meanwhile, the student can now choose "Combine both" (same rules as restoring a backup with Merge) instead of replacing one copy. Deletions made on another device are not carried over by a merge.

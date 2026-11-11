@@ -24,3 +24,19 @@ test('public pages have no unfilled placeholders', () => {
   }
   assert.ok(!/example\.invalid/.test(readFileSync(new URL('../../.well-known/security.txt', import.meta.url), 'utf8')));
 });
+
+test('share target: POST multipart to a URL inside the scope, files only', () => {
+  const st = m.share_target;
+  assert.ok(st, 'share_target missing');
+  assert.equal(st.method, 'POST'); assert.equal(st.enctype, 'multipart/form-data');
+  assert.ok(st.action.startsWith(m.scope), st.action);
+  const f = st.params.files[0];
+  assert.equal(f.name, 'files');
+  for (const t of ['application/pdf', '.pdf', '.docx', '.pptx', 'text/plain']) assert.ok(f.accept.includes(t), t);
+});
+test('service worker handles the share target and keeps shared files across versions', () => {
+  const sw = readFileSync(new URL('sw.js', dir), 'utf8');
+  assert.ok(sw.includes("'share-target'") && sw.includes("method === 'POST'"));
+  assert.ok(/k !== SHARE/.test(sw), 'activate must not delete the share cache');
+  assert.ok(existsSync(new URL('../../functions/app/share-target.js', import.meta.url)));
+});

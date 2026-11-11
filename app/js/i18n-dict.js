@@ -2,6 +2,10 @@
    A missing key falls back to English. Keep every {placeholder} and every \u0001 marker of the key. */
 export const DICT = {
 "de": {
+"Combine both": "Beide zusammenführen",
+"Or combine both: lights stay on, nothing is lost, and what exists in only one place is added.": "Oder beides zusammenführen: Lichter bleiben an, nichts geht verloren, und was nur an einem Ort existiert, wird ergänzt.",
+"Both copies were combined.": "Beide Kopien wurden zusammengeführt.",
+"The two copies could not be combined. Nothing was changed.": "Die beiden Kopien konnten nicht zusammengeführt werden. Nichts wurde geändert.",
 "Topic ": "Thema ",
 "Chapter ": "Kapitel ",
 "This module is organised by": "Dieses Modul ist gegliedert nach",
@@ -1108,6 +1112,10 @@ export const DICT = {
 "Yours": "Deine",
 },
 "es": {
+"Combine both": "Combinar ambas",
+"Or combine both: lights stay on, nothing is lost, and what exists in only one place is added.": "O combina ambas: las luces siguen encendidas, no se pierde nada y se añade lo que solo existe en un sitio.",
+"Both copies were combined.": "Se combinaron ambas copias.",
+"The two copies could not be combined. Nothing was changed.": "No se pudieron combinar las dos copias. No se cambió nada.",
 "Topic ": "Tema ",
 "Chapter ": "Capítulo ",
 "This module is organised by": "Este módulo está organizado por",
@@ -2214,6 +2222,10 @@ export const DICT = {
 "Yours": "Los tuyos",
 },
 "fr": {
+"Combine both": "Fusionner les deux",
+"Or combine both: lights stay on, nothing is lost, and what exists in only one place is added.": "Ou fusionnez les deux : les lumières restent allumées, rien n'est perdu et ce qui n'existe qu'à un endroit est ajouté.",
+"Both copies were combined.": "Les deux copies ont été fusionnées.",
+"The two copies could not be combined. Nothing was changed.": "Les deux copies n'ont pas pu être fusionnées. Rien n'a été modifié.",
 "Topic ": "Thème ",
 "Chapter ": "Chapitre ",
 "This module is organised by": "Ce module est organisé par",

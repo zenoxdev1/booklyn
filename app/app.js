@@ -2717,6 +2717,7 @@ document.addEventListener('click',function(e){
   else if(a==='sylogout3'){signOutWipe();}
   else if(a==='sydel1'){ui.confirm='acct';render();}
   else if(a==='sydel2'){api('DELETE','/api/account',{}).then(function(r){ui.confirm=null;if(r.ok){codeStore('');SYNC.kind='';SYNC.uid='';SYNC.me=null;SYNC.pks=null;SYNC.base=0;SYNC.known='';SYNC.last=0;SYNC.conflict=null;SYNC.msg='';syncMeta();toast(_t("Your cloud data was deleted. Your progress stays on this device."));}else toast(_t("Could not delete just now. Try again."));render();});}
+  else if(a==='symerge'){syncMerge();}
   else if(a==='sycloud'){if(SYNC.conflict&&syncAdopt(SYNC.conflict.state,SYNC.conflict.updatedAt))toast(_t("Using the cloud copy."));else render();}
   else if(a==='sydevice'){if(SYNC.conflict){SYNC.base=SYNC.conflict.updatedAt;SYNC.conflict=null;SYNC.dirty=true;syncMeta();syncPush().then(function(){toast(_t("Using this device. The cloud copy was replaced."));render();});}}
   else if(a==='scanilias'){if(!ui.ilias.busy)scanIlias();}
@@ -2966,6 +2967,23 @@ function syncAdopt(remote,updatedAt){
   SYNC.base=updatedAt;SYNC.dirty=false;SYNC.last=Date.now();SYNC.conflict=null;SYNC.msg='';syncMeta();
   render(true);return true;
 }
+/* Conflict: merge the cloud copy into this device instead of replacing one with the other.
+   Same rules as "Restore from a backup > Merge" (see mergeStates), then the result is pushed on top of the cloud copy. */
+function syncMerge(){
+  var rc=SYNC.conflict;if(!rc||SYNC.pushing)return;
+  var s2=rc.state;
+  try{
+    if(!s2||typeof s2.schema!=='number'||s2.schema>SCHEMA)throw new Error('schema');
+    while(s2.schema<SCHEMA){var mg=MIGRATIONS[s2.schema];if(!mg)throw new Error('migrate');s2=mg(s2);}
+    s2=clean(s2);
+    var merged=clean(BK.mergeStates(state,s2).state);
+    try{localStorage.setItem(KEY+'.beforesync',JSON.stringify(state));}catch(e){}
+    SYNC.adopting=true;state=merged;save();SYNC.adopting=false;
+  }catch(e){SYNC.adopting=false;toast(_t("The two copies could not be combined. Nothing was changed."));return;}
+  SYNC.base=rc.updatedAt;SYNC.conflict=null;SYNC.dirty=true;SYNC.msg='';syncMeta();
+  render(true);
+  syncPush().then(function(){if(!SYNC.conflict)toast(_t("Both copies were combined."));render();});
+}
 async function syncPull(){
   if(!SYNC.me||readOnly)return;
   SYNC.busy=true;var r=await api('GET','/api/state');SYNC.busy=false;
@@ -3021,7 +3039,7 @@ function accountCard(){
   if(SYNC.conflict){
     var cs=SYNC.conflict.state||{},cn=(cs.sems||[]).length,ln=state.sems.length,cl=Object.keys(cs.lit||{}).length,dl=Object.keys(state.lit||{}).length;
     h+=("<div class=\"notice warn stack\"><p style=\"margin:0\"><strong>"+_t("Your cloud copy and this device differ.")+"</strong>"+_t(" The cloud copy has "))+cn+_pl(cn,' semester',' semesters')+_t(" and ")+cl+_pl(cl,' lit floor',' lit floors')+_t(" (saved ")+new Date(SYNC.conflict.updatedAt).toLocaleString(LOC(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+_t("). This device has ")+ln+_t(" and ")+dl+(_t(". Choose which one to keep. The other one is replaced, and a safety copy of this device stays in the browser.")+"</p>")
-      +("<div class=\"row\"><button class=\"btn small\" data-a=\"sycloud\">"+_t("Use the cloud copy")+"</button><button class=\"btn small ghost\" data-a=\"sydevice\">"+_t("Use this device")+"</button></div></div>");
+      +("<p style=\"margin:0\">"+_t("Or combine both: lights stay on, nothing is lost, and what exists in only one place is added.")+"</p>")+("<div class=\"row\"><button class=\"btn small\" data-a=\"symerge\">"+_t("Combine both")+"</button><button class=\"btn small ghost\" data-a=\"sycloud\">"+_t("Use the cloud copy")+"</button><button class=\"btn small ghost\" data-a=\"sydevice\">"+_t("Use this device")+"</button></div></div>");
   }
   if(SYNC.me){
     h+='<p class="lede">'+(SYNC.kind==='code'?(_t("Signed in with a ")+"<strong>"+_t("sync code")+"</strong>. "):SYNC.kind==='passkey'?(_t("Signed in with a ")+"<strong>"+_t("passkey")+"</strong>. "):(_t("Signed in as ")+"<strong>")+esc(SYNC.me)+'</strong>. ')+(SYNC.last?_t("Last synced: ")+new Date(SYNC.last).toLocaleString(LOC(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'. ':'')+(SYNC.dirty&&!SYNC.conflict?_t("Changes waiting to sync."):'')+'</p>'
@@ -3163,6 +3181,33 @@ function acctPaint(){
 function vAccount(){
   return '<button class="back" data-a="go" data-to="#/">'+_t("← Campus")+'</button><header class="stack"><p class="eyebrow">'+_t("Account")+'</p><h1 tabindex="-1" id="h1">'+_t("Your account")+'</h1></header>'+accountCard()+foot();
 }
+/* ================= files shared from Android (Share > Booklyn) =================
+   The service worker stores the shared files in the cache "booklyn-share" and redirects here.
+   They go through the normal addFiles() path (so they land in the Port to be sorted) and are removed from the
+   cache only after that returned; if there is no semester yet they simply wait. */
+var sharing=false;
+async function takeShared(){
+  if(sharing||!filesReady||busyAdd||!window.caches)return;
+  sharing=true;
+  try{
+    var c=await caches.open('booklyn-share'),keys=await c.keys();
+    if(!keys.length)return;
+    var list=[],done=[];
+    for(var i=0;i<keys.length;i++){
+      var res=await c.match(keys[i]);if(!res)continue;
+      var b=await res.blob(),nm='shared';
+      try{nm=decodeURIComponent(res.headers.get('X-Name')||'shared');}catch(e){}
+      list.push(new File([b],nm,{type:b.type||'application/octet-stream',lastModified:+res.headers.get('X-Mtime')||Date.now()}));
+      done.push(keys[i]);
+    }
+    if(!list.length)return;
+    var r=await addFiles(list,null,true);
+    if(r)await Promise.all(done.map(function(k){return c.delete(k);}));
+  }catch(e){}
+  finally{sharing=false;}
+}
+try{var _sh=new URL(location.href);if(_sh.searchParams.has('shared')){_sh.searchParams.delete('shared');history.replaceState(null,'',_sh.pathname+(_sh.search||'')+_sh.hash);}}catch(e){}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')takeShared();});
 /* ================= boot ================= */
 try{var _u=new URL(location.href);if(_u.searchParams.get('dev')==='1'||_u.searchParams.get('dev')==='0'){localStorage.setItem('booklyn:dev',_u.searchParams.get('dev'));_u.searchParams.delete('dev');history.replaceState(null,'',_u.pathname+(_u.search||'')+_u.hash);}}catch(e){}
 var lastExpRender=0;
@@ -3172,5 +3217,5 @@ try{window.postMessage({source:'booklyn-app',type:'ping'},location.origin);}catc
 render(false);
 try{syncInit();}catch(e){}
 maybeNotify();
-dbAll().then(function(all){FILES=all||[];filesReady=true;render(false);}).catch(function(){filesOK=false;filesReady=true;render(false);});
+dbAll().then(function(all){FILES=all||[];filesReady=true;render(false);takeShared();}).catch(function(){filesOK=false;filesReady=true;render(false);});
 })();

@@ -96,18 +96,24 @@ with sync_playwright() as p:
     check('quiz shows the source file, no invented page', 'Source: NET_week1_lecture.txt' in pg.inner_text('body') and ', p.' not in pg.inner_text('.card'))
     bk = bank(pg)
     def answer_of(text):
-        # options are shuffled on screen: find the button that shows the right option text
-        q = next((q for q in bk['q'] if q['q'] == text), None)
-        if q is None:
-            bk.update(bank(pg)); q = next(q for q in bk['q'] if q['q'] == text)
-        labels = pg.locator('[data-a="pick"]').all_inner_texts()
-        return next(i for i, l in enumerate(labels) if q['o'][q['a']] in l)
+        # options are shuffled on screen: find the button that shows the right option text.
+        # Several questions can share one stem ("Which term is matched ..."), so try every question with that stem.
+        for attempt in range(2):
+            labels = pg.locator('[data-a="pick"]').all_inner_texts()
+            for q in [q for q in bk['q'] if q['q'] == text]:
+                hit = next((i for i, l in enumerate(labels) if q['o'][q['a']] in l), None)
+                if hit is not None and all(any(o in l for l in labels) for o in q['o']): return hit
+            bk.update(bank(pg))
+        raise AssertionError('no question matches the screen: %r %r' % (text, labels))
     def play(correct_flags):
         asked = []
         for ok in correct_flags:
             text = pg.inner_text('h2'); a = answer_of(text); asked.append(text)
             pick = a if ok else (a + 1) % 4
-            pg.click('[data-a="pick"][data-i="%d"]' % pick); pg.click('[data-a="nextq"]'); pg.wait_for_timeout(100)
+            pg.click('[data-a="pick"][data-i="%d"]' % pick); pg.click('[data-a="nextq"]')
+            try: pg.wait_for_function("t=>{const h=document.querySelector('h2');return !h||h.innerText!==t}", arg=text, timeout=3000)
+            except Exception: pass
+            pg.wait_for_timeout(100)
         return asked
     asked1 = play([True, True, True, False, False])
     body = pg.inner_text('body')
