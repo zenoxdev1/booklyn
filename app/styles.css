@@ -578,3 +578,17 @@ button.link{min-height:44px;padding-top:10px;padding-bottom:10px}
 
 .offline{position:sticky;top:0;z-index:50;margin:0;padding:8px 16px;text-align:center;font-size:.85rem;line-height:1.35;background:var(--ink);color:var(--bg)}
 .offline[hidden]{display:none}
+
+/* continuous land: ground to the horizon, hills, a soft apron around the districts */
+.cityv .hzland{stroke:none}
+.cityv .ld0{stop-color:#3b6b66}.cityv .ld1{stop-color:#2e6a4a}
+.cityv .hill1{fill:#27544d;stroke:none}.cityv .hill2{fill:#2c6350;stroke:none}.cityv .hillc{fill:#3a7a5c;stroke:none}
+.cityv .apron{fill:#2b5a47;opacity:.9}
+.cityv.sc-autumn .ld0{stop-color:#6d5b4c}.cityv.sc-autumn .ld1{stop-color:#7a5a33}.cityv.sc-autumn .hill1{fill:#6b4f3a}.cityv.sc-autumn .hill2,.cityv.sc-autumn .hillc{fill:#82602f}.cityv.sc-autumn .apron{fill:#6a4f30}
+.cityv.sc-blossom .ld0{stop-color:#52706c}.cityv.sc-blossom .ld1{stop-color:#3f7a5c}.cityv.sc-blossom .hill1{fill:#4a6a64}.cityv.sc-blossom .hill2,.cityv.sc-blossom .hillc{fill:#4a7c5f}.cityv.sc-blossom .apron{fill:#3c6f55}
+.cityv.sc-snow .ld0{stop-color:#aab8da}.cityv.sc-snow .ld1{stop-color:#d4dcf0}.cityv.sc-snow .hill1{fill:#98a8cf}.cityv.sc-snow .hill2,.cityv.sc-snow .hillc{fill:#b9c6e6}.cityv.sc-snow .apron{fill:#c6d0ea}
+.cityv.sc-desert .ld0{stop-color:#c9955a}.cityv.sc-desert .ld1{stop-color:#d9b077}.cityv.sc-desert .hill1{fill:#b07d50}.cityv.sc-desert .hill2,.cityv.sc-desert .hillc{fill:#c79a62}.cityv.sc-desert .apron{fill:#d0a66e}
+.cityv.sc-sunset .ld0{stop-color:#7a6a70}.cityv.sc-sunset .ld1{stop-color:#3d6a4a}.cityv.sc-sunset .hill1{fill:#5a5a6a}.cityv.sc-sunset .hill2,.cityv.sc-sunset .hillc{fill:#4a6a52}.cityv.sc-sunset .apron{fill:#3a6247}
+.cityv.sc-rain .ld0{stop-color:#46606a}.cityv.sc-rain .ld1{stop-color:#2c4a45}.cityv.sc-rain .hill1{fill:#3b5560}.cityv.sc-rain .hill2,.cityv.sc-rain .hillc{fill:#33524c}.cityv.sc-rain .apron{fill:#2b4a45}
+.cityv.sc-fog .ld0{stop-color:#7e8fa0}.cityv.sc-fog .ld1{stop-color:#4a6663}.cityv.sc-fog .hill1{fill:#65798a}.cityv.sc-fog .hill2,.cityv.sc-fog .hillc{fill:#566f6c}.cityv.sc-fog .apron{fill:#4a6663}
+.cityv.sc-firefly .ld0{stop-color:#264a48}.cityv.sc-firefly .ld1{stop-color:#1f4a38}.cityv.sc-firefly .hill1{fill:#1f4440}.cityv.sc-firefly .hill2,.cityv.sc-firefly .hillc{fill:#1f4a3c}.cityv.sc-firefly .apron{fill:#1d4636}
