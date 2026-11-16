@@ -3216,7 +3216,7 @@ function xfStart(role){
       if(ev==='status'){X.phase=d.phase;if(d.n)X.n=d.n;if(d.bytes)X.bytes=d.bytes;}
       else if(ev==='progress'){X.done=d.done;X.total=d.total;X.bytesDone=d.bytesDone;X.bytes=d.bytes||X.bytes;X.name=d.name||'';}
       else if(ev==='done'){X.phase='done';X.result=d;xfWake(false);if(d.got){render();}}
-      else if(ev==='error'){X.phase='error';X.err=xfErr(d.code);xfWake(false);}
+      else if(ev==='error'){X.phase='error';X.err=xfErr(d.code)+(d.code==='internal'&&d.detail?' ('+d.detail+')':'');xfWake(false);}
       xfPaint();
     }});
   render();

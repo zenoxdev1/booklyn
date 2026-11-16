@@ -57,7 +57,7 @@ export function createLink(o) {
   var waiters = {};
 
   function emit(ev, d) { try { o.on(ev, d || {}); } catch (e) { /* UI errors must not stop the transfer */ } }
-  function fail(code) { if (S.dead || S.finished) return; teardown(); emit('error', { code: code }); }
+  function fail(code, err) { if (S.dead || S.finished) return; var d = ''; try { if (err) { d = String(err.name || 'Error') + ': ' + String(err.message || err).slice(0, 120); console.error('[xfer]', err); } } catch (x) { /* detail is optional */ } teardown(); emit('error', { code: code, detail: d }); }
   function teardown(keepSignals) {
     S.dead = true;
     [S.pollT, S.helloT, S.connT, S.idleT, S.waitT].forEach(function (t) { clearTimeout(t); clearInterval(t); });
@@ -95,7 +95,7 @@ export function createLink(o) {
         else if (row.kind === 'bye' && !S.finished) return fail('peerleft');
       }
       if (hello) await startSending(hello);
-      } catch (e) { return fail('internal'); }
+      } catch (e) { return fail('internal', e); }
     }
     S.pollT = setTimeout(poll, 1200);
   }
@@ -163,7 +163,7 @@ export function createLink(o) {
     S.ch = ch; ch.binaryType = 'arraybuffer'; ch.bufferedAmountLowThreshold = 512 * 1024;
     ch.onopen = function () { clearTimeout(S.connT); bumpIdle(); emit('status', { phase: 'connected' }); if (o.role === 'recv') recvStart(); };
     ch.onclose = function () { if (!S.finished && !S.dead) fail('dropped'); };
-    ch.onmessage = function (e) { bumpIdle(); S.queue = S.queue.then(function () { return onMessage(e.data); }).catch(function () { fail('internal'); }); };
+    ch.onmessage = function (e) { bumpIdle(); S.queue = S.queue.then(function () { return onMessage(e.data); }).catch(function (e) { fail('internal', e); }); };
   }
   async function onMessage(d) {
     if (typeof d !== 'string') { if (R.cur) { R.cur.chunks.push(d); R.cur.got += d.byteLength; R.bytesDone += d.byteLength; emit('progress', progress()); } return; }
@@ -215,7 +215,7 @@ export function createLink(o) {
   /* ----- sender side ----- */
   async function sendMsg(m) {
     if (m.t === 'hi') { R.sems = m.sems || []; return; }
-    if (m.t === 'have') { R.have = R.have.concat(m.hashes || []); if (m.last) { R.haveDone = true; sendPlan().catch(function () { fail('internal'); }); } return; }
+    if (m.t === 'have') { R.have = R.have.concat(m.hashes || []); if (m.last) { R.haveDone = true; sendPlan().catch(function (e) { fail('internal', e); }); } return; }
     if (m.t === 'go') return resolveWaiter('go', true);
     if (m.t === 'no') return resolveWaiter('go', false);
     if (m.t === 'ack') return resolveWaiter('ack:' + m.id, m);
@@ -236,7 +236,8 @@ export function createLink(o) {
     R.plan = { n: p.send.length, bytes: p.bytes }; R.got = 0; R.failed = 0; R.bytesDone = 0;
     for (var i = 0; i < p.send.length; i++) {
       if (S.dead) return;
-      var f = p.send[i], blob = await o.send.blob(f.id);
+      var f = p.send[i], blob = null;
+      try { blob = await o.send.blob(f.id); if (blob && typeof blob.slice !== 'function' && blob.byteLength != null) blob = new Blob([blob]); if (blob && typeof blob.slice !== 'function') blob = null; } catch (e) { blob = null; }
       R.cur = { meta: f };
       emit('progress', { done: i, total: p.send.length, bytesDone: R.bytesDone, bytes: p.bytes, name: f.name });
       if (!blob) { sendJ({ t: 'miss', id: f.id }); R.failed++; continue; }
