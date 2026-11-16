@@ -589,21 +589,32 @@ function islandLayer(C,R,P,ex,TH,I,deep){
   var LB=4.2,XP0=X1+LB,XP1=XP0+3.4,py0=cy-1.9,py1=cy+1.9;
   var sx0=-1.7,sy0=-1.7,sx1=XP1+3.5,sy1=Math.max(Y1+(deep?3.2:1.3),cy+3.3);
   var bot=-TH-8,g='',f='';
+  /* A single irregular mainland outline gives every semester district one connected coast. */
+  var landXY=[[-1.45,-1.35],[C*P*.28,-2.0],[C*P*.66,-1.65],[X1+1.6,-1.25],[X1+1.8,cy-2.1],[X1+.1,cy-.68],[X1+.1,cy+.68],[X1+1.75,cy+2.1],[X1+1.55,Y1*.68],[X1+1.9,Y1+1.0],[C*P*.72,Y1+.5],[C*P*.39,Y1+.2],[C*P*.11,Y1+.7],[-1.35,Y1+.15],[-1.8,Y1*.58],[-1.55,Y1*.28]];
+  var landTop=landXY.map(function(p){return iso(p[0],p[1],0);}),landLow=landXY.map(function(p){return iso(p[0],p[1],-TH);});
+  var landLine=landTop.concat([landTop[0]]);
+  var sides=[];
+  for(var le=0;le<landXY.length;le++){
+    var en=(le+1)%landXY.length,a=landXY[le],b=landXY[en],mid=iso((a[0]+b[0])/2,(a[1]+b[1])/2,0);
+    sides.push({d:mid[1],html:'<polygon class="coast-side" points="'+pts([landTop[le],landTop[en],landLow[en],landLow[le]])+'"/>'});
+  }
+  sides.sort(function(a,b){return a.d-b.d;});
+  var sideSVG=sides.map(function(s){return s.html;}).join('');
   function poly(cl,a){return '<polygon class="'+cl+'" points="'+pts(a)+'"/>';}
   /* sea: only its surface is drawn here (the water itself goes to the horizon, see backdropSVG), plus shallows and slow waves */
   g+=poly('sea-t',[iso(sx0,sy0,SEA),iso(sx1,sy0,SEA),iso(sx1,sy1,SEA),iso(sx0,sy1,SEA)]);
-  var sh=function(d,c){return poly(c,[iso(-ex-rm-d,-ex-rm-d,SEA),iso(X1+rm+d,-ex-rm-d,SEA),iso(X1+rm+d,Y1+rm+d,SEA),iso(-ex-rm-d,Y1+rm+d,SEA)]);};
-  g+=sh(1.5,'shal2')+sh(.7,'shal1');
+  /* pale shallow-water bands follow the irregular coast instead of forming square halos */
+  var lcx=0,lcy=0;landXY.forEach(function(p){lcx+=p[0];lcy+=p[1];});lcx/=landXY.length;lcy/=landXY.length;
+  function shoal(scale,cl){return poly(cl,landXY.map(function(p){return iso(lcx+(p[0]-lcx)*scale,lcy+(p[1]-lcy)*scale,SEA);}));}
+  g+=shoal(1.13,'shal2')+shoal(1.07,'shal1');
   for(var w=0;w<9;w++){
     var wx=sx0+.8+(hashStr('wx'+w)%1000)/1000*(sx1-sx0-2.4),wy=sy0+.8+(hashStr('wy'+w)%1000)/1000*(sy1-sy0-1.6);
     if(wx<X1+rm+.4&&wy<Y1+rm+.4&&wx>-rm-.4&&wy>-rm-.4)continue;
     if(wx>X1+rm&&wx<XP1+.3&&wy>py0-.3&&wy<cy+4.4)continue;
     g+='<polyline class="wave" style="animation-delay:-'+(w*.9).toFixed(1)+'s" points="'+pts([iso(wx,wy,SEA),iso(wx+.7,wy,SEA)])+'"/>';
   }
-  /* island rim (sand), then the lawn slab sits on it */
-  g+=poly('rim-l',[iso(-ex-rm,Y1+rm,RIM),iso(X1+rm,Y1+rm,RIM),iso(X1+rm,Y1+rm,SEA),iso(-ex-rm,Y1+rm,SEA)])+poly('rim-r',[iso(X1+rm,Y1+rm,RIM),iso(X1+rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,SEA),iso(X1+rm,Y1+rm,SEA)])+poly('rim-t',[iso(-ex-rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,RIM),iso(X1+rm,Y1+rm,RIM),iso(-ex-rm,Y1+rm,RIM)]);
-  g+='<polyline class="foam" points="'+pts([iso(-ex-rm,Y1+rm,SEA),iso(X1+rm,Y1+rm,SEA),iso(X1+rm,-ex-rm,SEA)])+'"/>'
-   +'<polyline class="foam" points="'+pts([iso(-ex-rm,Y1+rm,RIM),iso(-ex-rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,RIM)])+'"/>';
+  /* A thin, gently broken shoreline replaces the raised square sand rim. */
+  g+='<polyline class="foam" points="'+pts(landLine)+'"/>';
   /* rocks on the back shore, away from the bridge and the piers */
   [[.18,-ex-rm-.15,1],[.42,-ex-rm-.2,.7],[-ex-rm-.2,.55,.8],[-ex-rm-.15,.3,1.1]].forEach(function(r,i){
     var rx=r[0]<1?r[0]*C*P:r[0],ry=r[1]<0?r[1]:(r[1]<1?r[1]*R*P:r[1]),sz=r[2];
@@ -653,7 +664,7 @@ function islandLayer(C,R,P,ex,TH,I,deep){
       +'<polygon class="phit" points="'+pts([iso(XP0-.1,py0-.1,50),iso(XP1+.1,py0-.1,50),iso(XP1+1.3,py1+1.75,-5),iso(XP0,py1+1.75,-5)])+'"/>'
       +'<g class="plabel"><rect x="'+(lx[0]-21).toFixed(1)+'" y="'+(lx[1]-9).toFixed(1)+'" width="42" height="14" rx="7"/><text x="'+lx[0].toFixed(1)+'" y="'+(lx[1]+1.2).toFixed(1)+'" text-anchor="middle">'+esc(_t("Port"))+'</text></g></g>';
   }
-  return {back:g,front:f,items:it,geo:{C:C,R:R,P:P,cy:cy,X1:X1,XP1:XP1,py0:py0,sx1:sx1,sy1:sy1},
+  return {back:g,front:f,items:it,land:pts(landTop),sides:sideSVG,shore:pts(landLine),geo:{C:C,R:R,P:P,cy:cy,X1:X1,XP1:XP1,py0:py0,sx1:sx1,sy1:sy1},
     left:iso(sx0,sy1,0)[0],right:iso(sx1,sy0,0)[0],bottom:iso(sx1,sy1,SEA)[1]+34,top:iso(sx0,sy0,SEA)[1]};
 }
 function citySVG(mods,o){
@@ -699,7 +710,8 @@ function citySVG(mods,o){
   var T=I?ui.cityT:{x:0,y:0,k:1},g='';
   if(hz!==null)g+=backdropSVG(vb,hz);
   if(ISL)g+=ISL.back;
-  g+='<polygon class="slab-l" points="'+pts([iso(X0,Y1,0),iso(X1,Y1,0),iso(X1,Y1,-TH),iso(X0,Y1,-TH)])+'"/><polygon class="slab-r" points="'+pts([iso(X1,Y1,0),iso(X1,Y0,0),iso(X1,Y0,-TH),iso(X1,Y1,-TH)])+'"/><polygon class="slab-t" points="'+pts([iso(X0,Y0,0),iso(X1,Y0,0),iso(X1,Y1,0),iso(X0,Y1,0)])+'"/>';
+  if(ISL&&hz!==null)g+=alpineSVG(vb,hz);
+  if(ISL){g+=ISL.sides+'<polygon class="mainland" points="'+ISL.land+'"/><polyline class="shoreline" points="'+ISL.shore+'"/>';}
   dl.forEach(function(d,k){
     var W=d.C*P,dmc=multi&&d.active===false?' dimr':'';
     for(var i=(k?1:0);i<=d.C;i++) g+='<polyline class="road'+dmc+'" points="'+pts([iso(d.x0+P*i,0,0),iso(d.x0+P*i,R*P,0)])+'"/>';
@@ -738,13 +750,31 @@ function ridgeSVG(key,xl,xr,hz,hMin,hMax,step,cls,capCls){
 function backdropSVG(vb,hz){
   var xl=vb[0]-vb[2]*1.1,xr=vb[0]+vb[2]*2.1,yb=vb[1]+vb[3]*2.6,o='';
   o+='<rect class="hzsea" x="'+xl.toFixed(0)+'" y="'+hz.toFixed(1)+'" width="'+(xr-xl).toFixed(0)+'" height="'+(yb-hz).toFixed(0)+'" fill="url(#hzg)"/>';
-  o+=ridgeSVG('mtb',xl,xr,hz+3,34,66,150,'mt1','mtc');
-  o+=ridgeSVG('mtf',xl,xr,hz+9,20,40,110,'mt2','mtc');
+  /* Keep the connected low-poly range, with one clear Matterhorn-like focal peak. */
+  o+=ridgeSVG('mtb',xl,xr,hz+3,25,43,170,'mt1','mtc');
+  o+=ridgeSVG('mtf',xl,xr,hz+9,14,27,130,'mt2','mtc');
+  var mx=vb[0]+vb[2]*.53,my=hz-61,mw=Math.max(42,vb[2]*.075),mb=hz+16;
+  o+='<g class="matterhorn" aria-hidden="true"><polygon class="mh-base" points="'+pts([[mx-mw,mb],[mx-mw*.17,my+17],[mx,my],[mx+mw*.12,my+21],[mx+mw,mb+2],[mx+mw*.38,mb-3]])+'"/><polygon class="mh-face" points="'+pts([[mx-mw,mb],[mx-mw*.17,my+17],[mx,my],[mx+mw*.12,my+21],[mx+mw*.38,mb-3]])+'"/><polygon class="mh-snow" points="'+pts([[mx-mw*.17,my+17],[mx,my],[mx+mw*.12,my+21],[mx+mw*.04,my+11],[mx-mw*.04,my+8]])+'"/><polygon class="mh-snow-shade" points="'+pts([[mx,my],[mx+mw*.12,my+21],[mx+mw*.04,my+11]])+'"/></g>';
   /* tiny far-away sailboats */
   [[.28,.24,26],[.74,.5,40]].forEach(function(b,i){
     var bx=vb[0]+vb[2]*b[0],by=hz+14+b[1]*30;
     o+='<g class="fboat" style="animation-duration:'+b[2]+'s;animation-delay:-'+(i*9)+'s"><polygon class="fb-h" points="'+(bx-7)+','+by+' '+(bx+7)+','+by+' '+(bx+4)+','+(by+3)+' '+(bx-4)+','+(by+3)+'"/><polygon class="fb-s" points="'+bx+','+(by-1)+' '+bx+','+(by-12)+' '+(bx+6)+','+(by-1)+'"/></g>';
   });
+  return o;
+}
+/* Near foothills and a small ski area are drawn over the sea and under the city land. */
+function alpineSVG(vb,hz){
+  var vx=vb[0],vw=vb[2],xl=vx-vw*.32,xr=vx+vw*1.32,fy=hz+42,bottom=hz+120,o='';
+  o+='<polygon class="foothill-back" points="'+pts([[xl,fy+3],[vx+vw*.08,fy-7],[vx+vw*.2,fy-3],[vx+vw*.34,fy-13],[vx+vw*.47,fy-5],[vx+vw*.62,fy-15],[vx+vw*.77,fy-4],[vx+vw*.9,fy-10],[xr,fy+1],[xr,bottom],[xl,bottom]])+'"/>';
+  o+='<polygon class="foothill-front" points="'+pts([[xl,fy+14],[vx+vw*.12,fy+9],[vx+vw*.25,fy+17],[vx+vw*.4,fy+8],[vx+vw*.56,fy+16],[vx+vw*.7,fy+7],[vx+vw*.86,fy+17],[xr,fy+10],[xr,bottom],[xl,bottom]])+'"/>';
+  o+='<polygon class="foothill-light" points="'+pts([[vx+vw*.06,fy+10],[vx+vw*.2,fy-3],[vx+vw*.34,fy-13],[vx+vw*.47,fy-5],[vx+vw*.35,fy+8],[vx+vw*.22,fy+16]])+'"/>';
+  var lx=vx+vw*.255,ly=fy+7,ux=vx+vw*.395,uy=fy-8;
+  o+='<g class="ski-area" aria-hidden="true"><path class="ski-trail" d="M'+(lx-5).toFixed(1)+' '+(ly+8).toFixed(1)+' Q'+(lx+vw*.08).toFixed(1)+' '+(fy+8).toFixed(1)+' '+(ux+8).toFixed(1)+' '+(uy+8).toFixed(1)+'"/><line class="lift-cable" x1="'+(lx+6).toFixed(1)+'" y1="'+(ly-5).toFixed(1)+'" x2="'+(ux+7).toFixed(1)+'" y2="'+(uy-3).toFixed(1)+'"/>'
+   +'<g transform="translate('+lx.toFixed(1)+' '+ly.toFixed(1)+')"><rect class="lift-base" x="-6" y="-4" width="12" height="6" rx="1"/><path class="lift-roof" d="M-8 -4 L0 -9 L8 -4 Z"/><rect class="lift-window" x="-3.5" y="-3" width="7" height="3"/></g>'
+   +'<g transform="translate('+ux.toFixed(1)+' '+uy.toFixed(1)+')"><rect class="lift-base" x="-6" y="-4" width="12" height="6" rx="1"/><path class="lift-roof" d="M-8 -4 L0 -9 L8 -4 Z"/><rect class="lift-window" x="-3.5" y="-3" width="7" height="3"/></g>'
+   +'<line class="lift-pole" x1="'+(lx+vw*.04).toFixed(1)+'" y1="'+(ly-3).toFixed(1)+'" x2="'+(lx+vw*.04).toFixed(1)+'" y2="'+(ly-12).toFixed(1)+'"/><line class="lift-pole" x1="'+(lx+vw*.085).toFixed(1)+'" y1="'+(ly-7).toFixed(1)+'" x2="'+(lx+vw*.085).toFixed(1)+'" y2="'+(ly-16).toFixed(1)+'"/>'
+   +'<line class="lift-seat" x1="'+(lx+vw*.04).toFixed(1)+'" y1="'+(ly-12).toFixed(1)+'" x2="'+(lx+vw*.04).toFixed(1)+'" y2="'+(ly-9).toFixed(1)+'"/><line class="lift-seat" x1="'+(lx+vw*.085).toFixed(1)+'" y1="'+(ly-16).toFixed(1)+'" x2="'+(lx+vw*.085).toFixed(1)+'" y2="'+(ly-13).toFixed(1)+'"/>'
+   +'<g transform="translate('+(ux+14).toFixed(1)+' '+(uy+2).toFixed(1)+')"><path class="hut-roof" d="M-10 0 L0 -7 L11 0 L9 2 L-9 2 Z"/><rect class="hut-wall" x="-8" y="1" width="16" height="9" rx="1"/><rect class="hut-door" x="-1.5" y="5" width="3" height="5"/><rect class="hut-window" x="-6" y="3" width="3" height="2.5"/></g></g>';
   return o;
 }
 /* weather and mood over the whole picture: the particles live in the picture's own space, not on one building */
