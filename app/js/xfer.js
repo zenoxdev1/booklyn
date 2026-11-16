@@ -44,6 +44,29 @@ export function planSend(files, have, semIds) {
   });
   return { send: send, skipHave: skipHave, skipSem: skipSem, bytes: bytes };
 }
+/* A data channel refuses messages above its max-message-size (often 64 KB, sometimes less). Records are slimmed down
+   (long text fields are dropped) and grouped so that no message gets near that limit. */
+export function slim(rec) {
+  var out = {};
+  Object.keys(rec || {}).forEach(function (k) {
+    var v = rec[k];
+    if (v === undefined || typeof v === 'function') return;
+    if (typeof v === 'string' && v.length > 400) return;
+    if (v && typeof v === 'object' && JSON.stringify(v).length > 400) return;
+    out[k] = v;
+  });
+  return out;
+}
+export function batchesBySize(list, maxChars) {
+  var out = [], cur = [], n = 0;
+  list.forEach(function (x) {
+    var l = JSON.stringify(x).length + 1;
+    if (cur.length && n + l > maxChars) { out.push(cur); cur = []; n = 0; }
+    cur.push(x); n += l;
+  });
+  if (cur.length) out.push(cur);
+  return out;
+}
 export function batches(list, n) { var out = []; for (var i = 0; i < list.length; i += n) out.push(list.slice(i, i + n)); return out; }
 
 /* o = { role: 'send'|'recv', api(method, path, body), dev, RTC (RTCPeerConnection),
@@ -226,7 +249,7 @@ export function createLink(o) {
     var p = planSend(files, R.have, R.sems);
     R.skip = p;
     sendJ({ t: 'plan', n: p.send.length, bytes: p.bytes });
-    batches(p.send, 50).forEach(function (b) { sendJ({ t: 'meta', files: JSON.parse(JSON.stringify(b)) }); });
+    batchesBySize(p.send.map(slim), 12000).forEach(function (b) { sendJ({ t: 'meta', files: b }); });
     sendJ({ t: 'planEnd' });
     if (!p.send.length) { sendJ({ t: 'done' }); return finish({ sent: 0, failed: 0, none: true, skipHave: p.skipHave, skipSem: p.skipSem }); }
     emit('status', { phase: 'ask-wait', n: p.send.length, bytes: p.bytes });

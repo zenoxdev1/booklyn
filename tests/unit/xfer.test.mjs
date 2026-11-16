@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { planSend, batches, newId, deviceId } from '../../app/js/xfer.js';
+import { planSend, batches, batchesBySize, slim, newId, deviceId } from '../../app/js/xfer.js';
 
 const f = (id, hash, sem, size) => ({ id, hash, sem, size });
 
@@ -31,4 +31,16 @@ test('the privacy page explains the device transfer', async () => {
 test('the transfer module is cached for offline use', async () => {
   const { readFileSync } = await import('node:fs');
   assert.ok(readFileSync(new URL('../../app/sw.js', import.meta.url), 'utf8').includes("'js/xfer.js'"));
+});
+
+test('records are slimmed and grouped so no message gets near the channel limit', () => {
+  var big = { id: 'a', name: 'x.pdf', why: 'w'.repeat(5000), obj: { t: 'y'.repeat(900) }, size: 3 };
+  var s = slim(big);
+  assert.deepEqual(Object.keys(s).sort(), ['id', 'name', 'size']);
+  var list = []; for (var i = 0; i < 300; i++) list.push(slim({ id: 'i' + i, name: 'file ' + i + '.pdf', path: 'a/b/' + i, size: i, hash: 'h'.repeat(64), why: 'z'.repeat(300) }));
+  var groups = batchesBySize(list, 12000);
+  assert.ok(groups.length > 1);
+  assert.equal(groups.reduce((n, g) => n + g.length, 0), 300);
+  groups.forEach(g => assert.ok(JSON.stringify({ t: 'meta', files: g }).length < 13000));
+  assert.deepEqual(batchesBySize([], 10), []);
 });
