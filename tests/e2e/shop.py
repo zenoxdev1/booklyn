@@ -28,7 +28,7 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.goto(URL); pg.evaluate("s=>localStorage.setItem('booklyn:state',JSON.stringify(s))", STATE); pg.reload(); pg.wait_for_timeout(600)
     # the island has a horizon with mountains and the water reaches it
-    check('mountains and land behind the city', pg.locator('#citysvg .mt1').count() >= 1 and pg.locator('#citysvg .mt2').count() >= 1 and pg.locator('#citysvg .hzland').count() == 1)
+    check('mountains and open sea behind the island', pg.locator('#citysvg .mt1').count() >= 1 and pg.locator('#citysvg .mt2').count() >= 1 and pg.locator('#citysvg .hzsea').count() == 1)
     check('no slab sides under the sea (the island is not floating)', pg.locator('#citysvg .sea-l').count() == 0 and pg.locator('#citysvg .sea-r').count() == 0)
     pg.goto(URL + '#/shop'); pg.wait_for_timeout(500)
     check('shop has four sections', pg.locator('.shoptabs button').count() == 4)

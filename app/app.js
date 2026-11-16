@@ -590,25 +590,25 @@ function islandLayer(C,R,P,ex,TH,I,deep){
   var sx0=-1.7,sy0=-1.7,sx1=XP1+3.5,sy1=Math.max(Y1+(deep?3.2:1.3),cy+3.3);
   var bot=-TH-8,g='',f='';
   function poly(cl,a){return '<polygon class="'+cl+'" points="'+pts(a)+'"/>';}
-  /* One continuous landscape: the ground runs on every side of the districts (a flat colour behind everything, hills and
-     mountains on the horizon, trees on the ground). The sea is only a coast in front of the city and a bay around the port.
-     Everything on the ground plane is clipped to below the horizon. */
-  var XE=X1+.9,YS=Y1+1.3,YB=-1.4,FAR=46;
-  function slabP(cl,x0,y0,x1,y1,z){return poly(cl,[iso(x0,y0,z),iso(x1,y0,z),iso(x1,y1,z),iso(x0,y1,z)]);}
-  g+='<g clip-path="url(#bhz'+CUID+')">';
-  g+=slabP('sea-t',-FAR,YS,XE+FAR,YS+FAR,SEA)+slabP('sea-t',XE,YB,XE+FAR,YS+.02,SEA);
-  g+=slabP('shal2',-FAR,YS,XE+1.8,YS+2.4,SEA)+slabP('shal1',-FAR,YS,XE+.9,YS+1.1,SEA);
-  /* the low bank between land and water, with a strip of sand along its top */
-  g+=poly('rim-l',[iso(-FAR,YS,RIM),iso(XE,YS,RIM),iso(XE,YS,SEA),iso(-FAR,YS,SEA)])
-   +poly('rim-r',[iso(XE,YS,RIM),iso(XE,YB,RIM),iso(XE,YB,SEA),iso(XE,YS,SEA)])
-   +poly('rim-l',[iso(XE,YB,RIM),iso(XE+FAR,YB,RIM),iso(XE+FAR,YB,SEA),iso(XE,YB,SEA)])
-   +slabP('rim-t',-FAR,YS-1,XE,YS,RIM)+slabP('rim-t',XE-1,YB,XE,YS-1,RIM)+slabP('rim-t',XE,YB-1,XE+FAR,YB,RIM);
-  g+='<polyline class="foam" points="'+pts([iso(-FAR,YS,SEA),iso(XE,YS,SEA),iso(XE,YB,SEA),iso(XE+FAR,YB,SEA)])+'"/>';
-  for(var w=0;w<16;w++){
-    var wx=-7+(hashStr('wx'+w)%1000)/1000*(XE+16),wy=YS+.9+(hashStr('wy'+w)%1000)/1000*6;
-    g+='<polyline class="wave" style="animation-delay:-'+(w*.7).toFixed(1)+'s" points="'+pts([iso(wx,wy,SEA),iso(wx+.7,wy,SEA)])+'"/>';
+  /* sea: only its surface is drawn here (the water itself goes to the horizon, see backdropSVG), plus shallows and slow waves */
+  g+=poly('sea-t',[iso(sx0,sy0,SEA),iso(sx1,sy0,SEA),iso(sx1,sy1,SEA),iso(sx0,sy1,SEA)]);
+  var sh=function(d,c){return poly(c,[iso(-ex-rm-d,-ex-rm-d,SEA),iso(X1+rm+d,-ex-rm-d,SEA),iso(X1+rm+d,Y1+rm+d,SEA),iso(-ex-rm-d,Y1+rm+d,SEA)]);};
+  g+=sh(1.5,'shal2')+sh(.7,'shal1');
+  for(var w=0;w<9;w++){
+    var wx=sx0+.8+(hashStr('wx'+w)%1000)/1000*(sx1-sx0-2.4),wy=sy0+.8+(hashStr('wy'+w)%1000)/1000*(sy1-sy0-1.6);
+    if(wx<X1+rm+.4&&wy<Y1+rm+.4&&wx>-rm-.4&&wy>-rm-.4)continue;
+    if(wx>X1+rm&&wx<XP1+.3&&wy>py0-.3&&wy<cy+4.4)continue;
+    g+='<polyline class="wave" style="animation-delay:-'+(w*.9).toFixed(1)+'s" points="'+pts([iso(wx,wy,SEA),iso(wx+.7,wy,SEA)])+'"/>';
   }
-  g+='</g>';
+  /* island rim (sand), then the lawn slab sits on it */
+  g+=poly('rim-l',[iso(-ex-rm,Y1+rm,RIM),iso(X1+rm,Y1+rm,RIM),iso(X1+rm,Y1+rm,SEA),iso(-ex-rm,Y1+rm,SEA)])+poly('rim-r',[iso(X1+rm,Y1+rm,RIM),iso(X1+rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,SEA),iso(X1+rm,Y1+rm,SEA)])+poly('rim-t',[iso(-ex-rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,RIM),iso(X1+rm,Y1+rm,RIM),iso(-ex-rm,Y1+rm,RIM)]);
+  g+='<polyline class="foam" points="'+pts([iso(-ex-rm,Y1+rm,SEA),iso(X1+rm,Y1+rm,SEA),iso(X1+rm,-ex-rm,SEA)])+'"/>'
+   +'<polyline class="foam" points="'+pts([iso(-ex-rm,Y1+rm,RIM),iso(-ex-rm,-ex-rm,RIM),iso(X1+rm,-ex-rm,RIM)])+'"/>';
+  /* rocks on the back shore, away from the bridge and the piers */
+  [[.18,-ex-rm-.15,1],[.42,-ex-rm-.2,.7],[-ex-rm-.2,.55,.8],[-ex-rm-.15,.3,1.1]].forEach(function(r,i){
+    var rx=r[0]<1?r[0]*C*P:r[0],ry=r[1]<0?r[1]:(r[1]<1?r[1]*R*P:r[1]),sz=r[2];
+    g+=boxP(rx-.3*sz,ry-.25*sz,rx+.3*sz,ry+.25*sz,SEA,SEA+5*sz+i,['rk-l','rk-r','rk-t']);
+  });
   /* bridge: two pylons, deck, back rail (front rail is added after the deck) */
   var by0=cy-.55,by1=cy+.55;
   [X1+1.2,X1+3.0].forEach(function(px){g+=boxP(px-.12,by0+.1,px+.12,by1-.1,SEA,-3,['br-l','br-r','br-t']);});
@@ -645,19 +645,6 @@ function islandLayer(C,R,P,ex,TH,I,deep){
   add(cx,cyy+1.3,crane);
   /* a lamp at the foot of the bridge */
   add(XP0+.2,py1-.3,'<polyline class="lp" points="'+pts([iso(XP0+.2,py1-.3,0),iso(XP0+.2,py1-.3,15)])+'"/><circle class="lampg" cx="'+iso(XP0+.2,py1-.3,16)[0].toFixed(1)+'" cy="'+iso(XP0+.2,py1-.3,16)[1].toFixed(1)+'" r="2"/>');
-  /* trees all over the land around and between the districts (never on the districts, the beach or the water) */
-  var topY=iso(sx0,sy0,SEA)[1]-52;
-  var ST=1.45,ix=0;
-  for(var tx=-14;tx<XE+11;tx+=ST,ix++){var iy=0;for(var ty=-14;ty<YS-.8;ty+=ST,iy++){
-    var hh=hashStr('t'+ix+'|'+iy);
-    var forest=hashStr('f'+Math.floor(tx/6)+'|'+Math.floor(ty/6))%10<4;
-    if(forest?hh%10<2:(ix%2||iy%2||hh%10<4))continue;
-    var px=tx+(hh%97)/97*ST*.9,pz=ty+((hh>>3)%89)/89*ST*.9;
-    if(px>-ex-1&&px<X1+1&&pz>-ex-1&&pz<Y1+1)continue;
-    if(pz>YS-1.5||(px>XE-1.5&&pz>YB-1.5))continue;
-    if(iso(px,pz,0)[1]<topY+22)continue;
-    add(px,pz,treeSVG(px,pz,.85+((hh>>5)%8)/10));
-  }}
   it.sort(function(a,b){return a.d-b.d;});
   /* the whole port (platform, ship, crane) opens the Learning Port page */
   if(I){
@@ -669,9 +656,8 @@ function islandLayer(C,R,P,ex,TH,I,deep){
   return {back:g,front:f,items:it,geo:{C:C,R:R,P:P,cy:cy,X1:X1,XP1:XP1,py0:py0,sx1:sx1,sy1:sy1},
     left:iso(sx0,sy1,0)[0],right:iso(sx1,sy0,0)[0],bottom:iso(sx1,sy1,SEA)[1]+34,top:iso(sx0,sy0,SEA)[1]};
 }
-var CUID='',CUCNT=0;
 function citySVG(mods,o){
-  o=o||{};CUID='u'+(++CUCNT);var I=!!o.interactive,P=CITY.P,F=CITY.F,items=[],ex=.35,minY=iso(-ex,-ex,0)[1];
+  o=o||{};var I=!!o.interactive,P=CITY.P,F=CITY.F,items=[],ex=.35,minY=iso(-ex,-ex,0)[1];
   SCENE=o.scene||sceneKey();
   /* districts: one per semester, side by side on one island (a single district when there is only one semester) */
   var dl=(o.districts&&o.districts.length>1)?o.districts:[{id:null,name:'',mods:mods,active:true}],multi=dl.length>1,Rm=1,CW=0;
@@ -713,8 +699,7 @@ function citySVG(mods,o){
   var T=I?ui.cityT:{x:0,y:0,k:1},g='';
   if(hz!==null)g+=backdropSVG(vb,hz);
   if(ISL)g+=ISL.back;
-  if(ISL)g+='<polygon class="apron" points="'+pts([iso(X0-1.1,Y0-1.1,0),iso(X1+1.1,Y0-1.1,0),iso(X1+1.1,Y1+.1,0),iso(X0-1.1,Y1+.1,0)])+'"/>';
-  g+=(ISL?'':'<polygon class="slab-l" points="'+pts([iso(X0,Y1,0),iso(X1,Y1,0),iso(X1,Y1,-TH),iso(X0,Y1,-TH)])+'"/><polygon class="slab-r" points="'+pts([iso(X1,Y1,0),iso(X1,Y0,0),iso(X1,Y0,-TH),iso(X1,Y1,-TH)])+'"/>')+'<polygon class="slab-t" points="'+pts([iso(X0,Y0,0),iso(X1,Y0,0),iso(X1,Y1,0),iso(X0,Y1,0)])+'"/>';
+  g+='<polygon class="slab-l" points="'+pts([iso(X0,Y1,0),iso(X1,Y1,0),iso(X1,Y1,-TH),iso(X0,Y1,-TH)])+'"/><polygon class="slab-r" points="'+pts([iso(X1,Y1,0),iso(X1,Y0,0),iso(X1,Y0,-TH),iso(X1,Y1,-TH)])+'"/><polygon class="slab-t" points="'+pts([iso(X0,Y0,0),iso(X1,Y0,0),iso(X1,Y1,0),iso(X0,Y1,0)])+'"/>';
   dl.forEach(function(d,k){
     var W=d.C*P,dmc=multi&&d.active===false?' dimr':'';
     for(var i=(k?1:0);i<=d.C;i++) g+='<polyline class="road'+dmc+'" points="'+pts([iso(d.x0+P*i,0,0),iso(d.x0+P*i,R*P,0)])+'"/>';
@@ -725,7 +710,7 @@ function citySVG(mods,o){
   if(multi)g+=waterfrontSVG(dl,R,P,ex);
   if(ISL)g+=ISL.front;
   var nb=0;dl.forEach(function(d){if(d.active!==false)nb+=d.mods.length;});
-  return '<svg class="cityv sc-'+SCENE+(I&&T.k>=2.3?' zin':'')+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+_tf('Your semester as a city: {b} buildings, {l} of {t} floors have their lights on',{b:nb,l:lit,t:tot})+'"><defs><linearGradient id="hzg" gradientUnits="userSpaceOnUse" x1="0" y1="'+(hz||0).toFixed(1)+'" x2="0" y2="'+((hz||0)+130).toFixed(1)+'"><stop class="hz0" offset="0"/><stop class="hz1" offset="1"/></linearGradient><linearGradient id="hzl'+CUID+'" gradientUnits="userSpaceOnUse" x1="0" y1="'+(hz||0).toFixed(1)+'" x2="0" y2="'+((hz||0)+340).toFixed(1)+'"><stop class="ld0" offset="0"/><stop class="ld1" offset="1"/></linearGradient><clipPath id="bhz'+CUID+'"><rect x="-6000" y="'+(hz||0).toFixed(1)+'" width="12000" height="6000"/></clipPath><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g>'+ambSVG(SCENE,vb,SCENE)+'</svg>';
+  return '<svg class="cityv sc-'+SCENE+(I&&T.k>=2.3?' zin':'')+'"'+(I?' id="citysvg"':'')+' viewBox="'+vb.map(function(v){return v.toFixed(1);}).join(' ')+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="'+_tf('Your semester as a city: {b} buildings, {l} of {t} floors have their lights on',{b:nb,l:lit,t:tot})+'"><defs><linearGradient id="hzg" gradientUnits="userSpaceOnUse" x1="0" y1="'+(hz||0).toFixed(1)+'" x2="0" y2="'+((hz||0)+130).toFixed(1)+'"><stop class="hz0" offset="0"/><stop class="hz1" offset="1"/></linearGradient><filter id="cglow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g id="cityg" transform="translate('+T.x.toFixed(1)+' '+T.y.toFixed(1)+') scale('+T.k.toFixed(3)+')">'+g+'</g>'+ambSVG(SCENE,vb,SCENE)+'</svg>';
 }
 /* ---- the far horizon: water all the way out, two low mountain ranges, a couple of tiny sailboats ---- */
 function ridgeSVG(key,xl,xr,hz,hMin,hMax,step,cls,capCls){
@@ -752,11 +737,14 @@ function ridgeSVG(key,xl,xr,hz,hMin,hMax,step,cls,capCls){
 }
 function backdropSVG(vb,hz){
   var xl=vb[0]-vb[2]*1.1,xr=vb[0]+vb[2]*2.1,yb=vb[1]+vb[3]*2.6,o='';
-  o+='<rect class="hzland" x="'+xl.toFixed(0)+'" y="'+hz.toFixed(1)+'" width="'+(xr-xl).toFixed(0)+'" height="'+(yb-hz).toFixed(0)+'" fill="url(#hzl'+CUID+')"/>';
+  o+='<rect class="hzsea" x="'+xl.toFixed(0)+'" y="'+hz.toFixed(1)+'" width="'+(xr-xl).toFixed(0)+'" height="'+(yb-hz).toFixed(0)+'" fill="url(#hzg)"/>';
   o+=ridgeSVG('mtb',xl,xr,hz+3,34,66,150,'mt1','mtc');
   o+=ridgeSVG('mtf',xl,xr,hz+9,20,40,110,'mt2','mtc');
-  o+=ridgeSVG('hlb',xl,xr,hz+30,16,38,150,'hill1','hillc');
-  o+=ridgeSVG('hlf',xl,xr,hz+64,12,26,110,'hill2','hillc');
+  /* tiny far-away sailboats */
+  [[.28,.24,26],[.74,.5,40]].forEach(function(b,i){
+    var bx=vb[0]+vb[2]*b[0],by=hz+14+b[1]*30;
+    o+='<g class="fboat" style="animation-duration:'+b[2]+'s;animation-delay:-'+(i*9)+'s"><polygon class="fb-h" points="'+(bx-7)+','+by+' '+(bx+7)+','+by+' '+(bx+4)+','+(by+3)+' '+(bx-4)+','+(by+3)+'"/><polygon class="fb-s" points="'+bx+','+(by-1)+' '+bx+','+(by-12)+' '+(bx+6)+','+(by-1)+'"/></g>';
+  });
   return o;
 }
 /* weather and mood over the whole picture: the particles live in the picture's own space, not on one building */
